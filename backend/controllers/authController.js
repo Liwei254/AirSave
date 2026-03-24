@@ -1,14 +1,15 @@
 import User from "../models/User.js";
+import Wallet from "../models/Wallet.js";
 import jwt from "jsonwebtoken";
 
-// Generate JWT Token
+// ==================== GENERATE TOKEN ====================
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
 };
 
-// REGISTER USER
+// ==================== REGISTER USER ====================
 export const registerUser = async (req, res) => {
   try {
     const { phone, password } = req.body;
@@ -24,19 +25,28 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // ⚠️ Wallet will be created later (for now use dummy ObjectId)
-    const dummyWalletId = "000000000000000000000000";
-
+    // 1. Create user (temporary wallet placeholder)
     const user = await User.create({
       phone,
       password,
-      wallet: dummyWalletId,
+      wallet: "000000000000000000000000"
     });
 
+    // 2. Create wallet
+    const wallet = await Wallet.create({
+      user: user._id
+    });
+
+    // 3. Attach wallet to user
+    user.wallet = wallet._id;
+    await user.save();
+
+    // Response
     res.status(201).json({
       _id: user._id,
       phone: user.phone,
       role: user.role,
+      wallet: wallet._id,
       token: generateToken(user._id),
     });
 
@@ -45,18 +55,24 @@ export const registerUser = async (req, res) => {
   }
 };
 
-// LOGIN USER
+// ==================== LOGIN USER ====================
 export const loginUser = async (req, res) => {
   try {
     const { phone, password } = req.body;
 
+    // Validate input
+    if (!phone || !password) {
+      return res.status(400).json({ message: "Phone and password required" });
+    }
+
+    // Find user
     const user = await User.findOne({ phone });
 
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Check password using model method
+    // Check password (uses your model method)
     const isMatch = await user.matchPassword(password);
 
     if (!isMatch) {
@@ -68,10 +84,12 @@ export const loginUser = async (req, res) => {
       return res.status(403).json({ message: "Account suspended" });
     }
 
+    // Response
     res.status(200).json({
       _id: user._id,
       phone: user.phone,
       role: user.role,
+      wallet: user.wallet,
       token: generateToken(user._id),
     });
 

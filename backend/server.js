@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import connectDB from './config/db.js';
 import authRoutes from './routes/auth.js';
+import walletRoutes from "./routes/wallet.js";
 
 // Load env vars FIRST
 dotenv.config();
@@ -22,6 +23,8 @@ app.use(express.urlencoded({ extended: false }));
 
 // Security & Logging
 app.use(helmet());
+
+app.use("/api/wallet", walletRoutes);
 
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',

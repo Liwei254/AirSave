@@ -10,7 +10,6 @@ const ledgerSchema = new mongoose.Schema({
   amount: {
     type: Number,
     required: true,
-    min: [0, 'Amount must be positive']
   },
   type: {
     type: String,
