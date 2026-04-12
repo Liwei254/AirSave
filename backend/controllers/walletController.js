@@ -20,7 +20,7 @@ export const getMyWallet = async (req, res) => {
       if (tx.type === "DEBIT") balance -= tx.amount;
     });
 
-    res.json({
+    res.status(200).json({
       walletId: wallet._id,
       balance,
       transactionsCount: transactions.length

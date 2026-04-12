@@ -21,13 +21,13 @@ export const simulateTransaction = async (req, res) => {
 
     // Save to ledger
     await Ledger.create({
-      wallet: wallet._id,
-      amount: rounding.savings,
-      type: "CREDIT",
-      reference: `TXN-${Date.now()}`,
-      description: `Rounded from ${amount} to ${rounding.rounded}`
-    });
-
+  wallet: wallet._id,
+  amount: rounding.savings,
+  type: "CREDIT",
+  reference: `ROUNDUP-${Date.now()}`,
+  description: `Saved ${rounding.savings} from ${amount}`
+});
+    
     res.status(200).json({
       message: "Transaction simulated",
       rounding
