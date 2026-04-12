@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import connectDB from './config/db.js';
 import authRoutes from './routes/auth.js';
 import walletRoutes from "./routes/wallet.js";
+import transactionRoutes from "./routes/transaction.js";
 
 // Load env vars FIRST
 dotenv.config();
@@ -20,6 +21,9 @@ connectDB();
 // Body parser
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false }));
+
+// Routes 
+app.use("/api/transactions", transactionRoutes);
 
 // Security & Logging
 app.use(helmet());
