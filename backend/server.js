@@ -9,6 +9,7 @@ import walletRoutes from "./routes/wallet.js";
 import transactionRoutes from "./routes/transaction.js";
 import goalRoutes from "./routes/goal.js";
 import analyticsRoutes from "./routes/analytics.js";
+import notificationRoutes from "./routes/notification.js";
 
 // Load env vars FIRST
 dotenv.config();
@@ -32,6 +33,9 @@ app.use("/api/goals", goalRoutes);
 
 // analytics routes
 app.use("/api/analytics", analyticsRoutes);
+
+// notification routes
+app.use("/api/notifications", notificationRoutes);
 
 // Security & Logging
 app.use(helmet());
