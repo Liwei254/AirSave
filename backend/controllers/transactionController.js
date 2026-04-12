@@ -1,6 +1,7 @@
 import Wallet from "../models/Wallet.js";
 import Ledger from "../models/Ledger.js";
 import { roundAmount } from "../utils/rounding.js";
+import Goal from "../models/Goal.js";
 
 // Simulate airtime purchase + saving
 export const simulateTransaction = async (req, res) => {
@@ -27,6 +28,23 @@ export const simulateTransaction = async (req, res) => {
   reference: `ROUNDUP-${Date.now()}`,
   description: `Saved ${rounding.savings} from ${amount}`
 });
+
+// 🔥 AUTO-ALLOCATE TO ACTIVE GOAL
+const activeGoal = await Goal.findOne({
+  user: req.user._id,
+  status: "active"
+}).sort({ createdAt: 1 }); // oldest goal first
+
+if (activeGoal) {
+  activeGoal.savedAmount += rounding.savings;
+
+  // Check if goal completed
+  if (activeGoal.savedAmount >= activeGoal.targetAmount) {
+    activeGoal.status = "completed";
+  }
+
+  await activeGoal.save();
+}
     
     res.status(200).json({
       message: "Transaction simulated",

@@ -7,6 +7,7 @@ import connectDB from './config/db.js';
 import authRoutes from './routes/auth.js';
 import walletRoutes from "./routes/wallet.js";
 import transactionRoutes from "./routes/transaction.js";
+import goalRoutes from "./routes/goal.js";
 
 // Load env vars FIRST
 dotenv.config();
@@ -24,6 +25,9 @@ app.use(express.urlencoded({ extended: false }));
 
 // Routes 
 app.use("/api/transactions", transactionRoutes);
+
+// goal routes
+app.use("/api/goals", goalRoutes);
 
 // Security & Logging
 app.use(helmet());
