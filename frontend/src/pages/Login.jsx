@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import API from "../services/api";
+import { loginUser } from "../services/api";
 
 export default function Login() {
   const [phone, setPhone] = useState("");
@@ -18,7 +18,7 @@ export default function Login() {
     setError("");
 
     try {
-      const { data } = await API.post("/auth/login", {
+      const data = await loginUser({
         phone,
         password,
       });

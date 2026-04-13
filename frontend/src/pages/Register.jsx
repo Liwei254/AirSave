@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import API from "../services/api";
+import { registerUser } from "../services/api";
 
 export default function Register() {
   const [phone, setPhone] = useState("");
@@ -18,7 +18,7 @@ export default function Register() {
     setError("");
 
     try {
-      await API.post("/auth/register", {
+      await registerUser({
         phone,
         password,
       });
