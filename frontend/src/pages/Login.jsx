@@ -1,46 +1,91 @@
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import API from "../services/api";
-import { useNavigate } from "react-router-dom";
 
 export default function Login() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleLogin = async () => {
+  const isDisabled = !phone.trim() || !password || isSubmitting;
+
+  async function handleLogin(e) {
+    e.preventDefault();
+
+    setIsSubmitting(true);
+    setError("");
+
     try {
       const { data } = await API.post("/auth/login", {
         phone,
-        password
+        password,
       });
 
       localStorage.setItem("token", data.token);
       navigate("/dashboard");
-
     } catch (err) {
-      alert(err.response?.data?.message || "Login failed");
+      setError(err.response?.data?.message || "Login failed");
+    } finally {
+      setIsSubmitting(false);
     }
-  };
+  }
 
   return (
-    <div style={{ padding: 20 }}>
-      <h2>Login</h2>
+    <main className="auth-shell">
+      <form className="auth-card" onSubmit={handleLogin}>
+        <div className="auth-brand">A</div>
+        <h1 className="auth-title">Welcome back</h1>
+        <p className="auth-subtitle">
+          Sign in to review your balance, track goals, and manage round-up savings in one place.
+        </p>
 
-      <input
-        placeholder="Phone"
-        onChange={(e) => setPhone(e.target.value)}
-      />
-      <br /><br />
+        {error ? (
+          <div className="feedback feedback-error">
+            <strong>Error:</strong>
+            <span>{error}</span>
+          </div>
+        ) : null}
 
-      <input
-        type="password"
-        placeholder="Password"
-        onChange={(e) => setPassword(e.target.value)}
-      />
-      <br /><br />
+        <div className="auth-form">
+          <div className="field-group">
+            <label className="field-label" htmlFor="phone">
+              Phone number
+            </label>
+            <input
+              id="phone"
+              className="app-input"
+              value={phone}
+              placeholder="0712345678"
+              onChange={(e) => setPhone(e.target.value)}
+            />
+          </div>
 
-      <button onClick={handleLogin}>Login</button>
-    </div>
+          <div className="field-group">
+            <label className="field-label" htmlFor="password">
+              Password
+            </label>
+            <input
+              id="password"
+              className="app-input"
+              type="password"
+              value={password}
+              placeholder="Enter your password"
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+
+          <button className="app-button app-button-primary" type="submit" disabled={isDisabled}>
+            {isSubmitting ? <span className="spinner" aria-hidden="true" /> : null}
+            <span>{isSubmitting ? "Signing in..." : "Login"}</span>
+          </button>
+        </div>
+
+        <p className="auth-footer">
+          Don&apos;t have an account? <Link to="/register">Register</Link>
+        </p>
+      </form>
+    </main>
   );
 }

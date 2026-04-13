@@ -1,27 +1,29 @@
 import Wallet from "../models/Wallet.js";
 import Ledger from "../models/Ledger.js";
-import { roundAmount } from "../utils/rounding.js";
 import Goal from "../models/Goal.js";
 import Notification from "../models/Notification.js";
+import { roundAmount } from "../utils/rounding.js";
 
-// Simulate airtime purchase + saving
+// ================= SIMULATE TRANSACTION =================
 export const simulateTransaction = async (req, res) => {
   try {
-    const { amount, rule } = req.body;
+    const { amount, rule, goalId } = req.body;
 
     if (!amount) {
       return res.status(400).json({ message: "Amount required" });
     }
 
+    // 🔢 ROUNDING
     const rounding = roundAmount(amount, rule || 10);
 
+    // 💰 GET WALLET
     const wallet = await Wallet.findOne({ user: req.user._id });
 
     if (!wallet) {
       return res.status(404).json({ message: "Wallet not found" });
     }
 
-    // 💾 Save to ledger
+    // 💾 SAVE TO LEDGER
     await Ledger.create({
       wallet: wallet._id,
       amount: rounding.savings,
@@ -30,35 +32,37 @@ export const simulateTransaction = async (req, res) => {
       description: `Saved ${rounding.savings} from ${amount}`
     });
 
-    // 🔔 Saving notification
+    // 🔔 NOTIFICATION
     await Notification.create({
       user: req.user._id,
       message: `You saved ${rounding.savings} KES 🎉`,
       type: "saving"
     });
 
-    // 🎯 AUTO-ALLOCATE TO ACTIVE GOAL
-    const activeGoal = await Goal.findOne({
-      user: req.user._id,
-      status: "active"
-    }).sort({ createdAt: 1 });
+    // 🎯 HANDLE SELECTED GOAL
+    let selectedGoal = null;
 
-    if (activeGoal) {
-      activeGoal.savedAmount += rounding.savings;
+    if (goalId) {
+      selectedGoal = await Goal.findOne({
+        _id: goalId,
+        user: req.user._id
+      });
+    }
 
-      // ✅ Goal completion check
-      if (activeGoal.savedAmount >= activeGoal.targetAmount) {
-        activeGoal.status = "completed";
+    if (selectedGoal) {
+      selectedGoal.savedAmount += rounding.savings;
 
-        // 🔔 Goal completion notification
+      if (selectedGoal.savedAmount >= selectedGoal.targetAmount) {
+        selectedGoal.status = "completed";
+
         await Notification.create({
           user: req.user._id,
-          message: `🎯 Goal "${activeGoal.name}" completed!`,
+          message: `🎯 Goal "${selectedGoal.name}" completed!`,
           type: "goal"
         });
       }
 
-      await activeGoal.save();
+      await selectedGoal.save();
     }
 
     res.status(200).json({

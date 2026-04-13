@@ -10,7 +10,7 @@ export const createGoal = async (req, res) => {
     }
 
     // ❌ Prevent multiple active goals
-    const existingGoal = await Goal.findOne({
+    /*const existingGoal = await Goal.findOne({
       user: req.user._id,
       status: "active"
     });
@@ -19,12 +19,14 @@ export const createGoal = async (req, res) => {
       return res.status(400).json({
         message: "You already have an active goal. Complete it first."
       });
-    }
+    } */
 
     const goal = await Goal.create({
       user: req.user._id,
       name,
-      targetAmount
+      targetAmount,
+      savedAmount: 0,
+      status: "active"
     });
 
     res.status(201).json(goal);

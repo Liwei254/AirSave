@@ -16,6 +16,38 @@ dotenv.config();
 
 const app = express();
 
+const defaultAllowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5174',
+];
+
+const allowedOrigins = (
+  process.env.CLIENT_URLS ||
+  process.env.CLIENT_URL ||
+  defaultAllowedOrigins.join(',')
+)
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
+
+// Body parser
+app.use(express.json());
+
 // Connect Database
 connectDB();
 
@@ -34,6 +66,10 @@ app.use("/api/goals", goalRoutes);
 // analytics routes
 app.use("/api/analytics", analyticsRoutes);
 
+// auth routes
+// app.use("/api/auth", authRoutes);
+
+
 // notification routes
 app.use("/api/notifications", notificationRoutes);
 
@@ -41,11 +77,6 @@ app.use("/api/notifications", notificationRoutes);
 app.use(helmet());
 
 app.use("/api/wallet", walletRoutes);
-
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true
-}));
 
 app.use(morgan('combined'));
 
