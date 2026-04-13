@@ -140,10 +140,6 @@ http://localhost:5000/api
 
 ---
 
-## 👨‍💻 Author
-
-James Otipa
-Software Engineer
 
 ---
 
