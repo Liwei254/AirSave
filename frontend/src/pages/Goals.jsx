@@ -11,6 +11,7 @@ export default function Goals() {
   const [targetAmount, setTargetAmount] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [error, setError] = useState("");
 
@@ -67,6 +68,8 @@ export default function Goals() {
   }
 
   const createDisabled = !goalName.trim() || !targetAmount || Number(targetAmount) <= 0 || isSubmitting;
+  const activeGoals = goals.filter((goal) => goal.status !== "completed");
+  const completedGoals = goals.filter((goal) => goal.status === "completed");
 
   return (
     <Layout
@@ -147,7 +150,7 @@ export default function Goals() {
           <div className="card-header">
             <div>
               <h2 className="card-title">Goals overview</h2>
-              <p className="card-subtitle">A focused view of all active and completed targets.</p>
+              <p className="card-subtitle">Active goals first, with completed ones tucked away until you need them.</p>
             </div>
             <div className="status-chip">{goals.length} total</div>
           </div>
@@ -158,10 +161,49 @@ export default function Goals() {
               <span>Loading goals...</span>
             </div>
           ) : goals.length ? (
-            <div className="goal-list">
-              {goals.map((goal) => (
-                <GoalCard key={goal._id} goal={goal} />
-              ))}
+            <div className="goal-page-stack">
+              <div className="goal-section-header">
+                <div>
+                  <strong>Active goals</strong>
+                  <div className="muted">{activeGoals.length} currently in progress</div>
+                </div>
+              </div>
+
+              {activeGoals.length ? (
+                <div className="goal-list">
+                  {activeGoals.map((goal) => (
+                    <GoalCard key={goal._id} goal={goal} />
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state compact-empty-state">No active goals right now.</div>
+              )}
+
+              <div className="goal-section-header">
+                <div>
+                  <strong>Completed goals</strong>
+                  <div className="muted">{completedGoals.length} archived achievements</div>
+                </div>
+                <button
+                  className="text-button"
+                  type="button"
+                  onClick={() => setShowCompleted((current) => !current)}
+                >
+                  {showCompleted ? "Hide" : "Show"}
+                </button>
+              </div>
+
+              {showCompleted ? (
+                completedGoals.length ? (
+                  <div className="goal-list">
+                    {completedGoals.map((goal) => (
+                      <GoalCard key={goal._id} goal={goal} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-state compact-empty-state">No completed goals yet.</div>
+                )
+              ) : null}
             </div>
           ) : (
             <div className="empty-state">No goals yet. Create one to start tracking your savings progress.</div>

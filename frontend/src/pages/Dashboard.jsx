@@ -2,15 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import WalletCard from "../components/WalletCard.jsx";
-import GoalCard from "../components/GoalCard.jsx";
 import TransactionList from "../components/TransactionList.jsx";
-import NotificationList from "../components/NotificationList.jsx";
 import {
   getGoals,
-  getNotifications,
   getTransactions,
   getWallet,
-  markNotificationRead,
 } from "../services/api";
 import { formatCurrency } from "../utils/formatters";
 
@@ -19,7 +15,6 @@ export default function Dashboard() {
   const [wallet, setWallet] = useState(null);
   const [goals, setGoals] = useState([]);
   const [transactions, setTransactions] = useState([]);
-  const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -40,11 +35,10 @@ export default function Dashboard() {
     }
 
     try {
-      const [walletData, goalsData, transactionsData, notificationsData] = await Promise.all([
+      const [walletData, goalsData, transactionsData] = await Promise.all([
         getWallet(),
         getGoals(),
         getTransactions(),
-        getNotifications(),
       ]);
 
       if (!isMounted) return;
@@ -52,7 +46,6 @@ export default function Dashboard() {
       setWallet(walletData);
       setGoals(goalsData);
       setTransactions(transactionsData);
-      setNotifications(notificationsData);
       setError("");
     } catch (err) {
       if (!isMounted) return;
@@ -72,27 +65,8 @@ export default function Dashboard() {
     }
   }
 
-  async function handleMarkAsRead(id) {
-    try {
-      await markNotificationRead(id);
-      setNotifications((current) =>
-        current.map((notification) =>
-          notification._id === id ? { ...notification, read: true } : notification
-        )
-      );
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to update notification.");
-    }
-  }
-
-  function logout() {
-    localStorage.removeItem("token");
-    navigate("/");
-  }
-
   const activeGoals = goals.filter((goal) => goal.status !== "completed");
   const completedGoals = goals.filter((goal) => goal.status === "completed");
-  const unreadNotifications = notifications.filter((notification) => !notification.read).length;
 
   if (isLoading) {
     return (
@@ -118,9 +92,6 @@ export default function Dashboard() {
           </div>
           <button className="app-button app-button-secondary" type="button" onClick={() => loadDashboard(true)}>
             Refresh
-          </button>
-          <button className="app-button app-button-danger" type="button" onClick={logout}>
-            Logout
           </button>
         </>
       }
@@ -151,83 +122,24 @@ export default function Dashboard() {
           <div className="metric-meta">Latest wallet activity</div>
         </article>
         <article className="app-card metric-card">
-          <span className="metric-label">Notifications</span>
-          <p className="metric-value metric-value-sm">{unreadNotifications}</p>
-          <div className="metric-meta">Unread account alerts</div>
+          <span className="metric-label">Total Savings</span>
+          <p className="metric-value metric-value-sm">{formatCurrency(wallet?.balance)}</p>
+          <div className="metric-meta">Current wallet value</div>
         </article>
       </section>
 
-      <section className="dashboard-columns">
-        <article className="app-card goals-column">
-          <div className="card-header">
-            <div>
-              <h2 className="card-title">Goal progress</h2>
-              <p className="card-subtitle">A quick view of your active and completed savings goals.</p>
-            </div>
+      <section className="app-card">
+        <div className="card-header">
+          <div>
+            <h2 className="card-title">Recent activity</h2>
+            <p className="card-subtitle">The latest five savings movements across your wallet.</p>
           </div>
-
-          {goals.length ? (
-            <div className="goal-list">
-              {goals.slice(0, 4).map((goal) => (
-                <GoalCard key={goal._id} goal={goal} />
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">No goals yet. Visit Goals to create your first target.</div>
-          )}
-        </article>
-
-        <article className="app-card activity-column">
-          <div className="card-header">
-            <div>
-              <h2 className="card-title">Recent activity</h2>
-              <p className="card-subtitle">Your latest wallet transactions, updated live.</p>
-            </div>
-          </div>
-          <TransactionList
-            transactions={transactions.slice(0, 5)}
-            emptyMessage="No transactions yet. Visit Transactions to start saving."
-          />
-        </article>
-      </section>
-
-      <section className="section-grid">
-        <article className="app-card">
-          <div className="card-header">
-            <div>
-              <h2 className="card-title">Notifications</h2>
-              <p className="card-subtitle">Recent goal and savings updates from your account.</p>
-            </div>
-            <div className="status-chip">{unreadNotifications} unread</div>
-          </div>
-          <NotificationList
-            notifications={notifications.slice(0, 6)}
-            onMarkAsRead={handleMarkAsRead}
-            emptyMessage="No notifications yet. Savings activity will appear here."
-          />
-        </article>
-
-        <article className="app-card">
-          <div className="card-header">
-            <div>
-              <h2 className="card-title">Performance snapshot</h2>
-              <p className="card-subtitle">A clean summary of where your account stands right now.</p>
-            </div>
-          </div>
-
-          <div className="admin-panel-grid">
-            <div className="admin-panel-tile">
-              <span className="metric-label">Wallet balance</span>
-              <strong>{formatCurrency(wallet?.balance)}</strong>
-              <span className="muted">Current total savings available.</span>
-            </div>
-            <div className="admin-panel-tile">
-              <span className="metric-label">Goal completion</span>
-              <strong>{completedGoals.length}</strong>
-              <span className="muted">Targets already completed by your account.</span>
-            </div>
-          </div>
-        </article>
+          <div className="status-chip">{transactions.length} total</div>
+        </div>
+        <TransactionList
+          transactions={transactions.slice(0, 5)}
+          emptyMessage="No transactions yet. Visit Transactions to start saving."
+        />
       </section>
     </Layout>
   );

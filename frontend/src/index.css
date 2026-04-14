@@ -112,6 +112,14 @@ img {
   letter-spacing: -0.03em;
 }
 
+.navbar-center {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
 .navbar-brand-mark {
   display: inline-flex;
   align-items: center;
@@ -127,21 +135,21 @@ img {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .navbar-link {
-  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   min-height: 38px;
-  padding: 0 14px;
+  padding: 0 12px;
   border-radius: 999px;
   color: var(--color-text-muted);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   transition: color 0.24s ease, background-color 0.24s ease, box-shadow 0.24s ease, transform 0.24s ease;
 }
 
@@ -150,6 +158,186 @@ img {
   color: var(--color-primary);
   background: rgba(255, 255, 255, 0.34);
   box-shadow: 0 0 18px rgba(0, 229, 255, 0.18);
+}
+
+.navbar-link-icon {
+  font-size: 14px;
+}
+
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.navbar-action-wrap {
+  position: relative;
+}
+
+.icon-button,
+.avatar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.34);
+  color: var(--color-text);
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.icon-button:hover,
+.avatar-button:hover {
+  background: rgba(255, 255, 255, 0.56);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.subtle-button {
+  min-width: 32px;
+  min-height: 32px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.icon-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.avatar-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.9), rgba(37, 99, 235, 0.8));
+  color: #032a36;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.navbar-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(320px, calc(100vw - 32px));
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.66);
+  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.14);
+}
+
+.notification-dropdown {
+  display: grid;
+  gap: 14px;
+}
+
+.notification-dropdown-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.notification-dropdown-group {
+  display: grid;
+  gap: 8px;
+}
+
+.notification-dropdown-group-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.notification-dropdown-list {
+  display: grid;
+  gap: 8px;
+}
+
+.notification-dropdown-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.notification-dropdown-icon {
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.notification-dropdown-copy {
+  min-width: 0;
+}
+
+.notification-dropdown-message {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notification-dropdown-meta {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.notification-dropdown-link {
+  color: var(--color-primary-dark);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.avatar-menu {
+  display: grid;
+  gap: 8px;
+  width: 220px;
+}
+
+.avatar-menu-item {
+  display: grid;
+  gap: 2px;
+  padding: 8px 4px;
+}
+
+.avatar-menu-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  min-height: 42px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(220, 38, 38, 0.08);
+  color: #991b1b;
+  font-weight: 700;
+}
+
+.navbar-toggle {
+  display: none;
 }
 
 .app-shell {
@@ -385,6 +573,13 @@ img {
   margin-bottom: 24px;
 }
 
+.transaction-page-grid {
+  display: grid;
+  grid-template-columns: 0.95fr 0.75fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
 .app-card {
   position: relative;
   overflow: hidden;
@@ -492,6 +687,10 @@ img {
   z-index: 1;
 }
 
+.wallet-card .metric-meta {
+  max-width: 340px;
+}
+
 .wallet-card-main {
   display: flex;
   flex-direction: column;
@@ -563,6 +762,10 @@ img {
   box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06);
 }
 
+.compact-action-card .quick-save-card {
+  padding: 16px;
+}
+
 .activity-column .activity-list,
 .activity-column .transaction-section,
 .goals-column .goal-list {
@@ -619,6 +822,19 @@ img {
 
 .transaction-section {
   display: grid;
+  gap: 12px;
+}
+
+.goal-page-stack,
+.filter-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.goal-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
 }
 
@@ -835,6 +1051,10 @@ img {
   text-align: center;
 }
 
+.compact-empty-state {
+  padding: 16px;
+}
+
 .section-actions {
   display: flex;
   align-items: center;
@@ -920,6 +1140,11 @@ img {
   color: var(--color-text-muted);
 }
 
+.page-shell .app-card,
+.support-page-shell .app-card {
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -952,7 +1177,8 @@ img {
   .metrics-grid,
   .admin-panel-grid,
   .dashboard-columns,
-  .summary-grid {
+  .summary-grid,
+  .transaction-page-grid {
     grid-template-columns: 1fr;
   }
 
@@ -994,13 +1220,30 @@ img {
   .floating-navbar {
     border-radius: 28px;
     padding: 14px 16px;
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .navbar-toggle {
+    display: inline-flex;
+  }
+
+  .navbar-center {
+    display: none;
+    width: 100%;
+    justify-content: flex-start;
+    order: 3;
+  }
+
+  .navbar-center-open {
+    display: flex;
   }
 
   .navbar-links {
     width: 100%;
     justify-content: flex-start;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .app-shell,
@@ -1026,6 +1269,14 @@ img {
   .form-actions,
   .section-actions {
     width: 100%;
+  }
+
+  .navbar-actions {
+    margin-left: auto;
+  }
+
+  .navbar-popover {
+    right: -10px;
   }
 
   .wallet-sparkline-svg {
