@@ -1,126 +1,42 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
-import dotenv from 'dotenv';
-import connectDB from './config/db.js';
-import authRoutes from './routes/auth.js';
-import walletRoutes from "./routes/wallet.js";
-import transactionRoutes from "./routes/transaction.js";
-import goalRoutes from "./routes/goal.js";
-import analyticsRoutes from "./routes/analytics.js";
-import notificationRoutes from "./routes/notification.js";
-import paymentRoutes from "./routes/paymentRoutes.js";
-
-// Load env vars FIRST
+// ==================== CORE ====================
 dotenv.config();
+connectDB();
 
 const app = express();
 
-const defaultAllowedOrigins = [
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  'http://localhost:5174',
-  'http://127.0.0.1:5174',
-];
-
-const allowedOrigins = (
-  process.env.CLIENT_URLS ||
-  process.env.CLIENT_URL ||
-  defaultAllowedOrigins.join(',')
-)
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-
-const corsOptions = {
-  origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    return callback(new Error(`CORS blocked for origin: ${origin}`));
-  },
-  credentials: true,
-};
+// ==================== MIDDLEWARE ====================
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 app.use(cors({
-  origin: ["http://localhost:5173", "https://your-frontend.onrender.com"],
+  origin: [
+    "http://localhost:5173",
+    "https://airsave-1.onrender.com"
+  ],
   credentials: true
 }));
 
-// Body parser
-app.use(express.json());
-
-// Connect Database
-connectDB();
-
-// ==================== MIDDLEWARE ====================
-
-// Body parser
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: false }));
-
-// Routes 
-app.use("/api/transactions", transactionRoutes);
-
-// goal routes
-app.use("/api/goals", goalRoutes);
-
-// analytics routes
-app.use("/api/analytics", analyticsRoutes);
-
-// auth routes
-// app.use("/api/auth", authRoutes);
-
-
-// notification routes
-app.use("/api/notifications", notificationRoutes);
-
-// Security & Logging
 app.use(helmet());
-
-// payment routes
-app.use("/api/payments", paymentRoutes);
-
-app.use("/api/wallet", walletRoutes);
-
-app.use(morgan('combined'));
+app.use(morgan("combined"));
 
 // ==================== ROUTES ====================
+app.use("/api/auth", authRoutes);
+app.use("/api/wallet", walletRoutes);
+app.use("/api/transactions", transactionRoutes);
+app.use("/api/goals", goalRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/payments", paymentRoutes);
 
-// Welcome route
-app.get('/', (req, res) => {
+// ==================== ROOT ====================
+app.get("/", (req, res) => {
   res.json({
-    message: 'AirSave API - Micro-Savings Platform',
-    version: '1.0.0',
-    status: 'running'
+    message: "AirSave API",
+    status: "running"
   });
 });
-
-// ✅ FIXED HERE
-app.use('/api/auth', authRoutes);
 
 // ==================== ERROR HANDLING ====================
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ message: 'Route not found' });
-});
-
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({
-    message: err.message || 'Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
-});
-
-// ==================== SERVER ====================
-
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-  console.log(`🚀 AirSave Server running on port ${PORT}`);
+app.use("*", (req, res) => {
+  res.status(404).json({ message: "Route not found" });
 });
