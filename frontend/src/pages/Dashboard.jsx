@@ -65,7 +65,7 @@ export default function Dashboard() {
 
   return (
     <Layout
-      eyebrow="Dashboard"
+     // eyebrow="Dashboard"
       title="Save smarter with every transaction."
       subtitle="Your overview of savings balance, active goals, recent activity, and quick links into the main savings flow."
     >
@@ -108,13 +108,8 @@ export default function Dashboard() {
       </section>
 
       <section className="app-card">
-        <div className="card-header">
-          <div>
-            <h2 className="card-title">Recent activity</h2>
-            <p className="card-subtitle">
-              The latest five savings movements across your wallet.
-            </p>
-          </div>
+        <div className="card-header d-flex justify-content-between align-items-center">
+         <span className="status-chip fs-5 fw-semibold">Recent Activities</span>
           <div className="status-chip">{transactions.length} total</div>
         </div>
 
