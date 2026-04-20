@@ -5,7 +5,7 @@ const apiBaseUrl =
   `${window.location.protocol}//${window.location.hostname}:5000/api`;
 
 const API = axios.create({
-  baseURL: "apiBaseUrl"
+  baseURL: apiBaseUrl
 });
 
 API.interceptors.request.use((req) => {
