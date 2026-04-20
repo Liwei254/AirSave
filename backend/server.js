@@ -11,7 +11,7 @@ import goalRoutes from "./routes/goal.js";
 import analyticsRoutes from "./routes/analytics.js";
 import notificationRoutes from "./routes/notification.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
-import dotenv from "dotenv";
+
 
 // Load env vars FIRST
 dotenv.config();
