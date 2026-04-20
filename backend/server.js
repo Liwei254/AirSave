@@ -10,6 +10,7 @@ import transactionRoutes from "./routes/transaction.js";
 import goalRoutes from "./routes/goal.js";
 import analyticsRoutes from "./routes/analytics.js";
 import notificationRoutes from "./routes/notification.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 
 // Load env vars FIRST
 dotenv.config();
@@ -75,6 +76,9 @@ app.use("/api/notifications", notificationRoutes);
 
 // Security & Logging
 app.use(helmet());
+
+// payment routes
+app.use("/api/payments", paymentRoutes);
 
 app.use("/api/wallet", walletRoutes);
 

@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import Wallet from "../models/Wallet.js";
 import jwt from "jsonwebtoken";
+import { normalizePhone } from "../services/paymentService.js";
 
 // ==================== GENERATE TOKEN ====================
 const generateToken = (id) => {
@@ -12,22 +13,23 @@ const generateToken = (id) => {
 // ==================== REGISTER USER ====================
 export const registerUser = async (req, res) => {
   try {
-    const { phone, password } = req.body;
+    const normalizedPhone = normalizePhone(req.body.phone);
+    const { password } = req.body;
 
     // Validate input
-    if (!phone || !password) {
+    if (!normalizedPhone || !password) {
       return res.status(400).json({ message: "Phone and password required" });
     }
 
     // Check if user exists
-    const userExists = await User.findOne({ phone });
+    const userExists = await User.findOne({ phone: normalizedPhone });
     if (userExists) {
       return res.status(400).json({ message: "User already exists" });
     }
 
     // 1. Create user (temporary wallet placeholder)
     const user = await User.create({
-      phone,
+      phone: normalizedPhone,
       password,
       wallet: "000000000000000000000000"
     });
@@ -58,15 +60,16 @@ export const registerUser = async (req, res) => {
 // ==================== LOGIN USER ====================
 export const loginUser = async (req, res) => {
   try {
-    const { phone, password } = req.body;
+    const normalizedPhone = normalizePhone(req.body.phone);
+    const { password } = req.body;
 
     // Validate input
-    if (!phone || !password) {
+    if (!normalizedPhone || !password) {
       return res.status(400).json({ message: "Phone and password required" });
     }
 
     // Find user
-    const user = await User.findOne({ phone });
+    const user = await User.findOne({ phone: normalizedPhone });
 
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });

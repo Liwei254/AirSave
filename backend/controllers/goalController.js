@@ -3,9 +3,9 @@ import Goal from "../models/Goal.js";
 // Create Goal
 export const createGoal = async (req, res) => {
   try {
-    const { name, targetAmount } = req.body;
+    const { name, targetAmount, duration } = req.body;
 
-    if (!name || !targetAmount) {
+    if (!name || !targetAmount || !duration) {
       return res.status(400).json({ message: "All fields required" });
     }
 
@@ -25,6 +25,7 @@ export const createGoal = async (req, res) => {
       user: req.user._id,
       name,
       targetAmount,
+      duration,
       savedAmount: 0,
       status: "active"
     });

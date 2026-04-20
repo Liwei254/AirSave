@@ -13,6 +13,7 @@ export default function GoalCard({ goal }) {
           <div className="goal-meta">
             <span>{formatCurrency(goal.savedAmount)} saved</span>
             <span>Target {formatCurrency(goal.targetAmount)}</span>
+            {goal.duration ? <span>Duration {goal.duration}</span> : null}
           </div>
         </div>
         <span className={statusClass}>{goal.status || "active"}</span>

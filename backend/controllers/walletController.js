@@ -1,5 +1,6 @@
 import Wallet from "../models/Wallet.js";
 import Ledger from "../models/Ledger.js";
+import { calculateWalletBalance } from "../services/ledgerService.js";
 
 /**
  * @desc    Get wallet details (balance + count)
@@ -16,15 +17,8 @@ export const getWallet = async (req, res) => {
     }
 
     // Get all transactions for this wallet
-    const transactions = await Ledger.find({ wallet: wallet._id });
-
-    // Calculate balance from ledger
-    let balance = 0;
-
-    transactions.forEach((tx) => {
-      if (tx.type === "CREDIT") balance += tx.amount;
-      if (tx.type === "DEBIT") balance -= tx.amount;
-    });
+    const transactions = await Ledger.find({ wallet: wallet._id, status: "completed" });
+    const balance = await calculateWalletBalance(wallet._id);
 
     res.status(200).json({
       walletId: wallet._id,

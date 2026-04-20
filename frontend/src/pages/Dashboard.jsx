@@ -1,13 +1,9 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import WalletCard from "../components/WalletCard.jsx";
 import TransactionList from "../components/TransactionList.jsx";
-import {
-  getGoals,
-  getTransactions,
-  getWallet,
-} from "../services/api";
+import { getGoals, getTransactions, getWallet } from "../services/api";
 import { formatCurrency } from "../utils/formatters";
 
 export default function Dashboard() {
@@ -83,9 +79,15 @@ export default function Dashboard() {
     <Layout
       eyebrow="Dashboard"
       title="Save smarter with every transaction."
-      subtitle="Your overview of savings balance, active goals, recent activity, and alerts."
+      subtitle="Your overview of savings balance, active goals, recent activity, and quick links into the main savings flow."
       actions={
         <>
+          <Link className="app-button app-button-secondary" to="/savings">
+            Savings
+          </Link>
+          <Link className="app-button app-button-secondary" to="/withdraw">
+            Withdraw
+          </Link>
           <div className="status-chip">
             {isRefreshing ? <span className="spinner spinner-dark" aria-hidden="true" /> : null}
             <span>{isRefreshing ? "Refreshing" : "Live data synced"}</span>
@@ -104,10 +106,7 @@ export default function Dashboard() {
       ) : null}
 
       <section className="wallet-row">
-        <WalletCard
-          balance={formatCurrency(wallet?.balance)}
-          subtitle="Available across all saved round-ups"
-        />
+        <WalletCard balance={formatCurrency(wallet?.balance)} subtitle="Available across all saved round-ups" />
       </section>
 
       <section className="summary-grid">
@@ -138,7 +137,7 @@ export default function Dashboard() {
         </div>
         <TransactionList
           transactions={transactions.slice(0, 5)}
-          emptyMessage="No transactions yet. Visit Transactions to start saving."
+          emptyMessage="No transactions yet. Visit Savings to start saving."
         />
       </section>
     </Layout>

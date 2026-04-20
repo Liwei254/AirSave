@@ -14,6 +14,10 @@ const goalSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  duration: {
+    type: String,
+    default: ""
+  },
   savedAmount: {
     type: Number,
     default: 0

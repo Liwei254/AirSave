@@ -49,9 +49,23 @@ export async function getTransactions() {
   return data.transactions || [];
 }
 
-export async function simulateTransaction(payload) {
-  const { data } = await API.post("/transactions/simulate", payload);
+export async function getSavingsActivity() {
+  const { data } = await API.get("/transactions/activity");
   return data;
+}
+
+export async function initiatePayment(payload) {
+  const { data } = await API.post("/transactions/payments/initiate", payload);
+  return data;
+}
+
+export async function submitWithdrawal(payload) {
+  const { data } = await API.post("/transactions/withdraw", payload);
+  return data;
+}
+
+export async function simulateTransaction(payload) {
+  return initiatePayment(payload);
 }
 
 export async function getNotifications() {

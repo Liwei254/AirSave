@@ -4,11 +4,8 @@ import NotificationDropdown from "./NotificationDropdown.jsx";
 import { getNotifications } from "../services/api";
 
 const navItems = [
-  { label: "Dashboard", to: "/dashboard", icon: "🏠" },
-  { label: "Goals", to: "/goals", icon: "🎯" },
-  { label: "Transactions", to: "/transactions", icon: "💸" },
-  { label: "Support", to: "/support", icon: "🛟" },
-  { label: "Admin", to: "/admin", icon: "⚙️" },
+  { label: "Savings", to: "/savings", icon: "S" },
+  { label: "Withdraw", to: "/withdraw", icon: "W" },
 ];
 
 export default function Navbar() {
@@ -86,7 +83,7 @@ export default function Navbar() {
           onClick={() => setMobileOpen((current) => !current)}
           aria-label="Toggle navigation"
         >
-          ☰
+          =
         </button>
 
         <div className={`navbar-center ${mobileOpen ? "navbar-center-open" : ""}`}>
@@ -118,7 +115,7 @@ export default function Navbar() {
               }}
               aria-label="Notifications"
             >
-              <span aria-hidden="true">🔔</span>
+              <span aria-hidden="true">N</span>
               {unreadCount ? <span className="icon-badge">{unreadCount}</span> : null}
             </button>
             <NotificationDropdown
@@ -152,7 +149,7 @@ export default function Navbar() {
                   <span className="muted">Coming soon</span>
                 </div>
                 <button className="avatar-menu-button" type="button" onClick={handleLogout}>
-                  <span aria-hidden="true">🚪</span>
+                  <span aria-hidden="true">X</span>
                   <span>Logout</span>
                 </button>
               </div>

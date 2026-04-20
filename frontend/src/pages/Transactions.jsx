@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import TransactionList from "../components/TransactionList.jsx";
 import WalletCard from "../components/WalletCard.jsx";
-import { getGoals, getTransactions, getWallet, simulateTransaction } from "../services/api";
+import { getGoals, getTransactions, getWallet, initiatePayment } from "../services/api";
 import { formatCurrency } from "../utils/formatters";
 
 export default function Transactions() {
@@ -12,7 +12,9 @@ export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
   const [goals, setGoals] = useState([]);
   const [amount, setAmount] = useState("");
+  const [rule, setRule] = useState(10);
   const [selectedGoal, setSelectedGoal] = useState("");
+  const [phone, setPhone] = useState("");
   const [typeFilter, setTypeFilter] = useState("ALL");
   const [dateFilter, setDateFilter] = useState("ALL");
   const [isLoading, setIsLoading] = useState(true);
@@ -41,6 +43,7 @@ export default function Transactions() {
       setWallet(walletData);
       setTransactions(transactionsData);
       setGoals(goalsData);
+      setPhone("");
       setError("");
     } catch (err) {
       if (!isMounted) return;
@@ -57,32 +60,38 @@ export default function Transactions() {
     }
   }
 
-  async function handleSimulateTransaction() {
+  async function handleInitiatePayment() {
     if (!amount) return;
 
     setIsSubmitting(true);
     setFeedback(null);
 
     try {
-      await simulateTransaction({
+      const response = await initiatePayment({
         amount: Number(amount),
-        rule: 10,
+        rule,
         goalId: selectedGoal || undefined,
+        phone: phone || undefined,
       });
 
       setAmount("");
       setSelectedGoal("");
-      setFeedback({ type: "success", message: "Round-up saved successfully." });
+      setPhone("");
+      setFeedback({
+        type: "success",
+        message: `Payment initiated for ${response.phone}. Savings will post after confirmation.`,
+      });
       await loadTransactionsPage(true);
     } catch (err) {
-      setFeedback({ type: "error", message: err.response?.data?.message || "Transaction failed." });
+      setFeedback({ type: "error", message: err.response?.data?.message || "Payment initiation failed." });
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  const rounded = amount ? Math.ceil(Number(amount) / 10) * 10 : 0;
-  const savings = amount ? rounded - Number(amount) : 0;
+  const numericAmount = Number(amount);
+  const rounded = amount ? Math.ceil(numericAmount / rule) * rule : 0;
+  const savings = amount ? rounded - numericAmount : 0;
   const saveDisabled = !amount || Number(amount) <= 0 || isSubmitting;
   const filteredTransactions = transactions.filter((transaction) => {
     const matchesType = typeFilter === "ALL" || transaction.type === typeFilter;
@@ -107,7 +116,7 @@ export default function Transactions() {
     <Layout
       eyebrow="Transactions"
       title="Monitor every savings movement."
-      subtitle="Review transaction history, simulate new round-ups, and understand current wallet activity."
+      subtitle="Review transaction history, initiate real payment-backed savings, and understand current wallet activity."
     >
       {feedback ? (
         <div className={`feedback ${feedback.type === "success" ? "feedback-success" : "feedback-error"}`}>
@@ -136,16 +145,30 @@ export default function Transactions() {
         <article className="app-card compact-action-card">
           <div className="card-header">
             <div>
-              <h2 className="card-title">Quick round-up</h2>
-              <p className="card-subtitle">Use this only when you want to create a new round-up.</p>
+              <h2 className="card-title">Initiate payment</h2>
+              <p className="card-subtitle">Savings only post after the payment provider confirms the debit.</p>
             </div>
           </div>
 
           <div className="quick-save-card">
             <div className="form-grid">
               <div className="field-group">
+                <label className="field-label" htmlFor="paymentPhone">
+                  Payment phone number
+                </label>
+                <input
+                  id="paymentPhone"
+                  className="app-input"
+                  type="tel"
+                  placeholder="Use your registered phone number"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+
+              <div className="field-group">
                 <label className="field-label" htmlFor="amount">
-                  Transaction amount
+                  Purchase amount
                 </label>
                 <input
                   id="amount"
@@ -177,22 +200,42 @@ export default function Transactions() {
                 </select>
               </div>
 
+              <div className="field-group">
+                <label className="field-label" htmlFor="roundingRule">
+                  Rounding rule
+                </label>
+                <select
+                  id="roundingRule"
+                  className="app-select"
+                  value={rule}
+                  onChange={(e) => setRule(Number(e.target.value))}
+                >
+                  <option value={10}>10 - Light Saver</option>
+                  <option value={50}>50 - Balanced</option>
+                  <option value={100}>100 - Aggressive</option>
+                </select>
+              </div>
+
               <div className="preview-card">
-                <strong>Round-up preview:</strong>{" "}
-                {amount
-                  ? `You will save ${formatCurrency(savings)} from a ${formatCurrency(amount)} transaction.`
-                  : "Enter an amount to preview the savings amount."}
+                <strong>Payment preview:</strong>{" "}
+                {amount ? (
+                  <>
+                    You will pay: {formatCurrency(rounded)}. You will save: {formatCurrency(savings)}.
+                  </>
+                ) : (
+                  "Enter an amount to preview the confirmed savings amount."
+                )}
               </div>
 
               <div className="form-actions">
                 <button
                   className="app-button app-button-primary"
                   type="button"
-                  onClick={handleSimulateTransaction}
+                  onClick={handleInitiatePayment}
                   disabled={saveDisabled}
                 >
                   {isSubmitting ? <span className="spinner" aria-hidden="true" /> : null}
-                  <span>{isSubmitting ? "Saving..." : "Save now"}</span>
+                  <span>{isSubmitting ? "Processing..." : "Initiate payment"}</span>
                 </button>
               </div>
             </div>
