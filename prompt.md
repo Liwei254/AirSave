@@ -1,202 +1,140 @@
-Refactor the AirSave frontend to improve structure, navigation, and user flow.
+Enhance the Savings payment flow to support async updates, auto-refresh, and correct goal targeting.
+
+---
+
+# FILES TO EDIT
+
+- frontend/src/pages/Savings.jsx
+- frontend/src/services/api.js
 
 ---
 
 # OBJECTIVE
 
-Simplify the application by consolidating pages, improving navigation, and aligning the UI with a real savings workflow:
-
-Goal → Save → Withdraw
-
----
-
-# FILES TO CREATE / EDIT / REMOVE
-
-CREATE:
-- frontend/src/pages/Savings.jsx
-- frontend/src/pages/Withdraw.jsx
-- frontend/src/components/Footer.jsx
-
-EDIT:
-- frontend/src/App.jsx
-- frontend/src/components/Navbar.jsx
-- frontend/src/pages/Dashboard.jsx (minimal updates if needed)
-
-REMOVE:
-- frontend/src/pages/Payments.jsx
+1. Track payment reference after initiating payment
+2. Auto-refresh data after payment (no manual refresh)
+3. Prevent duplicate submissions
+4. Ensure correct goal targeting
+5. Improve API response handling consistency
 
 ---
 
-# 1. PAGE CONSOLIDATION (CRITICAL)
+# 1. TRACK PAYMENT REFERENCE
 
-Create a new page:
+In Savings.jsx:
 
-frontend/src/pages/Savings.jsx
+Add state:
 
-This page replaces BOTH:
-- Goals page
-- Transactions page
-
----
-
-## Savings Page Requirements:
-
-Sections:
-
-1. Create Goal
-- Inputs:
-  - Goal name
-  - Target amount
-  - Duration (new field, e.g. months or date)
-
-2. Save to Goal
-- Amount input
-- Goal selector (dropdown)
-- Rounding logic (10, 50, 100)
-- Payment trigger (M-Pesa)
-
-3. Activity Section
-- List of transactions
-- Show:
-  - amount
-  - savings
-  - date
-  - status
+const [paymentRef, setPaymentRef] = useState(null);
+const [isRefreshingAfterPayment, setIsRefreshingAfterPayment] = useState(false);
 
 ---
 
-# 2. GOAL ENHANCEMENTS
+# 2. CAPTURE PAYMENT RESPONSE
 
-Update goal creation logic:
+After calling initiatePayment:
 
-Add:
-- duration field
+const res = await initiatePayment(payload);
+
+setPaymentRef(res.paymentReference);
+setIsRefreshingAfterPayment(true);
+
+---
+
+# 3. AUTO REFRESH (CONTROLLED POLLING)
+
+Add useEffect:
+
+useEffect(() => {
+  if (!paymentRef) return;
+
+  let attempts = 0;
+
+  const interval = setInterval(async () => {
+    attempts++;
+
+    await refreshSavingsData();
+
+    if (attempts >= 3) {
+      clearInterval(interval);
+      setPaymentRef(null);
+      setIsRefreshingAfterPayment(false);
+    }
+  }, 2000);
+
+  return () => clearInterval(interval);
+}, [paymentRef]);
+
+---
+
+# 4. UPDATE BUTTON STATE
+
+Update submit button:
+
+- Disable when loading or refreshing
+- Show "Processing..." during async flow
 
 Example:
-{
-  name,
-  targetAmount,
-  duration
-}
+
+disabled={saveDisabled || isRefreshingAfterPayment}
+
+Label:
+
+{isSaveSubmitting || isRefreshingAfterPayment ? "Processing..." : "Save with M-Pesa"}
 
 ---
 
-# 3. WITHDRAW FEATURE
+# 5. ENSURE GOAL TARGETING
 
-Create:
+Ensure selected goal is passed:
 
-frontend/src/pages/Withdraw.jsx
+await initiatePayment({
+  amount: Number(amount),
+  rule,
+  phone,
+  goalId: selectedGoal
+});
 
----
-
-## Withdraw Page Requirements:
-
-1. Amount input
-
-2. Source selection:
-- If multiple goals/wallets exist:
-  → Show dropdown to select source
-
-3. Goal maturity logic:
-- If goal is not completed:
-  → Show warning:
-    "This goal has not matured"
-  → Provide options:
-    - Break goal
-    - Cancel
-
-4. Submit withdrawal request
+Validation:
+- Do not allow submit if no goal selected
 
 ---
 
-# 4. NAVBAR UPDATE
+# 6. API LAYER FIX
 
-File:
-frontend/src/components/Navbar.jsx
+File: frontend/src/services/api.js
 
----
+Update initiatePayment to normalize response:
 
-## New Navbar Structure:
-
-- Logo → links to /dashboard
-- Savings → /savings
-- Withdraw → /withdraw
-
-Remove:
-- Dashboard link
-- Payments link
-- Goals link
-- Transactions link
-
----
-
-# 5. FOOTER (NEW)
-
-Create:
-
-frontend/src/components/Footer.jsx
+return requestData(API.post("/payments/initiate", payload), (data) => ({
+  ...data,
+  status: data?.status || "pending",
+  message: data?.message || "STK push sent",
+  paymentReference:
+    data?.paymentReference ||
+    data?.reference ||
+    data?.transactionReference ||
+    data?.checkoutRequestId ||
+    null,
+}));
 
 ---
 
-## Footer Requirements:
+# CONSTRAINTS
 
-- Add:
-  - Support link
-  - Admin link
-- Clean layout using Bootstrap
-- Place footer at bottom of app
-
----
-
-# 6. ROUTING UPDATE
-
-File:
-frontend/src/App.jsx
-
----
-
-Add routes:
-
-/savings → Savings.jsx  
-/withdraw → Withdraw.jsx  
-
-Remove route:
-/payments
-
----
-
-# 7. REMOVE PAYMENTS PAGE
-
-Delete:
-frontend/src/pages/Payments.jsx
-
-Ensure no imports reference it.
-
----
-
-# 8. UX IMPROVEMENTS
-
-- Keep UI minimal and clean
-- Use Bootstrap only
-- Avoid clutter
-- Group related actions together
-
----
-
-# 9. CONSTRAINTS
-
-- Do not redesign entire UI
-- Keep consistency with existing styles
-- Do not break existing API integrations
-- Keep components modular
+- Do not modify backend
+- Do not fake goal balance updates
+- Keep UI minimal and unchanged
+- Avoid adding new libraries
 
 ---
 
 # SUCCESS CRITERIA
 
-- Savings page replaces Goals + Transactions
-- Withdraw page works logically
-- Navbar is simplified
-- Footer added with Support/Admin
-- Payments page removed
-- Navigation is clean and intuitive
+- Payment triggers successfully
+- Button shows "Processing..."
+- UI auto-refreshes after payment
+- Goal updates after backend callback
+- Activity feed reflects new transaction
+- Correct goal receives funds
+- No manual refresh needed

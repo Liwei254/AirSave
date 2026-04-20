@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import GoalCard from "../components/GoalCard.jsx";
@@ -6,10 +6,12 @@ import WalletCard from "../components/WalletCard.jsx";
 import {
   createGoal,
   getGoals,
+  getPaymentStatus,
   getSavingsActivity,
   getWallet,
   initiatePayment,
 } from "../services/api";
+import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
 import { formatCurrency, formatDate } from "../utils/formatters";
 
 const roundingOptions = [
@@ -18,65 +20,71 @@ const roundingOptions = [
   { value: 100, label: "Round to 100" },
 ];
 
+const phonePattern = /^(0\d{9}|\+254\d{9}|254\d{9})$/;
+
+function sortActivityByNewest(activityItems) {
+  return [...(activityItems || [])].sort(
+    (left, right) => new Date(right.date || right.createdAt || 0) - new Date(left.date || left.createdAt || 0)
+  );
+}
+
 export default function Savings() {
   const navigate = useNavigate();
+  const isMountedRef = useRef(true);
   const [wallet, setWallet] = useState(null);
   const [goals, setGoals] = useState([]);
   const [activity, setActivity] = useState([]);
   const [goalForm, setGoalForm] = useState({ name: "", targetAmount: "", duration: "" });
-  const [saveForm, setSaveForm] = useState({ amount: "", goalId: "", rule: 10 });
+  const [amount, setAmount] = useState("");
+  const [phone, setPhone] = useState("");
+  const [selectedGoal, setSelectedGoal] = useState("");
+  const [rule, setRule] = useState(10);
   const [isLoading, setIsLoading] = useState(true);
   const [isGoalSubmitting, setIsGoalSubmitting] = useState(false);
   const [isSaveSubmitting, setIsSaveSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [error, setError] = useState("");
+  const [paymentRef, setPaymentRef] = useState(null);
+  const [isRefreshingAfterPayment, setIsRefreshingAfterPayment] = useState(false);
 
   const activeGoals = useMemo(
     () => goals.filter((goal) => goal.status !== "completed"),
     [goals]
   );
 
-  useEffect(() => {
-    let isMounted = true;
-    loadSavingsPage(isMounted);
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const trimmedPhone = phone.trim();
+  const isPhoneValid = phonePattern.test(trimmedPhone);
+  const phoneError =
+    trimmedPhone && !isPhoneValid
+      ? "Enter a valid phone number in the format 07XXXXXXXX or +254XXXXXXXXX."
+      : "";
 
-  async function loadSavingsPage(isMounted = true) {
-    try {
-      const [walletData, goalsData, activityData] = await Promise.all([
-        getWallet(),
-        getGoals(),
-        getSavingsActivity(),
-      ]);
+  const loadDashboard = useCallback(async () => {
+    const [walletData, goalsData, activityData] = await Promise.all([
+      getWallet(),
+      getGoals(),
+      getSavingsActivity(),
+    ]);
 
-      if (!isMounted) return;
-
-      setWallet(walletData);
-      setGoals(goalsData);
-      setActivity(activityData);
-      setError("");
-    } catch (err) {
-      if (!isMounted) return;
-      if (err.response?.status === 401 || err.response?.status === 403) {
-        localStorage.removeItem("token");
-        navigate("/");
-        return;
-      }
-      setError(err.response?.data?.message || "We could not load your savings page.");
-    } finally {
-      if (isMounted) {
-        setIsLoading(false);
-      }
+    if (!isMountedRef.current) {
+      return;
     }
-  }
+
+    setWallet(walletData);
+    setGoals(goalsData);
+    setActivity(sortActivityByNewest(activityData));
+  }, []);
 
   async function handleCreateGoal(event) {
     event.preventDefault();
 
     if (!goalForm.name.trim() || !goalForm.targetAmount || !goalForm.duration.trim()) {
+      setFeedback({ type: "error", message: "Complete all goal fields before creating a goal." });
+      return;
+    }
+
+    if (Number(goalForm.targetAmount) <= 0) {
+      setFeedback({ type: "error", message: "Target amount must be greater than zero." });
       return;
     }
 
@@ -84,19 +92,20 @@ export default function Savings() {
     setFeedback(null);
 
     try {
-      const goal = await createGoal({
+      await createGoal({
         name: goalForm.name.trim(),
         targetAmount: Number(goalForm.targetAmount),
         duration: goalForm.duration.trim(),
       });
 
-      setGoals((current) => [goal, ...current]);
+      await loadDashboard();
+      triggerDashboardRefresh();
       setGoalForm({ name: "", targetAmount: "", duration: "" });
       setFeedback({ type: "success", message: "Goal created successfully." });
     } catch (err) {
       setFeedback({
         type: "error",
-        message: err.response?.data?.message || "Failed to create goal.",
+        message: err.response?.data?.message || err.message || "Failed to create goal.",
       });
     } finally {
       setIsGoalSubmitting(false);
@@ -106,7 +115,27 @@ export default function Savings() {
   async function handleSave(event) {
     event.preventDefault();
 
-    if (!saveForm.amount || Number(saveForm.amount) <= 0) {
+    if (isSaveSubmitting || isRefreshingAfterPayment) {
+      return;
+    }
+
+    if (!amount || Number(amount) <= 0) {
+      setFeedback({ type: "error", message: "Enter an amount greater than zero." });
+      return;
+    }
+
+    if (!trimmedPhone) {
+      setFeedback({ type: "error", message: "Phone number is required." });
+      return;
+    }
+
+    if (!isPhoneValid) {
+      setFeedback({ type: "error", message: phoneError });
+      return;
+    }
+
+    if (!selectedGoal) {
+      setFeedback({ type: "error", message: "Select a goal before submitting payment." });
       return;
     }
 
@@ -114,38 +143,136 @@ export default function Savings() {
     setFeedback(null);
 
     try {
-      const response = await initiatePayment({
-        amount: Number(saveForm.amount),
-        goalId: saveForm.goalId || undefined,
-        rule: saveForm.rule,
+      const res = await initiatePayment({
+        amount: Number(amount),
+        rule,
+        phone: trimmedPhone,
+        goalId: selectedGoal,
       });
 
-      setSaveForm((current) => ({ ...current, amount: "", goalId: "" }));
+      await loadDashboard();
+      triggerDashboardRefresh();
+      setPaymentRef(res.paymentReference);
+      setIsRefreshingAfterPayment(true);
+      setAmount("");
       setFeedback({
         type: "success",
-        message: response.message || "Payment initiated. Approve the M-Pesa prompt to continue.",
+        message: "STK push sent. Processing...",
       });
-      await loadSavingsPage(true);
     } catch (err) {
+      setPaymentRef(null);
+      setIsRefreshingAfterPayment(false);
       setFeedback({
         type: "error",
-        message: err.response?.data?.message || "Payment initiation failed.",
+        message: err.response?.data?.message || err.message || "Payment initiation failed.",
       });
     } finally {
       setIsSaveSubmitting(false);
     }
   }
 
-  const numericAmount = Number(saveForm.amount);
-  const rounded = saveForm.amount ? Math.ceil(numericAmount / saveForm.rule) * saveForm.rule : 0;
-  const savings = saveForm.amount ? rounded - numericAmount : 0;
+  const numericAmount = Number(amount);
+  const rounded = amount ? Math.ceil(numericAmount / rule) * rule : 0;
+  const savings = amount ? rounded - numericAmount : 0;
   const goalDisabled =
     !goalForm.name.trim() ||
     !goalForm.targetAmount ||
     Number(goalForm.targetAmount) <= 0 ||
     !goalForm.duration.trim() ||
     isGoalSubmitting;
-  const saveDisabled = !saveForm.amount || Number(saveForm.amount) <= 0 || isSaveSubmitting;
+  const saveDisabled =
+    !amount ||
+    Number(amount) <= 0 ||
+    !selectedGoal ||
+    !trimmedPhone ||
+    !isPhoneValid ||
+    isSaveSubmitting ||
+    isRefreshingAfterPayment;
+
+  useEffect(() => {
+    if (!paymentRef) {
+      return undefined;
+    }
+
+    let isCancelled = false;
+
+    async function trackPaymentStatus() {
+      try {
+        const payment = await getPaymentStatus(paymentRef);
+
+        if (isCancelled || !isMountedRef.current) {
+          return;
+        }
+
+        if (payment?.status === "confirmed" || payment?.status === "failed") {
+          await loadDashboard();
+          triggerDashboardRefresh();
+
+          setPaymentRef(null);
+          setIsRefreshingAfterPayment(false);
+          setFeedback((current) =>
+            current?.type === "success"
+              ? {
+                  ...current,
+                  message:
+                    payment.status === "confirmed"
+                      ? "STK push sent. Updated."
+                      : "STK push sent, but the payment did not complete.",
+                }
+              : current
+          );
+          return;
+        }
+      } catch {
+        if (!isMountedRef.current || isCancelled) {
+          return;
+        }
+      }
+
+      window.setTimeout(trackPaymentStatus, 2000);
+    }
+
+    trackPaymentStatus();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [loadDashboard, paymentRef]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    async function initializePage() {
+      try {
+        await loadDashboard();
+        if (isMountedRef.current) {
+          setError("");
+        }
+      } catch (err) {
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          localStorage.removeItem("token");
+          navigate("/");
+          return;
+        }
+
+        setError(err.response?.data?.message || err.message || "We could not load your savings page.");
+      } finally {
+        if (isMountedRef.current) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    initializePage();
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [loadDashboard, navigate]);
 
   return (
     <Layout
@@ -264,26 +391,41 @@ export default function Savings() {
                     type="number"
                     min="1"
                     placeholder="Enter amount"
-                    value={saveForm.amount}
-                    onChange={(event) =>
-                      setSaveForm((current) => ({ ...current, amount: event.target.value }))
-                    }
+                    value={amount}
+                    onChange={(event) => setAmount(event.target.value)}
                   />
                 </div>
 
                 <div className="col-12 col-md-6">
+                  <label className="form-label fw-semibold" htmlFor="savePhone">
+                    Phone number
+                  </label>
+                  <input
+                    id="savePhone"
+                    className={`form-control ${phoneError ? "is-invalid" : ""}`}
+                    type="tel"
+                    placeholder="07XXXXXXXX or +254XXXXXXXXX"
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                    required
+                  />
+                  {phoneError ? <div className="invalid-feedback">{phoneError}</div> : null}
+                </div>
+
+                <div className="col-12 col-md-6">
                   <label className="form-label fw-semibold" htmlFor="saveGoal">
-                    Goal selector
+                    Select goal
                   </label>
                   <select
                     id="saveGoal"
                     className="form-select"
-                    value={saveForm.goalId}
-                    onChange={(event) =>
-                      setSaveForm((current) => ({ ...current, goalId: event.target.value }))
-                    }
+                    value={selectedGoal}
+                    onChange={(event) => setSelectedGoal(event.target.value)}
+                    required
                   >
-                    <option value="">Savings wallet</option>
+                    <option value="" disabled>
+                      Select a goal
+                    </option>
                     {activeGoals.map((goal) => (
                       <option key={goal._id} value={goal._id}>
                         {goal.name} ({formatCurrency(goal.savedAmount)}/{formatCurrency(goal.targetAmount)})
@@ -292,17 +434,15 @@ export default function Savings() {
                   </select>
                 </div>
 
-                <div className="col-12">
+                <div className="col-12 col-md-6">
                   <label className="form-label fw-semibold" htmlFor="roundingRule">
                     Rounding logic
                   </label>
                   <select
                     id="roundingRule"
                     className="form-select"
-                    value={saveForm.rule}
-                    onChange={(event) =>
-                      setSaveForm((current) => ({ ...current, rule: Number(event.target.value) }))
-                    }
+                    value={rule}
+                    onChange={(event) => setRule(Number(event.target.value))}
                   >
                     {roundingOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -320,7 +460,7 @@ export default function Savings() {
               </div>
 
               <button className="btn btn-primary" type="submit" disabled={saveDisabled}>
-                {isSaveSubmitting ? "Triggering M-Pesa..." : "Save with M-Pesa"}
+                {isSaveSubmitting || isRefreshingAfterPayment ? "Processing..." : "Save with M-Pesa"}
               </button>
             </form>
           </article>

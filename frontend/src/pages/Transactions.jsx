@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import TransactionList from "../components/TransactionList.jsx";
@@ -22,15 +22,7 @@ export default function Transactions() {
   const [feedback, setFeedback] = useState(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let isMounted = true;
-    loadTransactionsPage(isMounted);
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  async function loadTransactionsPage(isMounted = true) {
+  const loadTransactionsPage = useCallback(async (isMounted = true) => {
     try {
       const [walletData, transactionsData, goalsData] = await Promise.all([
         getWallet(),
@@ -58,7 +50,15 @@ export default function Transactions() {
         setIsLoading(false);
       }
     }
-  }
+  }, [navigate]);
+
+  useEffect(() => {
+    let isMounted = true;
+    loadTransactionsPage(isMounted);
+    return () => {
+      isMounted = false;
+    };
+  }, [loadTransactionsPage]);
 
   async function handleInitiatePayment() {
     if (!amount) return;
@@ -71,6 +71,7 @@ export default function Transactions() {
         amount: Number(amount),
         rule,
         goalId: selectedGoal || undefined,
+        walletId: selectedGoal ? undefined : wallet?.walletId,
         phone: phone || undefined,
       });
 

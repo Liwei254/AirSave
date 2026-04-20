@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import { getGoals, getWallet, submitWithdrawal } from "../services/api";
+import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
 import { formatCurrency } from "../utils/formatters";
 
 export default function Withdraw() {
@@ -17,15 +18,7 @@ export default function Withdraw() {
   const [feedback, setFeedback] = useState(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let isMounted = true;
-    loadWithdrawPage(isMounted);
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  async function loadWithdrawPage(isMounted = true) {
+  const loadWithdrawPage = useCallback(async (isMounted = true) => {
     try {
       const [walletData, goalsData] = await Promise.all([getWallet(), getGoals()]);
 
@@ -47,7 +40,15 @@ export default function Withdraw() {
         setIsLoading(false);
       }
     }
-  }
+  }, [navigate]);
+
+  useEffect(() => {
+    let isMounted = true;
+    loadWithdrawPage(isMounted);
+    return () => {
+      isMounted = false;
+    };
+  }, [loadWithdrawPage]);
 
   const sourceOptions = useMemo(
     () => [
@@ -105,6 +106,7 @@ export default function Withdraw() {
         message: response.message || "Withdrawal submitted successfully.",
       });
       await loadWithdrawPage(true);
+      triggerDashboardRefresh();
     } catch (err) {
       const message = err.response?.data?.message || "Withdrawal request failed.";
       setFeedback({ type: "error", message });

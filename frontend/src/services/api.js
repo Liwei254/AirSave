@@ -8,7 +8,6 @@ const API = axios.create({
   baseURL: apiBaseUrl
 });
 
-// 🔥 ADD TOKEN TO EVERY REQUEST
 API.interceptors.request.use((req) => {
   const token = localStorage.getItem("token");
 
@@ -19,63 +18,80 @@ API.interceptors.request.use((req) => {
   return req;
 });
 
+async function requestData(request, transform = (data) => data) {
+  try {
+    const { data } = await request;
+    return transform(data);
+  } catch (error) {
+    const message = error?.response?.data?.message || error.message || "Request failed";
+
+    if (axios.isAxiosError(error)) {
+      error.message = message;
+      throw error;
+    }
+
+    const wrappedError = new Error(message);
+    wrappedError.cause = error;
+    throw wrappedError;
+  }
+}
+
 export async function loginUser(payload) {
-  const { data } = await API.post("/auth/login", payload);
-  return data;
+  return requestData(API.post("/auth/login", payload));
 }
 
 export async function registerUser(payload) {
-  const { data } = await API.post("/auth/register", payload);
-  return data;
+  return requestData(API.post("/auth/register", payload));
 }
 
 export async function getWallet() {
-  const { data } = await API.get("/wallet");
-  return data;
+  return requestData(API.get("/wallet"));
 }
 
 export async function getGoals() {
-  const { data } = await API.get("/goals");
-  return data;
+  return requestData(API.get("/goals"));
 }
 
 export async function createGoal(payload) {
-  const { data } = await API.post("/goals", payload);
-  return data;
+  return requestData(API.post("/goals", payload));
 }
 
 export async function getTransactions() {
-  const { data } = await API.get("/wallet/transactions");
-  return data.transactions || [];
+  return requestData(API.get("/wallet/transactions"), (data) => data.transactions || []);
 }
 
 export async function getSavingsActivity() {
-  const { data } = await API.get("/transactions/activity");
-  return data;
+  return requestData(API.get("/transactions/activity"));
 }
 
 export async function initiatePayment(payload) {
-  const { data } = await API.post("/transactions/payments/initiate", payload);
-  return data;
+  return requestData(API.post("/transactions/payments/initiate", payload), (data) => ({
+    ...data,
+    status: data?.status || "pending",
+    message: data?.message || "STK push sent",
+    paymentReference:
+      data?.paymentReference ||
+      data?.reference ||
+      data?.transactionReference ||
+      data?.checkoutRequestId ||
+      null,
+  }));
+}
+
+export async function getPaymentStatus(reference) {
+  return requestData(API.get(`/transactions/payments/${reference}`));
 }
 
 export async function submitWithdrawal(payload) {
-  const { data } = await API.post("/transactions/withdraw", payload);
-  return data;
-}
-
-export async function simulateTransaction(payload) {
-  return initiatePayment(payload);
+  return requestData(API.post("/transactions/withdraw", payload));
 }
 
 export async function getNotifications() {
-  const { data } = await API.get("/notifications");
-  return data;
+  return requestData(API.get("/notifications"));
 }
 
 export async function markNotificationRead(id) {
-  const { data } = await API.put(`/notifications/${id}/read`);
-  return data;
+  return requestData(API.put(`/notifications/${id}/read`));
 }
 
 export default API;

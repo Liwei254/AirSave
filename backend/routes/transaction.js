@@ -13,6 +13,7 @@ const router = express.Router();
 
 router.post("/payments/initiate", protect, initiatePayment);
 router.post("/payments/callback", handlePaymentCallback);
+router.get("/payments/status/:reference", protect, getPaymentStatus);
 router.get("/payments/:reference", protect, getPaymentStatus);
 router.get("/activity", protect, getSavingsActivity);
 router.post("/withdraw", protect, submitWithdrawal);
