@@ -118,7 +118,7 @@ export default function Withdraw() {
 
   return (
     <Layout
-      eyebrow="Withdraw"
+      // eyebrow="Withdraw"
       title="Withdraw from your wallet or a selected goal."
       subtitle="Choose the source, handle maturity warnings clearly, and submit the request in one flow."
     >

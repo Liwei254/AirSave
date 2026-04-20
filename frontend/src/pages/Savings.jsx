@@ -276,7 +276,7 @@ export default function Savings() {
 
   return (
     <Layout
-      eyebrow="Savings"
+      // eyebrow="Savings"
       title="Goal, save, and review activity from one page."
       subtitle="Create a target, save into it with M-Pesa round-ups, and keep the full savings workflow together."
     >
