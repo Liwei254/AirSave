@@ -44,7 +44,10 @@ const corsOptions = {
   credentials: true,
 };
 
-app.use(cors(corsOptions));
+app.use(cors({
+  origin: ["http://localhost:5173", "https://your-frontend.onrender.com"],
+  credentials: true
+}));
 
 // Body parser
 app.use(express.json());
