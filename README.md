@@ -31,29 +31,6 @@ AirSave is a full-stack web application designed to help users track their savin
 
 ---
 
-## 📁 Project Structure
-
-```
-AirSave/
-│
-├── backend/
-│   ├── controllers/
-│   ├── routes/
-│   ├── models/
-│   ├── middleware/
-│   └── server.js
-│
-├── frontend/
-│   ├── src/
-│   │   ├── pages/
-│   │   ├── components/
-│   │   └── App.jsx
-│
-└── README.md
-```
-
----
-
 ## ⚙️ Backend Setup
 
 1. Navigate to backend folder:
