@@ -67,7 +67,7 @@ export default function Dashboard() {
     <Layout
      // eyebrow="Dashboard"
       title="Save smarter with every transaction."
-      subtitle="Your overview of savings balance, active goals, recent activity, and quick links into the main savings flow."
+      subtitle="Save smarter with roundups"
     >
       {error && (
         <div className="feedback feedback-error">

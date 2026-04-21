@@ -4,8 +4,8 @@ import NotificationDropdown from "./NotificationDropdown.jsx";
 import { getNotifications } from "../services/api";
 
 const navItems = [
-  { label: "Savings", to: "/savings", icon: "S" },
-  { label: "Withdraw", to: "/withdraw", icon: "W" },
+  { label: "Savings", to: "/savings"},
+  { label: "Withdraw", to: "/withdraw"},
 ];
 
 export default function Navbar() {
