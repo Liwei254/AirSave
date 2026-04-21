@@ -67,7 +67,7 @@ export default function Dashboard() {
     <Layout
      // eyebrow="Dashboard"
       title="Save smarter with roundups."
-     // subtitle="Save smarter with roundups"
+     // subtitle="Save smarter with every transaction"
     >
       {error && (
         <div className="feedback feedback-error">

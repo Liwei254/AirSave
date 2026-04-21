@@ -277,8 +277,8 @@ export default function Savings() {
   return (
     <Layout
       // eyebrow="Savings"
-      title="Goal, save, and review activity from one page."
-      subtitle="Create a target, save into it with M-Pesa round-ups, and keep the full savings workflow together."
+      title=" Create Goal, Save, and Review Activity."
+      // subtitle="Create a target, save into it with M-Pesa round-ups, and keep the full savings workflow together."
     >
       {feedback ? (
         <div className={`feedback ${feedback.type === "success" ? "feedback-success" : "feedback-error"}`}>
@@ -309,8 +309,9 @@ export default function Savings() {
             <div className="card-header">
               <div>
                 <h2 className="card-title">Create Goal</h2>
-                <p className="card-subtitle">Add the target amount and duration before you start saving.</p>
               </div>
+              
+
             </div>
 
             <form className="d-grid gap-3" onSubmit={handleCreateGoal}>
@@ -375,7 +376,6 @@ export default function Savings() {
             <div className="card-header">
               <div>
                 <h2 className="card-title">Save To Goal</h2>
-                <p className="card-subtitle">Pick a destination and trigger the payment-backed savings action.</p>
               </div>
             </div>
 
@@ -472,8 +472,7 @@ export default function Savings() {
           <article className="app-card h-100">
             <div className="card-header">
               <div>
-                <h2 className="card-title">Goals</h2>
-                <p className="card-subtitle">All active and completed goals stay visible here.</p>
+                <h2 className="card-title">Active Goals</h2>
               </div>
               {!isLoading ? <span className="status-chip">{goals.length} total</span> : null}
             </div>
@@ -500,7 +499,6 @@ export default function Savings() {
             <div className="card-header">
               <div>
                 <h2 className="card-title">Activity</h2>
-                <p className="card-subtitle">Every savings attempt with amount, savings, date, and status.</p>
               </div>
               {!isLoading ? <span className="status-chip">{activity.length} records</span> : null}
             </div>
