@@ -120,7 +120,7 @@ export default function Withdraw() {
     <Layout
       // eyebrow="Withdraw"
       title="Withdraw from your wallet or a selected goal."
-      subtitle="Choose the source, handle maturity warnings clearly, and submit the request in one flow."
+     // subtitle="Choose the source, handle maturity warnings clearly, and submit the request in one flow."
     >
       {feedback ? (
         <div className={`feedback ${feedback.type === "success" ? "feedback-success" : "feedback-error"}`}>
@@ -142,7 +142,7 @@ export default function Withdraw() {
             <div className="card-header">
               <div>
                 <h2 className="card-title">Withdrawal request</h2>
-                <p className="card-subtitle">Pick a source and submit the amount you want to move out.</p>
+          
               </div>
               {!isLoading ? <span className="status-chip">Wallet {formatCurrency(wallet?.balance)}</span> : null}
             </div>
