@@ -66,7 +66,7 @@ export default function Dashboard() {
   return (
     <Layout
      // eyebrow="Dashboard"
-      title="Save smarter with every transaction."
+      title="Save smarter with roundups."
      // subtitle="Save smarter with roundups"
     >
       {error && (
