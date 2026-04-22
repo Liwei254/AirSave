@@ -17,6 +17,17 @@
   }
 }
 
+.auth-brand {
+  margin-bottom: 12px;
+}
+
+.auth-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  display: block;
+}
+
 .hero {
   position: relative;
 
