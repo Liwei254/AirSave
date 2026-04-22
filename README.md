@@ -1,125 +1,227 @@
-#  AirSave
+#  AirSave — Smart Micro-Savings Platform
 
-AirSave is a full-stack web application designed to help users track their savings, set financial goals, and monitor progress over time. It provides a simple and intuitive dashboard for managing personal finances.
+AirSave is a fullstack fintech-inspired application that helps users save money automatically through **round-up transactions** and **goal-based savings**.
 
----
-
-## 🚀 Features
-
-* 🔐 User Authentication (Register & Login with JWT)
-* 💰 Savings Goals Management
-* 📊 Dashboard with financial overview
-* 🔄 Real-time data interaction between frontend and backend
-* 🧩 Modular and scalable architecture
+It simulates a real-world **M-Pesa payment flow**, providing a realistic prototype for digital savings systems.
 
 ---
 
-## 🛠️ Tech Stack
+##  Live Demo
 
-**Frontend**
+* **Frontend:** https://airsave-1.onrender.com
+* **Backend API:** https://airsave-lg67.onrender.com/api
+
+---
+
+##  Core Concept
+
+AirSave applies **behavioral finance principles**:
+
+* Spend normally 
+* Automatically round up transactions 
+* Save the difference into goals 
+
+Example:
+
+```text
+You spend: KES 47
+Rounded to: KES 50
+Saved: KES 3
+```
+
+---
+
+##  Tech Stack
+
+### Frontend
 
 * React (Vite)
+* React Router
 * Axios
-* Bootstrap / CSS
+* Custom UI components
 
-**Backend**
+### Backend
 
-* Node.js
-* Express.js
+* Node.js + Express
 * MongoDB (Mongoose)
 * JWT Authentication
 
+### Architecture
+
+* REST API
+* Ledger-based transaction system
+* Async payment simulation (M-Pesa mock)
+
 ---
 
-## ⚙️ Backend Setup
+##  Features
 
-1. Navigate to backend folder:
+### ✅ Authentication
 
+* User registration & login
+* JWT-based protected routes
+
+### 💰 Wallet System
+
+* Tracks total savings
+* Displays transaction count
+
+### 🎯 Goals
+
+* Create savings goals
+* Track progress dynamically
+* Goal-based saving allocation
+
+### 💳 Payments (M-Pesa Simulation)
+
+* Initiate payment
+* Async confirmation (STK push simulation)
+* Automatic savings calculation
+
+### 📊 Transactions & Activity
+
+* Ledger-backed transaction history
+* Real-time activity updates
+
+### 🔁 Smart Rounding Modes
+
+* Light Saver → round to 10
+* Balanced → round to 50
+* Aggressive → round to 100
+
+---
+
+##  Getting Started
+
+### 1. Clone the repo
+
+```bash
+git clone https://github.com/your-username/airsave.git
+cd airsave
 ```
+
+---
+
+### 2. Backend Setup
+
+```bash
 cd backend
-```
-
-2. Install dependencies:
-
-```
 npm install
 ```
 
-3. Create a `.env` file:
+Create `.env`:
 
-```
+```env
 PORT=5000
-MONGO_URI=your_mongodb_connection_string
-JWT_SECRET=your_secret_key
+MONGO_URI=your_mongodb_uri
+JWT_SECRET=your_secret
 ```
 
-4. Start the backend server:
+Run:
 
-```
+```bash
 npm run dev
 ```
 
-👉 Server runs on: `http://localhost:5000`
-
 ---
 
-## 💻 Frontend Setup
+### 3. Frontend Setup
 
-1. Navigate to frontend folder:
-
-```
+```bash
 cd frontend
-```
-
-2. Install dependencies:
-
-```
 npm install
 ```
 
-3. Start the frontend:
+Create `.env`:
 
+```env
+VITE_API_BASE_URL=http://localhost:5000/api
 ```
+
+Run:
+
+```bash
 npm run dev
 ```
 
-👉 App runs on: `http://localhost:5173`
-
 ---
 
-## 🔗 API Connection
+## 🧪 API Example
 
-Ensure the frontend is configured to communicate with the backend:
+### Initiate Payment
 
-Example (Axios base URL):
+```http
+POST /api/payments/initiate
+```
 
-```js
-http://localhost:5000/api
+```json
+{
+  "amount": 47
+}
+```
+
+Response:
+
+```json
+{
+  "message": "Payment initiated",
+  "rounded": 50,
+  "savings": 3
+}
 ```
 
 ---
 
-## 🧪 Testing
+##  Authentication
 
-* Use Postman to test API endpoints:
+All protected routes require:
 
-  * `/api/auth/register`
-  * `/api/auth/login`
-  * `/api/goals`
-
----
-
-## 📌 Notes
-
-* Make sure MongoDB is running locally or use MongoDB Atlas
-* Ensure backend is running before starting frontend
-* JWT is used for protected routes
+```http
+Authorization: Bearer <token>
+```
 
 ---
 
+##  Known Behaviors
+
+* Render free tier may cause **cold start delays (~30s)**
+* SPA routing requires rewrite configuration (handled in deployment)
 
 ---
 
-## 📄 License
+##  System Design Highlights
 
-This project is for educational and development purposes.
+* **Ledger-based accounting** for data integrity
+* **Async callback simulation** for payment realism
+* **Separation of concerns** (frontend / backend / services)
+* **Scalable architecture** for real fintech integration
+
+---
+
+## 🚀 Future Improvements
+
+* Real M-Pesa API integration
+* Withdrawal (B2C simulation)
+* Notifications system
+* Analytics dashboard
+* Mobile responsiveness optimization
+
+---
+
+##  License
+
+MIT License
+
+---
+
+##  Vision
+
+AirSave is designed as a **real-world fintech prototype** demonstrating:
+
+* Behavioral savings systems
+* Payment lifecycle handling
+* Scalable financial architecture
+
+---
+
+🔥 *Built to simulate real financial systems — not just a demo.*
