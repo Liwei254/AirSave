@@ -15,12 +15,12 @@ export default function ActivityList({ items, emptyMessage = "No activity yet.",
     return (
       <div className="activity-feed">
         {items.map((item) => (
-          <article key={item._id} className="activity-feed-item">
-            <div>
+          <article key={item._id} className="activity-feed-row">
+            <div className="activity-feed-copy">
               <div className="activity-primary">{item.goalName || "Savings"}</div>
               <div className="activity-secondary">{formatDate(item.date)}</div>
             </div>
-            <div className="activity-feed-values">
+            <div className="activity-feed-meta">
               <strong>{formatCurrency(item.savings)}</strong>
               <span className={`badge badge-${getStatusTone(item.status)}`}>{item.status}</span>
             </div>
@@ -62,4 +62,3 @@ export default function ActivityList({ items, emptyMessage = "No activity yet.",
     </div>
   );
 }
-

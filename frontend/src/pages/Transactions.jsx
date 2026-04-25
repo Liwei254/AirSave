@@ -1,17 +1,14 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "../components/Layout.jsx";
 import ActivityList from "../components/ActivityList.jsx";
+import FilterTabs from "../components/FilterTabs.jsx";
+import Card from "../components/Card.jsx";
+import Layout from "../components/Layout.jsx";
+import SectionHeader from "../components/SectionHeader.jsx";
 import StatCard from "../components/StatCard.jsx";
 import { getSavingsActivity } from "../services/api";
 import { formatCurrency } from "../utils/formatters";
-import {
-  activityFilters,
-  getFilterLabel,
-  getSavingsSummary,
-  isWithinActivityFilter,
-  sortActivityByNewest,
-} from "../utils/savings";
+import { activityFilters, getFilterLabel, getSavingsSummary, isWithinActivityFilter, sortActivityByNewest } from "../utils/savings";
 
 export default function Transactions() {
   const navigate = useNavigate();
@@ -31,7 +28,6 @@ export default function Transactions() {
         navigate("/");
         return;
       }
-
       setError(err.response?.data?.message || err.message || "We could not load activity.");
     } finally {
       setIsLoading(false);
@@ -42,23 +38,12 @@ export default function Transactions() {
     loadActivityPage();
   }, [loadActivityPage]);
 
-  const filteredActivity = useMemo(
-    () => activity.filter((item) => isWithinActivityFilter(item, filter)),
-    [activity, filter]
-  );
-  const weeklySavings = useMemo(
-    () => getSavingsSummary(activity.filter((item) => isWithinActivityFilter(item, "week"))),
-    [activity]
-  );
+  const filteredActivity = useMemo(() => activity.filter((item) => isWithinActivityFilter(item, filter)), [activity, filter]);
+  const weeklySavings = useMemo(() => getSavingsSummary(activity.filter((item) => isWithinActivityFilter(item, "week"))), [activity]);
   const selectedSummary = getSavingsSummary(filteredActivity);
 
   return (
-    <Layout
-      eyebrow="Activity"
-      title="Savings activity"
-      subtitle="Filter your savings history, review patterns, and keep track of every confirmed contribution."
-      shellClassName="savings-shell"
-    >
+    <Layout eyebrow="Activity" title="Savings activity" subtitle="Filter your savings history, review trends, and keep every contribution easy to scan.">
       {error ? (
         <div className="feedback feedback-error">
           <strong>Error:</strong>
@@ -66,36 +51,19 @@ export default function Transactions() {
         </div>
       ) : null}
 
-      <section className="app-grid-3">
+      <section className="stats-grid">
         <StatCard label="This week" value={formatCurrency(weeklySavings)} hint="You saved this much in the last 7 days" tone="success" />
         <StatCard label="Current view" value={formatCurrency(selectedSummary)} hint={`Confirmed savings ${getFilterLabel(filter)}`} tone="cool" />
         <StatCard label="Entries" value={String(filteredActivity.length)} hint="Filtered savings records" />
       </section>
 
-      <section className="app-card savings-card">
-        <div className="card-header savings-card-header">
-          <div>
-            <h2 className="card-title">Full transaction history</h2>
-            <p className="card-subtitle">You saved {formatCurrency(weeklySavings)} this week.</p>
-          </div>
-          <div className="activity-filter-row">
-            {activityFilters.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={`activity-filter ${filter === option.value ? "activity-filter-active" : ""}`}
-                onClick={() => setFilter(option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="activity-summary-banner">
-          You saved {formatCurrency(selectedSummary)} {getFilterLabel(filter)}.
-        </div>
-
+      <Card>
+        <SectionHeader
+          title="Full transaction history"
+          subtitle={`You saved ${formatCurrency(weeklySavings)} this week.`}
+          actions={<FilterTabs items={activityFilters} value={filter} onChange={setFilter} />}
+        />
+        <div className="activity-summary-banner">You saved {formatCurrency(selectedSummary)} {getFilterLabel(filter)}.</div>
         {isLoading ? (
           <div className="loading-panel">
             <span className="spinner spinner-dark" aria-hidden="true" />
@@ -104,8 +72,7 @@ export default function Transactions() {
         ) : (
           <ActivityList items={filteredActivity} emptyMessage="No savings records for this range yet." />
         )}
-      </section>
+      </Card>
     </Layout>
   );
 }
-

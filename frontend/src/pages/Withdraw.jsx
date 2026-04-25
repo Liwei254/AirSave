@@ -1,9 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Button from "../components/Button.jsx";
+import Card from "../components/Card.jsx";
+import FilterTabs from "../components/FilterTabs.jsx";
+import Input from "../components/Input.jsx";
 import Layout from "../components/Layout.jsx";
+import MpesaPreview from "../components/MpesaPreview.jsx";
+import SectionHeader from "../components/SectionHeader.jsx";
+import StatCard from "../components/StatCard.jsx";
 import { getGoals, getWallet, submitWithdrawal } from "../services/api";
 import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
 import { formatCurrency } from "../utils/formatters";
+import { toAmount } from "../utils/savings";
 
 export default function Withdraw() {
   const navigate = useNavigate();
@@ -21,9 +29,7 @@ export default function Withdraw() {
   const loadWithdrawPage = useCallback(async (isMounted = true) => {
     try {
       const [walletData, goalsData] = await Promise.all([getWallet(), getGoals()]);
-
       if (!isMounted) return;
-
       setWallet(walletData);
       setGoals(goalsData);
       setError("");
@@ -34,11 +40,9 @@ export default function Withdraw() {
         navigate("/");
         return;
       }
-      setError(err.response?.data?.message || "We could not load your withdrawal options.");
+      setError(err.response?.data?.message || err.message || "We could not load your withdrawal options.");
     } finally {
-      if (isMounted) {
-        setIsLoading(false);
-      }
+      if (isMounted) setIsLoading(false);
     }
   }, [navigate]);
 
@@ -53,12 +57,7 @@ export default function Withdraw() {
   const sourceOptions = useMemo(
     () => [
       { value: "wallet", label: `Savings wallet (${formatCurrency(wallet?.balance)})`, type: "wallet" },
-      ...goals.map((goal) => ({
-        value: `goal:${goal._id}`,
-        label: `${goal.name} (${formatCurrency(goal.savedAmount)})`,
-        type: "goal",
-        goal,
-      })),
+      ...goals.map((goal) => ({ value: `goal:${goal._id}`, label: goal.name, type: "goal", goal })),
     ],
     [goals, wallet?.balance]
   );
@@ -66,6 +65,9 @@ export default function Withdraw() {
   const selectedSource = sourceOptions.find((option) => option.value === source) || sourceOptions[0];
   const selectedGoal = selectedSource?.goal || null;
   const showMaturityWarning = Boolean(selectedGoal && selectedGoal.status !== "completed");
+  const numericAmount = toAmount(amount);
+  const availableBalance = selectedGoal ? toAmount(selectedGoal.savedAmount) : toAmount(wallet?.balance);
+  const previewCharged = Math.min(numericAmount, availableBalance);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -86,25 +88,14 @@ export default function Withdraw() {
     try {
       const response = await submitWithdrawal(
         selectedSource.type === "goal"
-          ? {
-              amount: Number(amount),
-              sourceType: "goal",
-              sourceId: selectedGoal._id,
-              breakGoal,
-            }
-          : {
-              amount: Number(amount),
-              sourceType: "wallet",
-            }
+          ? { amount: Number(amount), sourceType: "goal", sourceId: selectedGoal._id, breakGoal }
+          : { amount: Number(amount), sourceType: "wallet" }
       );
 
       setAmount("");
       setBreakGoal(false);
       setNeedsBreakConfirmation(false);
-      setFeedback({
-        type: "success",
-        message: response.message || "Withdrawal submitted successfully.",
-      });
+      setFeedback({ type: "success", message: response.message || "Withdrawal submitted successfully." });
       await loadWithdrawPage(true);
       triggerDashboardRefresh();
     } catch (err) {
@@ -117,11 +108,7 @@ export default function Withdraw() {
   }
 
   return (
-    <Layout
-      // eyebrow="Withdraw"
-      title="Withdraw from your wallet or a selected goal."
-     // subtitle="Choose the source, handle maturity warnings clearly, and submit the request in one flow."
-    >
+    <Layout eyebrow="Withdraw" title="Withdraw your savings" subtitle="Choose a source, preview the amount, and confirm the withdrawal with clear safety messaging.">
       {feedback ? (
         <div className={`feedback ${feedback.type === "success" ? "feedback-success" : "feedback-error"}`}>
           <strong>{feedback.type === "success" ? "Success:" : "Error:"}</strong>
@@ -136,105 +123,68 @@ export default function Withdraw() {
         </div>
       ) : null}
 
-      <section className="row justify-content-center">
-        <div className="col-12 col-lg-8">
-          <article className="app-card">
-            <div className="card-header">
-              <div>
-                <h2 className="card-title">Withdrawal request</h2>
-          
-              </div>
-              {!isLoading ? <span className="status-chip">Wallet {formatCurrency(wallet?.balance)}</span> : null}
-            </div>
+      <section className="stats-grid">
+        <StatCard label="Wallet balance" value={formatCurrency(wallet?.balance)} hint="Available immediately from your savings wallet" tone="cool" />
+        <StatCard label="Goals available" value={String(goals.length)} hint="You can withdraw from wallet or a selected goal" />
+        <StatCard label="Selected source" value={selectedGoal ? selectedGoal.name : "Wallet"} hint="Current withdrawal source" tone="success" />
+      </section>
 
+      <section className="content-grid-main">
+        <div className="content-main-column page-stack">
+          <Card>
+            <SectionHeader title="Withdrawal request" subtitle="Select where the funds should come from and how much you want to withdraw." />
             {isLoading ? (
               <div className="loading-panel">
                 <span className="spinner spinner-dark" aria-hidden="true" />
                 <span>Loading withdrawal details...</span>
               </div>
             ) : (
-              <form className="d-grid gap-3" onSubmit={handleSubmit}>
-                <div>
-                  <label className="form-label fw-semibold" htmlFor="withdrawAmount">
-                    Amount
-                  </label>
-                  <input
-                    id="withdrawAmount"
-                    className="form-control"
-                    type="number"
-                    min="1"
-                    placeholder="Enter amount"
-                    value={amount}
-                    onChange={(event) => setAmount(event.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <label className="form-label fw-semibold" htmlFor="withdrawSource">
-                    Source selection
-                  </label>
-                  <select
-                    id="withdrawSource"
-                    className="form-select"
-                    value={selectedSource?.value || "wallet"}
-                    onChange={(event) => {
-                      setSource(event.target.value);
-                      setBreakGoal(false);
-                      setNeedsBreakConfirmation(false);
-                    }}
-                  >
-                    {sourceOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <form className="page-stack-sm" onSubmit={handleSubmit}>
+                <Input label="Amount" type="number" min="1" placeholder="Enter amount" value={amount} onChange={(event) => setAmount(event.target.value)} />
+                <FilterTabs
+                  items={sourceOptions.map((option) => ({ value: option.value, label: option.label }))}
+                  value={selectedSource?.value || "wallet"}
+                  onChange={(value) => {
+                    setSource(value);
+                    setBreakGoal(false);
+                    setNeedsBreakConfirmation(false);
+                  }}
+                />
 
                 {showMaturityWarning ? (
-                  <div className="alert alert-warning mb-0">
-                    <div className="fw-semibold">This goal has not matured</div>
-                    <div className="small mt-1">
-                      {selectedGoal.name} is still in progress. Break the goal to continue, or cancel and keep saving.
-                    </div>
-                    <div className="d-flex flex-wrap gap-2 mt-3">
-                      <button
-                        className={`btn ${breakGoal ? "btn-warning" : "btn-outline-warning"}`}
-                        type="button"
-                        onClick={() => {
-                          setBreakGoal(true);
-                          setNeedsBreakConfirmation(false);
-                        }}
-                      >
+                  <Card className="warning-card" hover={false}>
+                    <SectionHeader title="Goal not matured" subtitle={`${selectedGoal.name} is still in progress. Break the goal to continue, or switch back to wallet.`} />
+                    <div className="goal-card-actions">
+                      <Button type="button" variant={breakGoal ? "primary" : "secondary"} onClick={() => { setBreakGoal(true); setNeedsBreakConfirmation(false); }}>
                         Break goal
-                      </button>
-                      <button
-                        className="btn btn-outline-secondary"
-                        type="button"
-                        onClick={() => {
-                          setSource("wallet");
-                          setBreakGoal(false);
-                          setNeedsBreakConfirmation(false);
-                        }}
-                      >
+                      </Button>
+                      <Button type="button" variant="ghost" onClick={() => { setSource("wallet"); setBreakGoal(false); setNeedsBreakConfirmation(false); }}>
                         Cancel
-                      </button>
+                      </Button>
                     </div>
-                  </div>
+                  </Card>
                 ) : null}
 
                 {needsBreakConfirmation && !breakGoal ? (
-                  <div className="alert alert-warning mb-0">
-                    Select <strong>Break goal</strong> to continue with this withdrawal.
+                  <div className="feedback feedback-error">
+                    <strong>Action required:</strong>
+                    <span>Select Break goal to continue with this withdrawal.</span>
                   </div>
                 ) : null}
 
-                <button className="btn btn-primary" type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Submitting..." : "Submit withdrawal request"}
-                </button>
+                <div className="confirm-section">
+                  <SectionHeader title="Confirm withdrawal" subtitle="Review the preview on the right before you submit." />
+                  <Button type="submit" fullWidth className="sm-auto" disabled={isSubmitting}>
+                    {isSubmitting ? "Submitting..." : "Submit withdrawal request"}
+                  </Button>
+                </div>
               </form>
             )}
-          </article>
+          </Card>
+        </div>
+
+        <div className="content-side-column">
+          <MpesaPreview chargedAmount={previewCharged} savingsAmount={previewCharged} goalName={selectedGoal?.name || "Savings wallet"} isReady={numericAmount > 0} sticky />
         </div>
       </section>
     </Layout>

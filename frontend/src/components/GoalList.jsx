@@ -6,7 +6,7 @@ export default function GoalList({ goals, selectedGoalId, onSelectGoal, weeklySa
   }
 
   return (
-    <div className="goal-progress-grid">
+    <div className="responsive-grid">
       {goals.map((goal) => (
         <GoalCard
           key={goal._id}
@@ -20,4 +20,3 @@ export default function GoalList({ goals, selectedGoalId, onSelectGoal, weeklySa
     </div>
   );
 }
-

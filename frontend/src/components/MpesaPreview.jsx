@@ -1,29 +1,33 @@
-﻿import { formatCurrency } from "../utils/formatters";
+﻿import Card from "./Card.jsx";
+import { formatCurrency } from "../utils/formatters";
 
-export default function MpesaPreview({ chargedAmount, savingsAmount, goalName, isReady }) {
+export default function MpesaPreview({ chargedAmount, savingsAmount, goalName, isReady, sticky = false }) {
   return (
-    <div className={`mpesa-preview-card ${isReady ? "mpesa-preview-card-ready" : ""}`}>
-      <div className="mpesa-preview-header">
-        <div>
-          <h3 className="mpesa-preview-title">M-Pesa preview</h3>
-          <p className="mpesa-preview-subtitle">You will receive an M-Pesa prompt on your phone before we save the funds.</p>
-        </div>
+    <Card className={["mpesa-preview", sticky ? "preview-sticky" : "", isReady ? "mpesa-preview-ready" : ""].filter(Boolean).join(" ")}>
+      <div className="preview-badge-row">
+        <span className="preview-badge">M-Pesa Preview</span>
         <span className="badge badge-neutral">{goalName || "Choose a goal"}</span>
       </div>
 
-      <div className="mpesa-preview-values">
-        <div className="mpesa-preview-total">
+      <div className="preview-copy">
+        <h3 className="section-title preview-title">Review before you confirm</h3>
+        <p className="section-subtitle preview-subtitle">You will receive an M-Pesa prompt on your phone before any money is moved.</p>
+      </div>
+
+      <div className="preview-metrics">
+        <div className="preview-metric preview-metric-primary">
           <span>Total charged</span>
           <strong>{formatCurrency(chargedAmount)}</strong>
         </div>
-        <div className="mpesa-preview-savings">
+        <div className="preview-metric preview-metric-success">
           <span>Amount saved</span>
           <strong>{formatCurrency(savingsAmount)}</strong>
         </div>
       </div>
 
-      <p className="mpesa-preview-note">Includes transaction fee. Confirm the prompt to complete your save.</p>
-    </div>
+      <div className="preview-note">
+        <strong>Heads up:</strong> Transaction includes fee. Confirm the prompt to complete your save.
+      </div>
+    </Card>
   );
 }
-

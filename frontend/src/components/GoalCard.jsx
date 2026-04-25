@@ -1,4 +1,7 @@
 ﻿import { useNavigate } from "react-router-dom";
+import Button from "./Button.jsx";
+import Card from "./Card.jsx";
+import ProgressBar from "./ProgressBar.jsx";
 import { formatCurrency } from "../utils/formatters";
 import {
   getEstimatedCompletion,
@@ -13,51 +16,41 @@ export default function GoalCard({ goal, weeklySavingsRate = 0, selected = false
   const remaining = getGoalRemaining(goal);
 
   return (
-    <article className={`goal-progress-card ${selected ? "goal-progress-card-selected" : ""}`}>
-      <div className="goal-progress-top">
+    <Card className={["goal-card", selected ? "goal-card-selected" : ""].filter(Boolean).join(" ")}>
+      <div className="goal-card-top">
         <div>
-          <div className="goal-progress-name">{goal.name}</div>
-          <div className="goal-progress-meta">
+          <h3 className="goal-card-title">{goal.name}</h3>
+          <p className="goal-card-subtitle">
             Saved {formatCurrency(goal.savedAmount)} of {formatCurrency(goal.targetAmount)}
-          </div>
+          </p>
         </div>
         <span className={`badge ${goal.status === "completed" ? "badge-success" : "badge-neutral"}`}>
           {goal.status || "active"}
         </span>
       </div>
 
-      <div className="savings-progress-track" role="progressbar" aria-valuenow={progress} aria-valuemin="0" aria-valuemax="100">
-        <div
-          className={`savings-progress-fill ${goal.status === "completed" ? "savings-progress-fill-complete" : ""}`}
-          style={{ width: `${progress}%` }}
-        />
-      </div>
+      <ProgressBar value={progress} complete={goal.status === "completed"} className="goal-progress-track" />
 
-      <div className="goal-progress-stats">
+      <div className="goal-progress-labels">
         <span>{progress}% complete</span>
         <span>{formatCurrency(remaining)} remaining</span>
       </div>
 
-      <p className="goal-progress-motivation">{getGoalMotivation(goal, formatCurrency)}</p>
-      <p className="goal-progress-estimate">{getEstimatedCompletion(goal, weeklySavingsRate)}</p>
+      <p className="goal-card-copy">{getGoalMotivation(goal, formatCurrency)}</p>
+      <p className="goal-card-copy goal-card-copy-muted">{getEstimatedCompletion(goal, weeklySavingsRate)}</p>
 
       <div className="goal-card-actions">
         {onSelect ? (
-          <button className="app-button app-button-secondary" type="button" onClick={() => onSelect(goal._id)}>
-            {selected ? "Selected" : "Select goal"}
-          </button>
+          <Button type="button" variant={selected ? "primary" : "secondary"} onClick={() => onSelect(goal._id)}>
+            {selected ? "Selected goal" : "Select goal"}
+          </Button>
         ) : null}
         {showQuickSave ? (
-          <button
-            className="app-button app-button-primary"
-            type="button"
-            onClick={() => navigate(`/save?goal=${goal._id}`)}
-          >
+          <Button type="button" variant="primary" onClick={() => navigate(`/save?goal=${goal._id}`)}>
             Quick save
-          </button>
+          </Button>
         ) : null}
       </div>
-    </article>
+    </Card>
   );
 }
-

@@ -22,28 +22,21 @@ export default function Navbar() {
 
   const authHidden = location.pathname === "/" || location.pathname === "/register";
   const unreadCount = notifications.filter((item) => !item.read).length;
-  const initials = "AS";
 
   useEffect(() => {
     if (authHidden) return undefined;
-
     let isMounted = true;
 
     async function loadNotifications() {
       try {
         const data = await getNotifications();
-        if (isMounted) {
-          setNotifications(data);
-        }
+        if (isMounted) setNotifications(data);
       } catch {
-        if (isMounted) {
-          setNotifications([]);
-        }
+        if (isMounted) setNotifications([]);
       }
     }
 
     loadNotifications();
-
     return () => {
       isMounted = false;
     };
@@ -51,7 +44,6 @@ export default function Navbar() {
 
   useEffect(() => {
     if (authHidden) return undefined;
-
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setNotificationOpen(false);
@@ -63,9 +55,7 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [authHidden]);
 
-  if (authHidden) {
-    return null;
-  }
+  if (authHidden) return null;
 
   function handleLogout() {
     localStorage.removeItem("token");
@@ -80,12 +70,7 @@ export default function Navbar() {
           <span>AirSave</span>
         </NavLink>
 
-        <button
-          className="icon-button navbar-toggle"
-          type="button"
-          onClick={() => setMobileOpen((current) => !current)}
-          aria-label="Toggle navigation"
-        >
+        <button className="icon-button navbar-toggle" type="button" onClick={() => setMobileOpen((current) => !current)} aria-label="Toggle navigation">
           =
         </button>
 
@@ -95,7 +80,7 @@ export default function Navbar() {
               <NavLink
                 key={item.to}
                 to={item.to}
-                className={({ isActive }) => `navbar-link ${isActive ? "navbar-link-active" : ""}`}
+                className={({ isActive }) => ["navbar-link", isActive ? "navbar-link-active" : ""].filter(Boolean).join(" ")}
                 onClick={() => setMobileOpen(false)}
               >
                 <span>{item.label}</span>
@@ -118,11 +103,7 @@ export default function Navbar() {
               <span aria-hidden="true">N</span>
               {unreadCount ? <span className="icon-badge">{unreadCount}</span> : null}
             </button>
-            <NotificationDropdown
-              notifications={notifications}
-              open={notificationOpen}
-              onClose={() => setNotificationOpen(false)}
-            />
+            <NotificationDropdown notifications={notifications} open={notificationOpen} onClose={() => setNotificationOpen(false)} />
           </div>
 
           <div className="navbar-action-wrap">
@@ -135,7 +116,7 @@ export default function Navbar() {
               }}
               aria-label="User menu"
             >
-              <span className="avatar-circle">{initials}</span>
+              <span className="avatar-circle">AS</span>
             </button>
 
             {menuOpen ? (
@@ -160,4 +141,3 @@ export default function Navbar() {
     </header>
   );
 }
-

@@ -1,7 +1,8 @@
 ﻿import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "../components/Layout.jsx";
+import Button from "../components/Button.jsx";
 import GoalList from "../components/GoalList.jsx";
+import Layout from "../components/Layout.jsx";
 import { getGoals, getSavingsActivity } from "../services/api";
 import { getWeeklySavingsRate, sortActivityByNewest } from "../utils/savings";
 
@@ -24,7 +25,6 @@ export default function Goals() {
         navigate("/");
         return;
       }
-
       setError(err.response?.data?.message || err.message || "We could not load your goals.");
     } finally {
       setIsLoading(false);
@@ -41,13 +41,8 @@ export default function Goals() {
     <Layout
       eyebrow="Goals"
       title="Your savings goals"
-      subtitle="Track every target, see what remains, and jump into a quick save when you need to."
-      actions={
-        <button className="app-button app-button-primary" type="button" onClick={() => navigate("/goals/new")}>
-          New goal
-        </button>
-      }
-      shellClassName="savings-shell"
+      subtitle="Track each target, check what remains, and jump into a quick save whenever you need to."
+      actions={<Button onClick={() => navigate("/goals/new")}>New goal</Button>}
     >
       {error ? (
         <div className="feedback feedback-error">
@@ -57,7 +52,7 @@ export default function Goals() {
       ) : null}
 
       {isLoading ? (
-        <section className="app-card loading-panel">
+        <section className="ui-card loading-panel">
           <span className="spinner spinner-dark" aria-hidden="true" />
           <span>Loading goals...</span>
         </section>
@@ -67,4 +62,3 @@ export default function Goals() {
     </Layout>
   );
 }
-
