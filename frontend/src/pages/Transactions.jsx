@@ -51,11 +51,13 @@ export default function Transactions() {
         </div>
       ) : null}
 
-      <section className="stats-grid">
-        <StatCard label="This week" value={formatCurrency(weeklySavings)} hint="You saved this much in the last 7 days" tone="success" />
-        <StatCard label="Current view" value={formatCurrency(selectedSummary)} hint={`Confirmed savings ${getFilterLabel(filter)}`} tone="cool" />
-        <StatCard label="Entries" value={String(filteredActivity.length)} hint="Filtered savings records" />
-      </section>
+      <div className="overflow-grid-shell">
+        <section className="fixed-stats-grid">
+          <StatCard label="This week" value={formatCurrency(weeklySavings)} hint="You saved this much in the last 7 days" tone="success" />
+          <StatCard label="Current view" value={formatCurrency(selectedSummary)} hint={`Confirmed savings ${getFilterLabel(filter)}`} tone="cool" />
+          <StatCard label="Entries" value={String(filteredActivity.length)} hint="Filtered savings records" />
+        </section>
+      </div>
 
       <Card>
         <SectionHeader

@@ -80,7 +80,10 @@ export default function SaveFlow({ goals, activity, onSubmit, isSubmitting, init
       setAmount("");
       setFeedback({ type: "success", message: "Payment request sent to your phone." });
     } catch (error) {
-      setFeedback({ type: "error", message: error.response?.data?.message || error.message || "We could not send the payment request." });
+      setFeedback({
+        type: "error",
+        message: error.response?.data?.message || error.message || "We could not send the payment request.",
+      });
     }
   }
 
@@ -90,71 +93,103 @@ export default function SaveFlow({ goals, activity, onSubmit, isSubmitting, init
   }
 
   return (
-    <div className="content-grid-main">
-      <div className="content-main-column">
-        {feedback ? (
-          <div className={`feedback ${feedback.type === "success" ? "feedback-success savings-feedback-success" : "feedback-error"}`}>
-            <strong>{feedback.type === "success" ? "Success:" : "Error:"}</strong>
-            <span>{feedback.message}</span>
-          </div>
-        ) : null}
+    <div className="action-page-shell">
+      {feedback ? (
+        <div className={`feedback ${feedback.type === "success" ? "feedback-success savings-feedback-success" : "feedback-error"}`}>
+          <strong>{feedback.type === "success" ? "Success:" : "Error:"}</strong>
+          <span>{feedback.message}</span>
+        </div>
+      ) : null}
 
-        <Card className="save-flow-card">
-          <SectionHeader title="Save with M-Pesa" subtitle="Move through the flow one step at a time with less clutter and a clear preview." />
-          <div className="step-indicator">
-            {stepLabels.map((label, index) => {
-              const stepNumber = index + 1;
-              const active = currentStep === stepNumber;
-              const complete = currentStep > stepNumber || (stepNumber === 4 && reviewReady);
-              return (
-                <div key={label} className={["step-item", active ? "step-item-active" : "", complete ? "step-item-complete" : ""].filter(Boolean).join(" ")}>
-                  <div className="step-node">{stepNumber}</div>
-                  <div className="step-copy">{label}</div>
-                  {index < stepLabels.length - 1 ? <div className="step-connector" /> : null}
-                </div>
-              );
-            })}
-          </div>
-        </Card>
+      <Card className="action-page-card" hover={false}>
+        <SectionHeader
+          title="Save with M-Pesa"
+          subtitle="Keep the full action flow visible: amount, goal, preview, and confirm in one view."
+        />
 
-        <form className="page-stack" onSubmit={handleConfirm}>
-          <Card>
-            <SectionHeader title="Step 1: Enter amount" subtitle="Use a quick amount or type the number you want to save." />
-            <div className="page-stack-sm">
-              <Input label="Amount" type="number" min="1" placeholder="Enter amount" value={amount} onChange={(event) => setAmount(event.target.value)} />
-              <QuickAddButtons options={quickAddOptions} onAdd={handleQuickAdd} />
+        <div className="step-indicator">
+          {stepLabels.map((label, index) => {
+            const stepNumber = index + 1;
+            const active = currentStep === stepNumber;
+            const complete = currentStep > stepNumber || (stepNumber === 4 && reviewReady);
+            return (
+              <div
+                key={label}
+                className={["step-item", active ? "step-item-active" : "", complete ? "step-item-complete" : ""]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                <div className="step-node">{stepNumber}</div>
+                <div className="step-copy">{label}</div>
+                {index < stepLabels.length - 1 ? <div className="step-connector" /> : null}
+              </div>
+            );
+          })}
+        </div>
+
+        <form className="fixed-action-grid action-panel-grid" onSubmit={handleConfirm}>
+          <Card className="action-mini-card" hover={false}>
+            <SectionHeader title="Amount + Phone" subtitle="Start with the value you want to save today." />
+            <Input
+              label="Amount"
+              type="number"
+              min="1"
+              placeholder="Enter amount"
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+            />
+            <QuickAddButtons options={quickAddOptions} onAdd={handleQuickAdd} />
+            <Input
+              label="Phone number"
+              type="tel"
+              placeholder="07XXXXXXXX or +254XXXXXXXXX"
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+              helper="We auto-fill your last used number when available."
+              error={phoneError}
+            />
+          </Card>
+
+          <Card className={`action-mini-card ${step1Ready ? "fade-in-card" : ""}`} hover={false}>
+            <SectionHeader title="Goal + Logic" subtitle="Select where the savings should land and how round-up works." />
+            <FilterTabs
+              items={activeGoals.map((goal) => ({ value: goal._id, label: goal.name }))}
+              value={selectedGoal}
+              onChange={setSelectedGoal}
+              className="goal-filter-tabs"
+            />
+            <FilterTabs
+              items={roundingOptions.map((option) => ({ value: option.value, label: option.label }))}
+              value={rule}
+              onChange={setRule}
+            />
+            <div className="compact-helper-card">
+              <strong>{step2Ready ? `You'll save Ksh ${savingsAmount} after fees` : "Select a goal to continue"}</strong>
+              <span>Your most recent goal is auto-selected so you can move faster.</span>
             </div>
           </Card>
 
-          {step1Ready ? (
-            <Card className="fade-in-card">
-              <SectionHeader title="Step 2: Select goal" subtitle="Your most recent goal is pre-selected. Tap another goal if needed." />
-              <FilterTabs items={activeGoals.map((goal) => ({ value: goal._id, label: goal.name }))} value={selectedGoal} onChange={setSelectedGoal} className="goal-filter-tabs" />
-            </Card>
-          ) : null}
-
-          {step2Ready ? (
-            <Card className="fade-in-card page-stack-sm">
-              <SectionHeader title="Step 3: Review details" subtitle="We will send the payment request to this phone number." />
-              <Input label="Phone number" type="tel" placeholder="07XXXXXXXX or +254XXXXXXXXX" value={phone} onChange={(event) => setPhone(event.target.value)} helper="We auto-fill your last used number when available." error={phoneError} />
-              <FilterTabs items={roundingOptions.map((option) => ({ value: option.value, label: option.label }))} value={rule} onChange={setRule} />
-            </Card>
-          ) : null}
-
-          {step2Ready ? (
-            <Card className="fade-in-card">
-              <div className="confirm-section">
-                <SectionHeader title="Step 4: Confirm save" subtitle="Transaction includes fee. We update your balance after confirmation." />
-                <Button type="submit" fullWidth className="sm-auto" disabled={!reviewReady || isSubmitting}>{isSubmitting ? "Sending request..." : "Confirm save"}</Button>
+          <div className="action-preview-column">
+            <MpesaPreview
+              chargedAmount={roundedAmount}
+              savingsAmount={savingsAmount}
+              goalName={selectedGoalItem?.name}
+              isReady={reviewReady}
+              sticky={false}
+            />
+            <Card className={`action-mini-card ${step2Ready ? "fade-in-card" : ""}`} hover={false}>
+              <SectionHeader title="Preview + Confirm" subtitle="Review the charge and send the payment request." />
+              <div className="compact-helper-card">
+                <strong>You will receive an M-Pesa prompt.</strong>
+                <span>Transaction includes fee and your dashboard updates after confirmation.</span>
               </div>
+              <Button type="submit" fullWidth disabled={!reviewReady || isSubmitting}>
+                {isSubmitting ? "Sending request..." : "Confirm Save"}
+              </Button>
             </Card>
-          ) : null}
+          </div>
         </form>
-      </div>
-
-      <div className="content-side-column">
-        <MpesaPreview chargedAmount={roundedAmount} savingsAmount={savingsAmount} goalName={selectedGoalItem?.name} isReady={reviewReady} sticky />
-      </div>
+      </Card>
     </div>
   );
 }

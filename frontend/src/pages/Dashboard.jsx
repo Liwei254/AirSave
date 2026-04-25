@@ -58,11 +58,13 @@ export default function Dashboard() {
         </div>
       ) : null}
 
-      <section className="stats-grid">
-        <StatCard label="Total savings" value={formatCurrency(wallet?.balance)} hint="Across wallet and active goal contributions" tone="cool" />
-        <StatCard label="Weekly savings" value={formatCurrency(weeklySavings)} hint="Confirmed savings in the current week" tone="success" />
-        <StatCard label="Active goals" value={String(activeGoalsCount)} hint="Goals currently in progress" />
-      </section>
+      <div className="overflow-grid-shell">
+        <section className="fixed-stats-grid">
+          <StatCard label="Total savings" value={formatCurrency(wallet?.balance)} hint="Across wallet and active goal contributions" tone="cool" />
+          <StatCard label="Weekly savings" value={formatCurrency(weeklySavings)} hint="Confirmed savings in the current week" tone="success" />
+          <StatCard label="Active goals" value={String(activeGoalsCount)} hint="Goals currently in progress" />
+        </section>
+      </div>
 
       <Card>
         <SectionHeader

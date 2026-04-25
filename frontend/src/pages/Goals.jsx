@@ -57,7 +57,9 @@ export default function Goals() {
           <span>Loading goals...</span>
         </section>
       ) : (
-        <GoalList goals={goals} weeklySavingsRate={weeklySavingsRate} showQuickSave />
+        <div className="overflow-grid-shell">
+          <GoalList goals={goals} weeklySavingsRate={weeklySavingsRate} showQuickSave />
+        </div>
       )}
     </Layout>
   );

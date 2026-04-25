@@ -6,7 +6,7 @@ export default function GoalList({ goals, selectedGoalId, onSelectGoal, weeklySa
   }
 
   return (
-    <div className="responsive-grid">
+    <div className="fixed-two-grid">
       {goals.map((goal) => (
         <GoalCard
           key={goal._id}
