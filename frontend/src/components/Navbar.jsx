@@ -1,11 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import NotificationDropdown from "./NotificationDropdown.jsx";
 import { getNotifications } from "../services/api";
 
 const navItems = [
-  { label: "Savings", to: "/savings"},
-  { label: "Withdraw", to: "/withdraw"},
+  { label: "Dashboard", to: "/dashboard" },
+  { label: "Save", to: "/save" },
+  { label: "Goals", to: "/goals" },
+  { label: "Activity", to: "/activity" },
+  { label: "Withdraw", to: "/withdraw" },
 ];
 
 export default function Navbar() {
@@ -95,9 +98,6 @@ export default function Navbar() {
                 className={({ isActive }) => `navbar-link ${isActive ? "navbar-link-active" : ""}`}
                 onClick={() => setMobileOpen(false)}
               >
-                <span className="navbar-link-icon" aria-hidden="true">
-                  {item.icon}
-                </span>
                 <span>{item.label}</span>
               </NavLink>
             ))}
@@ -160,3 +160,4 @@ export default function Navbar() {
     </header>
   );
 }
+

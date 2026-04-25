@@ -1,33 +1,31 @@
-import { useEffect, useState, useCallback } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
-import WalletCard from "../components/WalletCard.jsx";
-import TransactionList from "../components/TransactionList.jsx";
-import { getGoals, getTransactions, getWallet } from "../services/api";
-import { subscribeToDashboardRefresh } from "../utils/dashboardRefresh";
+import StatCard from "../components/StatCard.jsx";
+import ActivityList from "../components/ActivityList.jsx";
+import { getGoals, getSavingsActivity, getWallet } from "../services/api";
 import { formatCurrency } from "../utils/formatters";
+import { getSavingsSummary, isWithinActivityFilter, sortActivityByNewest } from "../utils/savings";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-
   const [wallet, setWallet] = useState(null);
   const [goals, setGoals] = useState([]);
-  const [transactions, setTransactions] = useState([]);
+  const [activity, setActivity] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // ✅ FIX: useCallback to stabilize function
   const loadDashboard = useCallback(async () => {
     try {
-      const [walletData, goalsData, transactionsData] = await Promise.all([
+      const [walletData, goalsData, activityData] = await Promise.all([
         getWallet(),
         getGoals(),
-        getTransactions(),
+        getSavingsActivity(),
       ]);
 
       setWallet(walletData);
       setGoals(goalsData);
-      setTransactions(transactionsData);
+      setActivity(sortActivityByNewest(activityData).slice(0, 35));
       setError("");
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 403) {
@@ -36,88 +34,72 @@ export default function Dashboard() {
         return;
       }
 
-      setError(err.response?.data?.message || "We could not load your dashboard.");
+      setError(err.response?.data?.message || err.message || "We could not load your dashboard.");
     } finally {
       setIsLoading(false);
     }
   }, [navigate]);
 
-  // ✅ FIX: proper dependency
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
 
-  useEffect(() => subscribeToDashboardRefresh(loadDashboard), [loadDashboard]);
-
-  const activeGoals = goals.filter((goal) => goal.status !== "completed");
-  const completedGoals = goals.filter((goal) => goal.status === "completed");
-
-  if (isLoading) {
-    return (
-      <Layout shellClassName="page-shell">
-        <section className="app-card loading-panel">
-          <span className="spinner spinner-dark" aria-hidden="true" />
-          <span>Loading your dashboard...</span>
-        </section>
-      </Layout>
-    );
-  }
+  const weeklySavings = useMemo(
+    () => getSavingsSummary(activity.filter((item) => isWithinActivityFilter(item, "week"))),
+    [activity]
+  );
+  const activeGoalsCount = goals.filter((goal) => goal.status !== "completed").length;
 
   return (
     <Layout
-     // eyebrow="Dashboard"
-      title="Save smarter with roundups."
-     // subtitle="Save smarter with every transaction"
+      eyebrow="Dashboard"
+      title="Your savings overview"
+      subtitle="See progress at a glance, then jump into a focused save flow when you are ready."
+      actions={
+        <button className="app-button app-button-primary savings-hero-button" type="button" onClick={() => navigate("/save") }>
+          Save Now
+        </button>
+      }
+      shellClassName="savings-shell"
     >
-      {error && (
+      {error ? (
         <div className="feedback feedback-error">
           <strong>Error:</strong>
           <span>{error}</span>
         </div>
-      )}
+      ) : null}
 
-      <section className="wallet-row">
-        <WalletCard
-          balance={formatCurrency(wallet?.balance)}
-          subtitle="Available across all saved round-ups"
-        />
+      <section className="app-grid-3">
+        <StatCard label="Total savings" value={formatCurrency(wallet?.balance)} hint="Across all active savings activity" tone="cool" />
+        <StatCard label="This week" value={formatCurrency(weeklySavings)} hint="Confirmed savings in the last 7 days" tone="success" />
+        <StatCard label="Active goals" value={String(activeGoalsCount)} hint="Goals currently in progress" />
       </section>
 
-      <section className="summary-grid">
-        <article className="app-card metric-card">
-          <span className="metric-label">Active Goals</span>
-          <p className="metric-value metric-value-sm">{activeGoals.length}</p>
-          <div className="metric-meta">{completedGoals.length} completed goals</div>
-        </article>
-
-        <article className="app-card metric-card">
-          <span className="metric-label">Transactions</span>
-          <p className="metric-value metric-value-sm">
-            {wallet?.transactionsCount || 0}
-          </p>
-          <div className="metric-meta">Latest wallet activity</div>
-        </article>
-
-        <article className="app-card metric-card">
-          <span className="metric-label">Total Savings</span>
-          <p className="metric-value metric-value-sm">
-            {formatCurrency(wallet?.balance)}
-          </p>
-          <div className="metric-meta">Current wallet value</div>
-        </article>
-      </section>
-
-      <section className="app-card">
-        <div className="card-header d-flex justify-content-between align-items-center">
-         <span className="status-chip fs-5 fw-semibold">Recent Activities</span>
-          <div className="status-chip">{transactions.length} total</div>
+      <section className="app-card savings-card">
+        <div className="card-header savings-card-header">
+          <div>
+            <h2 className="card-title">Recent activity</h2>
+            <p className="card-subtitle">Your latest 35 savings records.</p>
+          </div>
+          <button className="app-button app-button-secondary" type="button" onClick={() => navigate("/activity")}>
+            View all activity
+          </button>
         </div>
 
-        <TransactionList
-          transactions={transactions.slice(0, 5)}
-          emptyMessage="No transactions yet. Visit Savings to start saving."
-        />
+        {isLoading ? (
+          <div className="loading-panel">
+            <span className="spinner spinner-dark" aria-hidden="true" />
+            <span>Loading dashboard...</span>
+          </div>
+        ) : (
+          <ActivityList
+            items={activity}
+            compact
+            emptyMessage="No savings activity yet. Start with your first save."
+          />
+        )}
       </section>
     </Layout>
   );
 }
+

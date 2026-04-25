@@ -1,8 +1,11 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+﻿import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Savings from "./pages/Savings.jsx";
+import Goals from "./pages/Goals.jsx";
+import GoalNew from "./pages/GoalNew.jsx";
+import Transactions from "./pages/Transactions.jsx";
 import Withdraw from "./pages/Withdraw.jsx";
 import Support from "./pages/Support.jsx";
 import Admin from "./pages/Admin.jsx";
@@ -29,10 +32,34 @@ function App() {
               }
             />
             <Route
-              path="/savings"
+              path="/save"
               element={
                 <ProtectedRoute>
                   <Savings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/goals"
+              element={
+                <ProtectedRoute>
+                  <Goals />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/goals/new"
+              element={
+                <ProtectedRoute>
+                  <GoalNew />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/activity"
+              element={
+                <ProtectedRoute>
+                  <Transactions />
                 </ProtectedRoute>
               }
             />
@@ -44,8 +71,8 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/goals" element={<Navigate to="/savings" replace />} />
-            <Route path="/transactions" element={<Navigate to="/savings" replace />} />
+            <Route path="/savings" element={<Navigate to="/save" replace />} />
+            <Route path="/transactions" element={<Navigate to="/activity" replace />} />
             <Route
               path="/admin"
               element={
@@ -71,3 +98,4 @@ function App() {
 }
 
 export default App;
+

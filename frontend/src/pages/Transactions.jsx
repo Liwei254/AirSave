@@ -1,131 +1,64 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
-import TransactionList from "../components/TransactionList.jsx";
-import WalletCard from "../components/WalletCard.jsx";
-import { getGoals, getTransactions, getWallet, initiatePayment } from "../services/api";
+import ActivityList from "../components/ActivityList.jsx";
+import StatCard from "../components/StatCard.jsx";
+import { getSavingsActivity } from "../services/api";
 import { formatCurrency } from "../utils/formatters";
+import {
+  activityFilters,
+  getFilterLabel,
+  getSavingsSummary,
+  isWithinActivityFilter,
+  sortActivityByNewest,
+} from "../utils/savings";
 
 export default function Transactions() {
   const navigate = useNavigate();
-  const [wallet, setWallet] = useState(null);
-  const [transactions, setTransactions] = useState([]);
-  const [goals, setGoals] = useState([]);
-  const [amount, setAmount] = useState("");
-  const [rule, setRule] = useState(10);
-  const [selectedGoal, setSelectedGoal] = useState("");
-  const [phone, setPhone] = useState("");
-  const [typeFilter, setTypeFilter] = useState("ALL");
-  const [dateFilter, setDateFilter] = useState("ALL");
+  const [activity, setActivity] = useState([]);
+  const [filter, setFilter] = useState("week");
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState(null);
   const [error, setError] = useState("");
 
-  const loadTransactionsPage = useCallback(async (isMounted = true) => {
+  const loadActivityPage = useCallback(async () => {
     try {
-      const [walletData, transactionsData, goalsData] = await Promise.all([
-        getWallet(),
-        getTransactions(),
-        getGoals(),
-      ]);
-
-      if (!isMounted) return;
-
-      setWallet(walletData);
-      setTransactions(transactionsData);
-      setGoals(goalsData);
-      setPhone("");
+      const activityData = await getSavingsActivity();
+      setActivity(sortActivityByNewest(activityData));
       setError("");
     } catch (err) {
-      if (!isMounted) return;
       if (err.response?.status === 401 || err.response?.status === 403) {
         localStorage.removeItem("token");
         navigate("/");
         return;
       }
-      setError(err.response?.data?.message || "We could not load your transactions.");
+
+      setError(err.response?.data?.message || err.message || "We could not load activity.");
     } finally {
-      if (isMounted) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
   }, [navigate]);
 
   useEffect(() => {
-    let isMounted = true;
-    loadTransactionsPage(isMounted);
-    return () => {
-      isMounted = false;
-    };
-  }, [loadTransactionsPage]);
+    loadActivityPage();
+  }, [loadActivityPage]);
 
-  async function handleInitiatePayment() {
-    if (!amount) return;
-
-    setIsSubmitting(true);
-    setFeedback(null);
-
-    try {
-      const response = await initiatePayment({
-        amount: Number(amount),
-        rule,
-        goalId: selectedGoal || undefined,
-        walletId: selectedGoal ? undefined : wallet?.walletId,
-        phone: phone || undefined,
-      });
-
-      setAmount("");
-      setSelectedGoal("");
-      setPhone("");
-      setFeedback({
-        type: "success",
-        message: `Payment initiated for ${response.phone}. Savings will post after confirmation.`,
-      });
-      await loadTransactionsPage(true);
-    } catch (err) {
-      setFeedback({ type: "error", message: err.response?.data?.message || "Payment initiation failed." });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  const numericAmount = Number(amount);
-  const rounded = amount ? Math.ceil(numericAmount / rule) * rule : 0;
-  const savings = amount ? rounded - numericAmount : 0;
-  const saveDisabled = !amount || Number(amount) <= 0 || isSubmitting;
-  const filteredTransactions = transactions.filter((transaction) => {
-    const matchesType = typeFilter === "ALL" || transaction.type === typeFilter;
-    const matchesDate =
-      dateFilter === "ALL" ||
-      (() => {
-        const txDate = new Date(transaction.createdAt);
-        const now = new Date();
-        if (dateFilter === "7D") {
-          return now - txDate <= 7 * 24 * 60 * 60 * 1000;
-        }
-        if (dateFilter === "30D") {
-          return now - txDate <= 30 * 24 * 60 * 60 * 1000;
-        }
-        return true;
-      })();
-
-    return matchesType && matchesDate;
-  });
+  const filteredActivity = useMemo(
+    () => activity.filter((item) => isWithinActivityFilter(item, filter)),
+    [activity, filter]
+  );
+  const weeklySavings = useMemo(
+    () => getSavingsSummary(activity.filter((item) => isWithinActivityFilter(item, "week"))),
+    [activity]
+  );
+  const selectedSummary = getSavingsSummary(filteredActivity);
 
   return (
     <Layout
-      eyebrow="Transactions"
-      title="Monitor every savings movement."
-      subtitle="Review transaction history, initiate real payment-backed savings, and understand current wallet activity."
+      eyebrow="Activity"
+      title="Savings activity"
+      subtitle="Filter your savings history, review patterns, and keep track of every confirmed contribution."
+      shellClassName="savings-shell"
     >
-      {feedback ? (
-        <div className={`feedback ${feedback.type === "success" ? "feedback-success" : "feedback-error"}`}>
-          <strong>{feedback.type === "success" ? "Success:" : "Error:"}</strong>
-          <span>{feedback.message}</span>
-        </div>
-      ) : null}
-
       {error ? (
         <div className="feedback feedback-error">
           <strong>Error:</strong>
@@ -133,190 +66,46 @@ export default function Transactions() {
         </div>
       ) : null}
 
-      {!isLoading && wallet ? (
-        <section className="wallet-row">
-          <WalletCard
-            balance={formatCurrency(wallet.balance)}
-            subtitle={`${wallet.transactionsCount || 0} total wallet entries`}
-          />
-        </section>
-      ) : null}
-
-      <section className="transaction-page-grid">
-        <article className="app-card compact-action-card">
-          <div className="card-header">
-            <div>
-              <h2 className="card-title">Initiate payment</h2>
-              <p className="card-subtitle">Savings only post after the payment provider confirms the debit.</p>
-            </div>
-          </div>
-
-          <div className="quick-save-card">
-            <div className="form-grid">
-              <div className="field-group">
-                <label className="field-label" htmlFor="paymentPhone">
-                  Payment phone number
-                </label>
-                <input
-                  id="paymentPhone"
-                  className="app-input"
-                  type="tel"
-                  placeholder="Use your registered phone number"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </div>
-
-              <div className="field-group">
-                <label className="field-label" htmlFor="amount">
-                  Purchase amount
-                </label>
-                <input
-                  id="amount"
-                  className="app-input"
-                  type="number"
-                  min="1"
-                  placeholder="Enter amount"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                />
-              </div>
-
-              <div className="field-group">
-                <label className="field-label" htmlFor="goal">
-                  Goal destination
-                </label>
-                <select
-                  id="goal"
-                  className="app-select"
-                  value={selectedGoal}
-                  onChange={(e) => setSelectedGoal(e.target.value)}
-                >
-                  <option value="">Keep in wallet</option>
-                  {goals.map((goal) => (
-                    <option key={goal._id} value={goal._id}>
-                      {goal.name} ({formatCurrency(goal.savedAmount)}/{formatCurrency(goal.targetAmount)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="field-group">
-                <label className="field-label" htmlFor="roundingRule">
-                  Rounding rule
-                </label>
-                <select
-                  id="roundingRule"
-                  className="app-select"
-                  value={rule}
-                  onChange={(e) => setRule(Number(e.target.value))}
-                >
-                  <option value={10}>10 - Light Saver</option>
-                  <option value={50}>50 - Balanced</option>
-                  <option value={100}>100 - Aggressive</option>
-                </select>
-              </div>
-
-              <div className="preview-card">
-                <strong>Payment preview:</strong>{" "}
-                {amount ? (
-                  <>
-                    You will pay: {formatCurrency(rounded)}. You will save: {formatCurrency(savings)}.
-                  </>
-                ) : (
-                  "Enter an amount to preview the confirmed savings amount."
-                )}
-              </div>
-
-              <div className="form-actions">
-                <button
-                  className="app-button app-button-primary"
-                  type="button"
-                  onClick={handleInitiatePayment}
-                  disabled={saveDisabled}
-                >
-                  {isSubmitting ? <span className="spinner" aria-hidden="true" /> : null}
-                  <span>{isSubmitting ? "Processing..." : "Initiate payment"}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <article className="app-card">
-          <div className="card-header">
-            <div>
-              <h2 className="card-title">Filters</h2>
-              <p className="card-subtitle">Narrow the list to the transactions you need right now.</p>
-            </div>
-          </div>
-
-          {isLoading ? (
-            <div className="loading-panel">
-              <span className="spinner spinner-dark" aria-hidden="true" />
-              <span>Loading filters...</span>
-            </div>
-          ) : (
-            <div className="filter-stack">
-              <div className="field-group">
-                <label className="field-label" htmlFor="typeFilter">
-                  Type
-                </label>
-                <select
-                  id="typeFilter"
-                  className="app-select"
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                >
-                  <option value="ALL">All transactions</option>
-                  <option value="CREDIT">Credits</option>
-                  <option value="DEBIT">Debits</option>
-                </select>
-              </div>
-
-              <div className="field-group">
-                <label className="field-label" htmlFor="dateFilter">
-                  Date range
-                </label>
-                <select
-                  id="dateFilter"
-                  className="app-select"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                >
-                  <option value="ALL">All time</option>
-                  <option value="7D">Last 7 days</option>
-                  <option value="30D">Last 30 days</option>
-                </select>
-              </div>
-
-              <div className="status-chip">{filteredTransactions.length} matches</div>
-            </div>
-          )}
-        </article>
+      <section className="app-grid-3">
+        <StatCard label="This week" value={formatCurrency(weeklySavings)} hint="You saved this much in the last 7 days" tone="success" />
+        <StatCard label="Current view" value={formatCurrency(selectedSummary)} hint={`Confirmed savings ${getFilterLabel(filter)}`} tone="cool" />
+        <StatCard label="Entries" value={String(filteredActivity.length)} hint="Filtered savings records" />
       </section>
 
-      <section className="app-card">
-        <div className="card-header">
+      <section className="app-card savings-card">
+        <div className="card-header savings-card-header">
           <div>
             <h2 className="card-title">Full transaction history</h2>
-            <p className="card-subtitle">A clean list of all wallet ledger activity.</p>
+            <p className="card-subtitle">You saved {formatCurrency(weeklySavings)} this week.</p>
           </div>
-          {!isLoading ? <div className="status-chip">{filteredTransactions.length} entries</div> : null}
+          <div className="activity-filter-row">
+            {activityFilters.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`activity-filter ${filter === option.value ? "activity-filter-active" : ""}`}
+                onClick={() => setFilter(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="activity-summary-banner">
+          You saved {formatCurrency(selectedSummary)} {getFilterLabel(filter)}.
         </div>
 
         {isLoading ? (
           <div className="loading-panel">
             <span className="spinner spinner-dark" aria-hidden="true" />
-            <span>Loading transactions...</span>
+            <span>Loading activity...</span>
           </div>
         ) : (
-          <TransactionList
-            transactions={filteredTransactions}
-            emptyMessage="No transactions yet. Your first round-up save will appear here."
-          />
+          <ActivityList items={filteredActivity} emptyMessage="No savings records for this range yet." />
         )}
       </section>
     </Layout>
   );
 }
+

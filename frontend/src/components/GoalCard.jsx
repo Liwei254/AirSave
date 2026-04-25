@@ -1,39 +1,63 @@
+﻿import { useNavigate } from "react-router-dom";
 import { formatCurrency } from "../utils/formatters";
+import {
+  getEstimatedCompletion,
+  getGoalMotivation,
+  getGoalProgress,
+  getGoalRemaining,
+} from "../utils/savings";
 
-export default function GoalCard({ goal }) {
-  const savedAmount = Number(goal.savedAmount || 0);
-  const targetAmount = Number(goal.targetAmount || 0);
-  const progress = targetAmount ? Math.min((savedAmount / targetAmount) * 100, 100) : 0;
-  const remaining = Math.max(0, targetAmount - savedAmount);
-  const statusClass = goal.status === "completed" ? "badge badge-success" : "badge badge-neutral";
+export default function GoalCard({ goal, weeklySavingsRate = 0, selected = false, onSelect, showQuickSave = false }) {
+  const navigate = useNavigate();
+  const progress = getGoalProgress(goal);
+  const remaining = getGoalRemaining(goal);
 
   return (
-    <div className="goal-item">
-      <div className="goal-row">
+    <article className={`goal-progress-card ${selected ? "goal-progress-card-selected" : ""}`}>
+      <div className="goal-progress-top">
         <div>
-          <div className="goal-name">{goal.name}</div>
-          <div className="goal-meta">
-            <span>{formatCurrency(savedAmount)} saved</span>
-            <span>Target {formatCurrency(targetAmount)}</span>
-            {goal.duration ? <span>Duration {goal.duration}</span> : null}
+          <div className="goal-progress-name">{goal.name}</div>
+          <div className="goal-progress-meta">
+            Saved {formatCurrency(goal.savedAmount)} of {formatCurrency(goal.targetAmount)}
           </div>
         </div>
-        <span className={statusClass}>{goal.status || "active"}</span>
+        <span className={`badge ${goal.status === "completed" ? "badge-success" : "badge-neutral"}`}>
+          {goal.status || "active"}
+        </span>
       </div>
 
-      <div className="progress" role="progressbar" aria-label={`${goal.name} progress`} aria-valuenow={progress} aria-valuemin="0" aria-valuemax="100">
+      <div className="savings-progress-track" role="progressbar" aria-valuenow={progress} aria-valuemin="0" aria-valuemax="100">
         <div
-          className={`progress-bar ${goal.status === "completed" ? "bg-success" : ""}`}
+          className={`savings-progress-fill ${goal.status === "completed" ? "savings-progress-fill-complete" : ""}`}
           style={{ width: `${progress}%` }}
-        >
-          {Math.round(progress)}%
-        </div>
+        />
       </div>
 
-      <div className="goal-row">
-        <span className="muted">{Math.round(progress)}% complete</span>
-        <span className="muted">Remaining {formatCurrency(remaining)}</span>
+      <div className="goal-progress-stats">
+        <span>{progress}% complete</span>
+        <span>{formatCurrency(remaining)} remaining</span>
       </div>
-    </div>
+
+      <p className="goal-progress-motivation">{getGoalMotivation(goal, formatCurrency)}</p>
+      <p className="goal-progress-estimate">{getEstimatedCompletion(goal, weeklySavingsRate)}</p>
+
+      <div className="goal-card-actions">
+        {onSelect ? (
+          <button className="app-button app-button-secondary" type="button" onClick={() => onSelect(goal._id)}>
+            {selected ? "Selected" : "Select goal"}
+          </button>
+        ) : null}
+        {showQuickSave ? (
+          <button
+            className="app-button app-button-primary"
+            type="button"
+            onClick={() => navigate(`/save?goal=${goal._id}`)}
+          >
+            Quick save
+          </button>
+        ) : null}
+      </div>
+    </article>
   );
 }
+
