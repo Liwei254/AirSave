@@ -1,7 +1,7 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import NotificationDropdown from "./NotificationDropdown.jsx";
-import { getNotifications, logoutUser } from "../services/api";
+import { authEventName, getNotifications, hasStoredToken, logoutUser } from "../services/api";
 import logo from "../assets/circle.png";
 
 const navItems = [
@@ -25,7 +25,11 @@ export default function Navbar() {
   const unreadCount = notifications.filter((item) => !item.read).length;
 
   useEffect(() => {
-    if (authHidden) return undefined;
+    if (authHidden || !hasStoredToken()) {
+      setNotifications([]);
+      return undefined;
+    }
+
     let isMounted = true;
 
     async function loadNotifications() {
@@ -42,6 +46,17 @@ export default function Navbar() {
       isMounted = false;
     };
   }, [authHidden, location.pathname]);
+
+  useEffect(() => {
+    function handleAuthExpired() {
+      setNotifications([]);
+      setNotificationOpen(false);
+      setMenuOpen(false);
+    }
+
+    window.addEventListener(authEventName, handleAuthExpired);
+    return () => window.removeEventListener(authEventName, handleAuthExpired);
+  }, []);
 
   useEffect(() => {
     if (authHidden) return undefined;
@@ -62,7 +77,7 @@ export default function Navbar() {
     try {
       await logoutUser();
     } finally {
-      navigate("/");
+      navigate("/", { replace: true });
     }
   }
 

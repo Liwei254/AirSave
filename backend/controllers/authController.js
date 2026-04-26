@@ -1,8 +1,9 @@
-﻿import User from "../models/User.js";
+import User from "../models/User.js";
 import Wallet from "../models/Wallet.js";
 import {
   buildPasswordResetPayload,
   clearAuthCookies,
+  getCookie,
   getPhoneLookupCandidates,
   hashToken,
   isEmailIdentifier,
@@ -11,6 +12,7 @@ import {
   maskIdentifier,
   normalizeEmail,
   normalizePhone,
+  REFRESH_COOKIE_NAME,
   sanitizeFullName,
   setAuthCookies,
 } from "../utils/auth.js";
@@ -70,10 +72,12 @@ async function issueSession(user, res) {
   const refreshToken = signRefreshToken(user._id);
 
   user.refreshTokenHash = hashToken(refreshToken);
-  user.refreshTokenExpiresAt = new Date(Date.now() + (7 * 24 * 60 * 60 * 1000));
+  user.refreshTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   await user.save();
 
   setAuthCookies(res, { accessToken, refreshToken });
+
+  return { accessToken, refreshToken };
 }
 
 async function registerFailedAttempt(user) {
@@ -127,7 +131,7 @@ export async function registerUser(req, res) {
     });
 
     user.wallet = wallet._id;
-    await user.save();
+    const { accessToken } = await issueSession(user, res);
 
     logAuthEvent("register_success", {
       userId: String(user._id),
@@ -135,9 +139,19 @@ export async function registerUser(req, res) {
       ip: req.ip,
     });
 
+    const responseUser = sanitizeUser(user);
+
     return res.status(201).json({
       message: "Account created successfully",
-      user: sanitizeUser(user),
+      user: responseUser,
+      token: accessToken,
+      _id: responseUser.id,
+      fullName: responseUser.fullName,
+      email: responseUser.email,
+      phone: responseUser.phone,
+      role: responseUser.role,
+      wallet: responseUser.wallet,
+      status: responseUser.status,
     });
   } catch (error) {
     return res.status(500).json({ message: "Registration failed" });
@@ -184,7 +198,7 @@ export async function loginUser(req, res) {
 
     await persistNormalizedPhone(user, emailOrPhone);
     await clearFailedAttempts(user);
-    await issueSession(user, res);
+    const { accessToken } = await issueSession(user, res);
 
     logAuthEvent("login_success", {
       userId: String(user._id),
@@ -197,6 +211,7 @@ export async function loginUser(req, res) {
     return res.status(200).json({
       message: "Login successful",
       user: responseUser,
+      token: accessToken,
       _id: responseUser.id,
       fullName: responseUser.fullName,
       email: responseUser.email,
@@ -212,12 +227,7 @@ export async function loginUser(req, res) {
 
 export async function refreshSession(req, res) {
   try {
-    const refreshCookie = req.headers.cookie
-      ?.split(";")
-      .map((entry) => entry.trim())
-      .find((entry) => entry.startsWith("airsave_refresh="));
-
-    const refreshToken = refreshCookie ? decodeURIComponent(refreshCookie.split("=").slice(1).join("=")) : "";
+    const refreshToken = getCookie(req, REFRESH_COOKIE_NAME);
     if (!refreshToken) {
       return res.status(401).json({ message: "Not authorized" });
     }
@@ -242,11 +252,12 @@ export async function refreshSession(req, res) {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    await issueSession(user, res);
+    const { accessToken } = await issueSession(user, res);
 
     return res.status(200).json({
       message: "Session refreshed",
       user: sanitizeUser(user),
+      token: accessToken,
     });
   } catch (error) {
     clearAuthCookies(res);
@@ -256,11 +267,7 @@ export async function refreshSession(req, res) {
 
 export async function logoutUser(req, res) {
   try {
-    const refreshCookie = req.headers.cookie
-      ?.split(";")
-      .map((entry) => entry.trim())
-      .find((entry) => entry.startsWith("airsave_refresh="));
-    const refreshToken = refreshCookie ? decodeURIComponent(refreshCookie.split("=").slice(1).join("=")) : "";
+    const refreshToken = getCookie(req, REFRESH_COOKIE_NAME);
 
     if (refreshToken) {
       const decoded = verifyToken(refreshToken);
@@ -365,4 +372,3 @@ export async function resetPassword(req, res) {
     return res.status(500).json({ message: "Unable to reset password" });
   }
 }
-

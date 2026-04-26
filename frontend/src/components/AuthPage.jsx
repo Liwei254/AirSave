@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Button from "./Button.jsx";
 import Input from "./Input.jsx";
@@ -29,6 +29,11 @@ function readDraft() {
 function persistDraft(draft) {
   if (typeof window === "undefined") return;
   window.sessionStorage.setItem(authDraftStorageKey, JSON.stringify(draft));
+}
+
+function clearDraft() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(authDraftStorageKey);
 }
 
 function readRememberedIdentifier() {
@@ -89,7 +94,7 @@ function mapAuthError(message, mode) {
 
   const normalized = message.toLowerCase();
 
-  if (normalized.includes("invalid credentials")) {
+  if (normalized.includes("invalid credentials") || normalized.includes("invalid email/phone")) {
     return "Your details do not match our records. Check them and try again.";
   }
 
@@ -186,18 +191,23 @@ export default function AuthPage({ defaultTab = "login" }) {
 
     try {
       const trimmedIdentifier = loginIdentifier.trim();
-      await loginUser({
-        emailOrPhone: trimmedIdentifier,
-        password: loginPassword,
-      });
+      await loginUser(
+        {
+          emailOrPhone: trimmedIdentifier,
+          password: loginPassword,
+        },
+        { rememberMe }
+      );
+
       if (rememberMe) {
         localStorage.setItem(rememberedIdentifierKey, trimmedIdentifier);
       } else {
         localStorage.removeItem(rememberedIdentifierKey);
       }
 
+      clearDraft();
       setLoginState({ loading: false, error: "", success: "Signed in. Redirecting..." });
-      navigate("/dashboard");
+      navigate("/dashboard", { replace: true });
     } catch (error) {
       setLoginState({
         loading: false,
@@ -222,22 +232,23 @@ export default function AuthPage({ defaultTab = "login" }) {
     setRegisterState({ loading: true, error: "", success: "" });
 
     try {
-      await registerUser({
-        fullName: registerFullName.trim(),
-        email: registerEmail.trim().toLowerCase(),
-        phone: registerPhone.trim(),
-        password: registerPassword,
-      });
+      await registerUser(
+        {
+          fullName: registerFullName.trim(),
+          email: registerEmail.trim().toLowerCase(),
+          phone: registerPhone.trim(),
+          password: registerPassword,
+        },
+        { rememberMe: false }
+      );
 
-      setLoginIdentifier(registerEmail.trim().toLowerCase());
-      setLoginPassword("");
+      clearDraft();
       setRegisterState({
         loading: false,
         error: "",
-        success: "Account created. Sign in to start saving.",
+        success: "Account created. Redirecting...",
       });
-      setLoginState({ loading: false, error: "", success: "Account created. Sign in to continue." });
-      switchTab("login");
+      navigate("/dashboard", { replace: true });
     } catch (error) {
       setRegisterState({
         loading: false,
@@ -528,10 +539,3 @@ export default function AuthPage({ defaultTab = "login" }) {
     </main>
   );
 }
-
-
-
-
-
-
-

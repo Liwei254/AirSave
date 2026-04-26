@@ -1,18 +1,25 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { getCurrentUser } from "../services/api";
+import { authEventName, getCurrentUser, hasStoredToken } from "../services/api";
 
 export default function ProtectedRoute({ children }) {
   const location = useLocation();
-  const [status, setStatus] = useState("loading");
+  const [status, setStatus] = useState(() => (hasStoredToken() ? "loading" : "unauthenticated"));
 
   useEffect(() => {
     let active = true;
 
     async function verifySession() {
+      if (!hasStoredToken()) {
+        if (active) setStatus("unauthenticated");
+        return;
+      }
+
       try {
-        await getCurrentUser();
-        if (active) setStatus("authenticated");
+        const user = await getCurrentUser();
+        if (active) {
+          setStatus(user ? "authenticated" : "unauthenticated");
+        }
       } catch {
         if (active) setStatus("unauthenticated");
       }
@@ -23,6 +30,15 @@ export default function ProtectedRoute({ children }) {
       active = false;
     };
   }, [location.pathname]);
+
+  useEffect(() => {
+    function handleAuthExpired() {
+      setStatus("unauthenticated");
+    }
+
+    window.addEventListener(authEventName, handleAuthExpired);
+    return () => window.removeEventListener(authEventName, handleAuthExpired);
+  }, []);
 
   if (status === "loading") {
     return (

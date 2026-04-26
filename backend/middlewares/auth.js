@@ -1,35 +1,39 @@
-﻿import User from "../models/User.js";
-import { verifyToken } from "../utils/jwt.js";
+import User from "../models/User.js";
 import { ACCESS_COOKIE_NAME, getCookie } from "../utils/auth.js";
+import { verifyToken } from "../utils/jwt.js";
+
+function getBearerToken(header = "") {
+  if (typeof header !== "string") return "";
+  if (!header.startsWith("Bearer ")) return "";
+  return header.slice(7).trim();
+}
 
 const protect = async (req, res, next) => {
-  let token = "";
+  try {
+    const bearerToken = getBearerToken(req.headers.authorization || "");
+    const cookieToken = getCookie(req, ACCESS_COOKIE_NAME);
+    const token = bearerToken || cookieToken;
 
-  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
-    token = req.headers.authorization.split(" ")[1];
-  }
+    if (!token) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
 
-  if (!token) {
-    token = getCookie(req, ACCESS_COOKIE_NAME);
-  }
+    const decoded = verifyToken(token);
 
-  if (!token) {
+    if (!decoded || decoded.type !== "access") {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    const user = await User.findById(decoded.id).select("-password");
+    if (!user) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    req.user = user;
+    return next();
+  } catch {
     return res.status(401).json({ message: "Not authorized" });
   }
-
-  const decoded = verifyToken(token);
-
-  if (!decoded || decoded.type !== "access") {
-    return res.status(401).json({ message: "Not authorized" });
-  }
-
-  const user = await User.findById(decoded.id).select("-password");
-  if (!user) {
-    return res.status(401).json({ message: "Not authorized" });
-  }
-
-  req.user = user;
-  return next();
 };
 
 const authorize = (...roles) => {

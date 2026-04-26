@@ -1,8 +1,67 @@
 import axios from "axios";
 
 const apiBaseUrl = import.meta.env.PROD
-  ? "/api"
+  ? import.meta.env.VITE_API_BASE_URL || "https://airsave-lg67.onrender.com/api"
   : import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+
+const sessionTokenKey = "airsave-token";
+const persistentTokenKey = "airsave-token-persistent";
+const authEventName = "airsave:auth-expired";
+
+function readStorage(storage, key) {
+  if (typeof window === "undefined") return "";
+  try {
+    return storage.getItem(key) || "";
+  } catch {
+    return "";
+  }
+}
+
+function writeStorage(storage, key, value) {
+  if (typeof window === "undefined") return;
+  try {
+    if (value) {
+      storage.setItem(key, value);
+    } else {
+      storage.removeItem(key);
+    }
+  } catch {
+    // Ignore storage access failures.
+  }
+}
+
+export function getStoredToken() {
+  if (typeof window === "undefined") return "";
+  return readStorage(window.sessionStorage, sessionTokenKey) || readStorage(window.localStorage, persistentTokenKey);
+}
+
+export function hasStoredToken() {
+  return Boolean(getStoredToken());
+}
+
+export function storeAuthToken(token, remember = false) {
+  if (typeof window === "undefined") return;
+  const normalizedToken = String(token || "").trim();
+
+  if (!normalizedToken) {
+    clearStoredAuth();
+    return;
+  }
+
+  writeStorage(window.sessionStorage, sessionTokenKey, remember ? "" : normalizedToken);
+  writeStorage(window.localStorage, persistentTokenKey, remember ? normalizedToken : "");
+}
+
+export function clearStoredAuth() {
+  if (typeof window === "undefined") return;
+  writeStorage(window.sessionStorage, sessionTokenKey, "");
+  writeStorage(window.localStorage, persistentTokenKey, "");
+}
+
+function emitAuthExpired() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(authEventName));
+}
 
 axios.defaults.withCredentials = true;
 
@@ -11,41 +70,35 @@ const API = axios.create({
   withCredentials: true,
 });
 
-let refreshPromise = null;
+API.interceptors.request.use((config) => {
+  const token = getStoredToken();
+  const nextConfig = { ...config, headers: { ...(config.headers || {}) } };
+
+  if (token) {
+    nextConfig.headers.Authorization = `Bearer ${token}`;
+  } else if (nextConfig.headers.Authorization) {
+    delete nextConfig.headers.Authorization;
+  }
+
+  return nextConfig;
+});
 
 API.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
+  (error) => {
     const status = error?.response?.status;
-    const requestUrl = originalRequest?.url || "";
-
-    const shouldSkipRefresh =
-      !originalRequest ||
-      originalRequest._retry ||
-      status !== 401 ||
+    const requestUrl = error?.config?.url || "";
+    const shouldIgnoreAuthFailure =
       requestUrl.includes("/auth/login") ||
       requestUrl.includes("/auth/register") ||
-      requestUrl.includes("/auth/refresh");
+      requestUrl.includes("/password-reset");
 
-    if (shouldSkipRefresh) {
-      return Promise.reject(error);
+    if (status === 401 && !shouldIgnoreAuthFailure) {
+      clearStoredAuth();
+      emitAuthExpired();
     }
 
-    originalRequest._retry = true;
-
-    try {
-      if (!refreshPromise) {
-        refreshPromise = API.post("/auth/refresh", {}, { withCredentials: true }).finally(() => {
-          refreshPromise = null;
-        });
-      }
-
-      await refreshPromise;
-      return API({ ...originalRequest, withCredentials: true });
-    } catch (refreshError) {
-      return Promise.reject(refreshError);
-    }
+    return Promise.reject(error);
   }
 );
 
@@ -67,19 +120,34 @@ async function requestData(request, transform = (data) => data) {
   }
 }
 
-export async function loginUser(payload) {
-  return requestData(API.post("/auth/login", payload, { withCredentials: true }));
+function persistTokenFromResponse(data, remember = false) {
+  const token = data?.token;
+  if (token) {
+    storeAuthToken(token, remember);
+  }
+  return data;
 }
 
-export async function registerUser(payload) {
-  return requestData(API.post("/auth/register", payload, { withCredentials: true }));
+export async function loginUser(payload, options = {}) {
+  return requestData(API.post("/auth/login", payload, { withCredentials: true }), (data) => persistTokenFromResponse(data, options.rememberMe));
+}
+
+export async function registerUser(payload, options = {}) {
+  return requestData(API.post("/auth/register", payload, { withCredentials: true }), (data) => persistTokenFromResponse(data, options.rememberMe));
 }
 
 export async function logoutUser() {
-  return requestData(API.post("/auth/logout", {}, { withCredentials: true }));
+  try {
+    return await requestData(API.post("/auth/logout", {}, { withCredentials: true }));
+  } finally {
+    clearStoredAuth();
+  }
 }
 
 export async function getCurrentUser() {
+  if (!hasStoredToken()) {
+    return null;
+  }
   return requestData(API.get("/auth/me", { withCredentials: true }), (data) => data.user || null);
 }
 
@@ -141,4 +209,5 @@ export async function markNotificationRead(id) {
   return requestData(API.put(`/notifications/${id}/read`, {}, { withCredentials: true }));
 }
 
+export { authEventName };
 export default API;
