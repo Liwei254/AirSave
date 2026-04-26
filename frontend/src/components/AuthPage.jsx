@@ -353,7 +353,7 @@ export default function AuthPage({ defaultTab = "login" }) {
 
                 <Input
                   ref={loginIdentifierRef}
-                  label="Email or phone number"
+                  id="loginIdentifier" name="emailOrPhone" label="Email or phone number"
                   type="text"
                   inputMode="text"
                   autoComplete="username"
@@ -369,6 +369,8 @@ export default function AuthPage({ defaultTab = "login" }) {
                   <span className="field-label">Password</span>
                   <div className="auth-password-wrap">
                     <input
+                      id="loginPassword"
+                      name="password"
                       className="ui-input auth-input auth-password-input"
                       type={loginVisible ? "text" : "password"}
                       autoComplete="current-password"
@@ -391,7 +393,7 @@ export default function AuthPage({ defaultTab = "login" }) {
 
                 <div className="auth-inline-row">
                   <label className="auth-checkbox">
-                    <input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} />
+                    <input id="rememberMe" name="rememberMe" type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} />
                     <span>Remember me</span>
                   </label>
                   <Link to="mailto:support@airsave.app" className="auth-inline-link">
@@ -428,7 +430,7 @@ export default function AuthPage({ defaultTab = "login" }) {
 
                 <Input
                   ref={registerNameRef}
-                  label="Full name"
+                  id="registerFullName" name="fullName" label="Full name"
                   type="text"
                   autoComplete="name"
                   placeholder="Jane Wanjiku"
@@ -440,7 +442,7 @@ export default function AuthPage({ defaultTab = "login" }) {
                 />
 
                 <Input
-                  label="Email address"
+                  id="registerEmail" name="email" label="Email address"
                   type="email"
                   autoComplete="email"
                   placeholder="jane@example.com"
@@ -452,7 +454,7 @@ export default function AuthPage({ defaultTab = "login" }) {
                 />
 
                 <Input
-                  label="Mobile number"
+                  id="registerPhone" name="phone" label="Mobile number"
                   type="tel"
                   inputMode="tel"
                   autoComplete="tel"
@@ -468,6 +470,8 @@ export default function AuthPage({ defaultTab = "login" }) {
                   <span className="field-label">Password</span>
                   <div className="auth-password-wrap">
                     <input
+                      id="registerPassword"
+                      name="password"
                       className="ui-input auth-input auth-password-input"
                       type={registerVisible ? "text" : "password"}
                       autoComplete="new-password"
@@ -524,6 +528,9 @@ export default function AuthPage({ defaultTab = "login" }) {
     </main>
   );
 }
+
+
+
 
 
 

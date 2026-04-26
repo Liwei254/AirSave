@@ -118,13 +118,16 @@ export function getCookie(req, name) {
 }
 
 function buildCookieOptions(maxAge) {
-  const isProduction = process.env.NODE_ENV === "production";
-  const useCrossSiteCookies = isProduction;
+  const isProductionLike =
+    process.env.NODE_ENV === "production" ||
+    Boolean(process.env.RENDER_EXTERNAL_URL) ||
+    Boolean(process.env.RENDER) ||
+    String(process.env.FRONTEND_URL || "").startsWith("https://");
 
   return {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: useCrossSiteCookies ? "none" : "lax",
+    secure: isProductionLike,
+    sameSite: isProductionLike ? "none" : "lax",
     path: "/",
     maxAge,
   };
@@ -160,3 +163,4 @@ export function buildPasswordResetPayload(channel) {
     expiresAt: new Date(Date.now() + PASSWORD_RESET_TTL_MS),
   };
 }
+
