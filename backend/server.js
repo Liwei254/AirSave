@@ -21,20 +21,27 @@ const __dirname = path.resolve();
 
 app.set("trust proxy", 1);
 
+function normalizeOrigin(value) {
+  return String(value || "").trim().replace(/\/$/, "");
+}
+
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   process.env.FRONTEND_URL,
   process.env.RENDER_EXTERNAL_URL,
   "https://airsave-1.onrender.com",
-].filter(Boolean);
+].filter(Boolean).map(normalizeOrigin);
 
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    const normalizedOrigin = normalizeOrigin(origin);
+
+    if (!origin || allowedOrigins.includes(normalizedOrigin)) {
       return callback(null, true);
     }
-    return callback(new Error("Origin not allowed by CORS"));
+
+    return callback(new Error(`Origin not allowed by CORS: ${origin}`));
   },
   credentials: true,
 }));
@@ -61,7 +68,7 @@ app.get('/api', (req, res) => {
     message: 'AirSave API - Micro-Savings Platform',
     version: '1.0.0',
     status: 'running',
-    allowedOrigins,
+    frontendUrl: normalizeOrigin(process.env.FRONTEND_URL),
   });
 });
 

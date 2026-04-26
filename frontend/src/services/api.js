@@ -4,6 +4,8 @@ const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL ||
   `${window.location.protocol}//${window.location.hostname}:5000/api`;
 
+axios.defaults.withCredentials = true;
+
 const API = axios.create({
   baseURL: apiBaseUrl,
   withCredentials: true,
@@ -34,13 +36,13 @@ API.interceptors.response.use(
 
     try {
       if (!refreshPromise) {
-        refreshPromise = API.post("/auth/refresh").finally(() => {
+        refreshPromise = API.post("/auth/refresh", {}, { withCredentials: true }).finally(() => {
           refreshPromise = null;
         });
       }
 
       await refreshPromise;
-      return API(originalRequest);
+      return API({ ...originalRequest, withCredentials: true });
     } catch (refreshError) {
       return Promise.reject(refreshError);
     }
@@ -66,51 +68,51 @@ async function requestData(request, transform = (data) => data) {
 }
 
 export async function loginUser(payload) {
-  return requestData(API.post("/auth/login", payload));
+  return requestData(API.post("/auth/login", payload, { withCredentials: true }));
 }
 
 export async function registerUser(payload) {
-  return requestData(API.post("/auth/register", payload));
+  return requestData(API.post("/auth/register", payload, { withCredentials: true }));
 }
 
 export async function logoutUser() {
-  return requestData(API.post("/auth/logout"));
+  return requestData(API.post("/auth/logout", {}, { withCredentials: true }));
 }
 
 export async function getCurrentUser() {
-  return requestData(API.get("/auth/me"), (data) => data.user || null);
+  return requestData(API.get("/auth/me", { withCredentials: true }), (data) => data.user || null);
 }
 
 export async function requestPasswordReset(payload) {
-  return requestData(API.post("/auth/password-reset/request", payload));
+  return requestData(API.post("/auth/password-reset/request", payload, { withCredentials: true }));
 }
 
 export async function resetPassword(payload) {
-  return requestData(API.post("/auth/password-reset/confirm", payload));
+  return requestData(API.post("/auth/password-reset/confirm", payload, { withCredentials: true }));
 }
 
 export async function getWallet() {
-  return requestData(API.get("/wallet"));
+  return requestData(API.get("/wallet", { withCredentials: true }));
 }
 
 export async function getGoals() {
-  return requestData(API.get("/goals"));
+  return requestData(API.get("/goals", { withCredentials: true }));
 }
 
 export async function createGoal(payload) {
-  return requestData(API.post("/goals", payload));
+  return requestData(API.post("/goals", payload, { withCredentials: true }));
 }
 
 export async function getTransactions() {
-  return requestData(API.get("/wallet/transactions"), (data) => data.transactions || []);
+  return requestData(API.get("/wallet/transactions", { withCredentials: true }), (data) => data.transactions || []);
 }
 
 export async function getSavingsActivity() {
-  return requestData(API.get("/transactions/activity"));
+  return requestData(API.get("/transactions/activity", { withCredentials: true }));
 }
 
 export async function initiatePayment(payload) {
-  return requestData(API.post("/transactions/payments/initiate", payload), (data) => ({
+  return requestData(API.post("/transactions/payments/initiate", payload, { withCredentials: true }), (data) => ({
     ...data,
     status: data?.status || "pending",
     message: data?.message || "STK push sent",
@@ -124,19 +126,19 @@ export async function initiatePayment(payload) {
 }
 
 export async function getPaymentStatus(reference) {
-  return requestData(API.get(`/transactions/payments/${reference}`));
+  return requestData(API.get(`/transactions/payments/${reference}`, { withCredentials: true }));
 }
 
 export async function submitWithdrawal(payload) {
-  return requestData(API.post("/transactions/withdraw", payload));
+  return requestData(API.post("/transactions/withdraw", payload, { withCredentials: true }));
 }
 
 export async function getNotifications() {
-  return requestData(API.get("/notifications"));
+  return requestData(API.get("/notifications", { withCredentials: true }));
 }
 
 export async function markNotificationRead(id) {
-  return requestData(API.put(`/notifications/${id}/read`));
+  return requestData(API.put(`/notifications/${id}/read`, {}, { withCredentials: true }));
 }
 
 export default API;
