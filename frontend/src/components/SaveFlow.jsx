@@ -1,26 +1,28 @@
-﻿import { useEffect, useMemo, useState } from "react";
-import Button from "./Button.jsx";
+import { useEffect, useMemo, useState } from "react";
 import Card from "./Card.jsx";
-import FilterTabs from "./FilterTabs.jsx";
 import Input from "./Input.jsx";
 import MpesaPreview from "./MpesaPreview.jsx";
-import QuickAddButtons from "./QuickAddButtons.jsx";
-import SectionHeader from "./SectionHeader.jsx";
 import {
   getMostRecentGoalId,
   phonePattern,
-  quickAddOptions,
   recentGoalStorageKey,
   recentPhoneStorageKey,
   roundingOptions,
   toAmount,
 } from "../utils/savings";
 
-const stepLabels = [
-  { title: "Amount", detail: "Set your charge and number" },
-  { title: "Destination", detail: "Choose a goal and rule" },
-  { title: "Confirm", detail: "Review before the prompt" },
-];
+const stepLabels = ["1", "2", "3"];
+
+function parseAmountInput(value) {
+  const digitsOnly = String(value || "").replace(/[^\d]/g, "");
+  return digitsOnly ? String(Number(digitsOnly)) : "";
+}
+
+function formatAmountInput(value) {
+  const numeric = toAmount(value);
+  if (!numeric) return "";
+  return `Ksh ${new Intl.NumberFormat("en-KE").format(numeric)}`;
+}
 
 export default function SaveFlow({ goals, activity, onSubmit, isSubmitting, initialGoalId = "" }) {
   const [amount, setAmount] = useState("");
@@ -89,13 +91,8 @@ export default function SaveFlow({ goals, activity, onSubmit, isSubmitting, init
     }
   }
 
-  function handleQuickAdd(value) {
-    const nextAmount = toAmount(amount) + value;
-    setAmount(String(nextAmount));
-  }
-
   return (
-    <div className="action-page-shell">
+    <div className="save-flow-shell">
       {feedback ? (
         <div className={`feedback ${feedback.type === "success" ? "feedback-success savings-feedback-success" : "feedback-error"}`}>
           <strong>{feedback.type === "success" ? "Success:" : "Error:"}</strong>
@@ -103,89 +100,126 @@ export default function SaveFlow({ goals, activity, onSubmit, isSubmitting, init
         </div>
       ) : null}
 
-      <Card className="action-page-card save-action-card" hover={false}>
-        <SectionHeader
-          title="Save with M-Pesa"
-          subtitle="Move through the flow in three clear steps, then confirm from a premium preview panel."
-        />
-
-        <div className="compact-step-indicator">
-          {stepLabels.map((step, index) => {
-            const stepNumber = index + 1;
-            const active = currentStep === stepNumber || (stepNumber === 3 && reviewReady);
-            const complete = currentStep > stepNumber || (stepNumber === 3 && reviewReady);
-            return (
-              <div key={step.title} className={["compact-step", active ? "compact-step-active" : "", complete ? "compact-step-complete" : ""].filter(Boolean).join(" ")}>
-                <span className="compact-step-number">{stepNumber}</span>
-                <span className="compact-step-copy">
-                  <span className="compact-step-label">{step.title}</span>
-                  <span className="compact-step-detail">{step.detail}</span>
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        <form className="fixed-action-grid action-panel-grid" onSubmit={handleConfirm}>
-          <Card className="action-mini-card" hover={false}>
-            <SectionHeader title="1. Amount" subtitle="Start with the amount and phone number." />
-            <Input
-              label="Amount"
-              className="prominent-input"
-              type="number"
-              min="1"
-              placeholder="Enter amount"
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
-            />
-            <QuickAddButtons options={quickAddOptions} onAdd={handleQuickAdd} />
-            <Input
-              label="Phone number"
-              type="tel"
-              placeholder="07XXXXXXXX or +254XXXXXXXXX"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              helper="Most users save KES 50-200"
-              error={phoneError}
-            />
-          </Card>
-
-          <Card className="action-mini-card" hover={false}>
-            <SectionHeader title="2. Destination" subtitle="Pick the goal and round-up logic." />
-            <div className="save-panel-subtitle">Where do you want to save?</div>
-            <FilterTabs
-              items={activeGoals.map((goal) => ({ value: goal._id, label: goal.name }))}
-              value={selectedGoal}
-              onChange={setSelectedGoal}
-              className="goal-filter-tabs"
-            />
-            <div className="save-panel-subtitle">Rounding logic</div>
-            <FilterTabs
-              items={roundingOptions.map((option) => ({ value: option.value, label: option.label }))}
-              value={rule}
-              onChange={setRule}
-            />
-            <div className="compact-helper-card">
-              <strong>{selectedGoalItem ? `You will save KES ${savingsAmount} after fees` : "Select a goal to continue"}</strong>
-              <span>Your most recent goal is auto-selected to reduce steps and keep the flow fast.</span>
-            </div>
-          </Card>
-
-          <div className="action-preview-column">
-            <MpesaPreview
-              chargedAmount={roundedAmount}
-              savingsAmount={savingsAmount}
-              goalName={selectedGoalItem?.name}
-              isReady={reviewReady}
-              sticky={false}
-              confirmLabel={isSubmitting ? "Sending request..." : "Confirm Save"}
-              confirmDisabled={!reviewReady || isSubmitting}
-              helperText="Takes ~5 seconds"
-              trustText="You will receive an M-Pesa prompt"
-            />
+      <form className="save-flow-grid" onSubmit={handleConfirm}>
+        <Card className="save-form-card" hover={false}>
+          <div className="save-flow-header">
+            <span className="save-flow-kicker">M-Pesa</span>
+            <h2 className="save-flow-title">Save with M-Pesa</h2>
+            <p className="save-flow-subtitle">
+              Enter an amount, choose where it goes, then confirm the prompt from your phone.
+            </p>
           </div>
-        </form>
-      </Card>
+
+          <div className="save-progress-minimal" aria-label="Save progress">
+            {stepLabels.map((step, index) => {
+              const stepNumber = index + 1;
+              const active = currentStep === stepNumber || (stepNumber === 3 && reviewReady);
+              const complete = currentStep > stepNumber || (stepNumber === 3 && reviewReady);
+
+              return (
+                <div
+                  key={step}
+                  className={[
+                    "save-progress-item",
+                    active ? "save-progress-item-active" : "",
+                    complete ? "save-progress-item-complete" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  <span className="save-progress-dot">{step}</span>
+                  {stepNumber < stepLabels.length ? <span className="save-progress-line" aria-hidden="true" /> : null}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="save-form-stack">
+            <div className="save-field-group">
+              <label className="save-field-label" htmlFor="saveAmount">
+                Amount
+              </label>
+              <input
+                id="saveAmount"
+                name="amount"
+                className="save-clean-input save-clean-input-amount"
+                type="text"
+                inputMode="numeric"
+                placeholder="Ksh 0"
+                value={formatAmountInput(amount)}
+                onChange={(event) => setAmount(parseAmountInput(event.target.value))}
+              />
+              <span className="save-field-note">Typical save: Ksh 50-500</span>
+            </div>
+
+            <div className="save-field-group">
+              <Input
+                id="savePhone"
+                label="Phone number"
+                type="tel"
+                placeholder="07XXXXXXXX or +254XXXXXXXXX"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                error={phoneError}
+                className="save-clean-input"
+              />
+            </div>
+
+            <div className="save-field-group">
+              <div className="save-field-heading">
+                <span className="save-field-label">Goal</span>
+                <span className="save-field-caption">Choose a destination</span>
+              </div>
+              <div className="save-goal-pills" role="list" aria-label="Savings goals">
+                {activeGoals.map((goal) => (
+                  <button
+                    key={goal._id}
+                    type="button"
+                    className={["save-goal-pill", selectedGoal === goal._id ? "save-goal-pill-active" : ""].filter(Boolean).join(" ")}
+                    onClick={() => setSelectedGoal(goal._id)}
+                  >
+                    {goal.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="save-field-group">
+              <div className="save-field-heading">
+                <span className="save-field-label">Round-up rule</span>
+              </div>
+              <div className="save-goal-pills save-rule-pills" role="list" aria-label="Round-up options">
+                {roundingOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={["save-goal-pill", rule === option.value ? "save-goal-pill-active" : ""].filter(Boolean).join(" ")}
+                    onClick={() => setRule(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="save-security-note">Secure M-Pesa transaction</div>
+          </div>
+        </Card>
+
+        <div className="save-preview-column">
+          <MpesaPreview
+            chargedAmount={roundedAmount}
+            savingsAmount={savingsAmount}
+            goalName={selectedGoalItem?.name}
+            isReady={reviewReady}
+            sticky
+            confirmLabel={isSubmitting ? "Sending request..." : "Confirm Save"}
+            confirmDisabled={!reviewReady || isSubmitting}
+            helperText="Confirm the prompt to complete your save."
+            trustText="Secure M-Pesa transaction"
+          />
+        </div>
+      </form>
     </div>
   );
 }

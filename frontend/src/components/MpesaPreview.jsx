@@ -21,23 +21,19 @@ export default function MpesaPreview({
       </div>
 
       <div className="preview-copy">
-        <h3 className="section-title preview-title">Review before you confirm</h3>
-        <p className="section-subtitle preview-subtitle">{trustText || "You will receive an M-Pesa prompt on your phone before any money is moved."}</p>
+        <h3 className="section-title preview-title">Review your save</h3>
+        <p className="section-subtitle preview-subtitle">{trustText || "Secure M-Pesa transaction"}</p>
       </div>
 
       <div className="preview-metrics">
         <div className="preview-metric preview-metric-primary">
           <span>Total charged</span>
-          <strong>{formatCurrency(chargedAmount)}</strong>
+          <strong key={chargedAmount} className="preview-value-animated">{formatCurrency(chargedAmount)}</strong>
         </div>
         <div className="preview-metric preview-metric-success">
           <span>Amount saved</span>
-          <strong>{formatCurrency(savingsAmount)}</strong>
+          <strong key={savingsAmount} className="preview-value-animated">{formatCurrency(savingsAmount)}</strong>
         </div>
-      </div>
-
-      <div className="preview-note">
-        <strong>Heads up:</strong> Transaction includes fee. Confirm the prompt to complete your save.
       </div>
 
       {confirmLabel ? (

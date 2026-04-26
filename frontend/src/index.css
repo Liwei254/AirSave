@@ -2766,6 +2766,326 @@ body {
   }
 }
 
+/* Save flow minimalist refresh */
+
+.save-flow-shell {
+  display: grid;
+  gap: 20px;
+}
+
+.save-flow-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.7fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.save-form-card {
+  gap: 24px;
+  padding: 28px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+}
+
+.save-preview-column {
+  position: relative;
+}
+
+.save-flow-header {
+  display: grid;
+  gap: 10px;
+}
+
+.save-flow-kicker {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(219, 234, 254, 0.8);
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.save-flow-title {
+  margin: 0;
+  font-size: clamp(1.8rem, 2.6vw, 2.4rem);
+  line-height: 1.05;
+  letter-spacing: -0.05em;
+}
+
+.save-flow-subtitle {
+  margin: 0;
+  max-width: 560px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.save-progress-minimal {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.save-progress-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #94a3b8;
+  transition: color 0.24s ease;
+}
+
+.save-progress-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  background: rgba(248, 250, 252, 0.95);
+  font-size: 13px;
+  font-weight: 800;
+  transition: background-color 0.24s ease, border-color 0.24s ease, color 0.24s ease;
+}
+
+.save-progress-line {
+  width: 32px;
+  height: 1px;
+  background: rgba(203, 213, 225, 0.95);
+  transition: background-color 0.24s ease;
+}
+
+.save-progress-item-active,
+.save-progress-item-complete {
+  color: #2563eb;
+}
+
+.save-progress-item-active .save-progress-dot,
+.save-progress-item-complete .save-progress-dot {
+  border-color: rgba(59, 130, 246, 0.95);
+  background: rgba(239, 246, 255, 1);
+  color: #2563eb;
+}
+
+.save-progress-item-complete .save-progress-line,
+.save-progress-item-active .save-progress-line {
+  background: rgba(96, 165, 250, 0.95);
+}
+
+.save-form-stack {
+  display: grid;
+  gap: 22px;
+}
+
+.save-field-group {
+  display: grid;
+  gap: 10px;
+}
+
+.save-field-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.save-field-label {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.save-field-caption,
+.save-field-note {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.save-clean-input,
+.save-clean-input.ui-input {
+  min-height: 56px;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  box-shadow: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.save-clean-input:focus,
+.save-clean-input.ui-input:focus,
+.save-clean-input:focus-visible,
+.save-clean-input.ui-input:focus-visible {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
+}
+
+.save-clean-input-amount {
+  width: 100%;
+  padding: 0 16px;
+  color: #0f172a;
+  font-size: 1.15rem;
+  font-weight: 700;
+  outline: none;
+}
+
+.save-goal-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.save-goal-pill {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.save-goal-pill:hover {
+  transform: translateY(-1px);
+  background: #e2e8f0;
+}
+
+.save-goal-pill-active {
+  background: #2563eb;
+  color: #fff;
+}
+
+.save-security-note {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(239, 246, 255, 0.9);
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mpesa-preview {
+  gap: 20px;
+  padding: 24px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+}
+
+.preview-sticky {
+  position: sticky;
+  top: 96px;
+}
+
+.preview-badge-row {
+  align-items: center;
+}
+
+.preview-copy {
+  gap: 8px;
+}
+
+.preview-title {
+  font-size: 1.5rem;
+}
+
+.preview-subtitle {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.preview-metrics {
+  gap: 12px;
+}
+
+.preview-metric {
+  padding: 18px;
+  border-radius: 18px;
+}
+
+.preview-metric span {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.preview-metric strong {
+  font-size: 2rem;
+}
+
+.preview-value-animated {
+  animation: preview-value-rise 0.28s ease;
+}
+
+.preview-confirm-stack {
+  gap: 10px;
+}
+
+.preview-confirm-button {
+  min-height: 48px;
+  box-shadow: none;
+}
+
+.preview-helper-text {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+}
+
+@keyframes preview-value-rise {
+  0% {
+    opacity: 0.5;
+    transform: translateY(4px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 960px) {
+  .save-flow-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .save-preview-column {
+    order: -1;
+  }
+
+  .preview-sticky {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .save-form-card,
+  .mpesa-preview {
+    padding: 20px;
+  }
+
+  .save-flow-grid {
+    gap: 18px;
+  }
+
+  .save-form-stack {
+    gap: 18px;
+  }
+
+  .save-clean-input,
+  .save-clean-input.ui-input {
+    min-height: 52px;
+  }
+}
+
 /* Minimal dashboard override */
 
 .dashboard-minimal-grid,
