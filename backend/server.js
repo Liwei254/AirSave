@@ -21,8 +21,7 @@ dotenv.config();
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const projectRoot = path.resolve(__dirname, '..');
-const frontendDistPath = path.join(projectRoot, 'frontend', 'dist');
+const frontendDistPath = path.join(__dirname, '../frontend/dist');
 const frontendIndexPath = path.join(frontendDistPath, 'index.html');
 const isProduction = process.env.NODE_ENV === 'production';
 const allowedOrigins = [
@@ -85,14 +84,19 @@ app.use('/api', (req, res) => {
   res.status(404).json({ message: 'API route not found' });
 });
 
-if (isProduction && fs.existsSync(frontendIndexPath)) {
-  app.use(express.static(frontendDistPath));
+if (isProduction) {
+  console.log('Serving frontend from:', frontendDistPath);
+  console.log('Frontend index exists:', fs.existsSync(frontendIndexPath));
 
-  app.get(/^\/(?!api(?:\/|$)).*/, (req, res) => {
-    res.sendFile(frontendIndexPath);
-  });
-} else if (isProduction) {
-  console.warn(`Frontend build not found at ${frontendIndexPath}`);
+  if (fs.existsSync(frontendIndexPath)) {
+    app.use(express.static(frontendDistPath));
+
+    app.get('*', (req, res) => {
+      res.sendFile(frontendIndexPath);
+    });
+  } else {
+    console.warn(`Frontend build not found at ${frontendIndexPath}`);
+  }
 }
 
 app.use((err, req, res, next) => {
