@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import NotificationDropdown from "./NotificationDropdown.jsx";
-import { authEventName, getNotifications, hasStoredToken, logoutUser } from "../services/api";
+import { authEventName, getNotifications, hasStoredToken, logoutUser, markNotificationRead } from "../services/api";
 import logo from "../assets/circle.png";
 
 const navItems = [
@@ -11,6 +11,27 @@ const navItems = [
   { label: "Activity", to: "/activity" },
   { label: "Withdraw", to: "/withdraw" },
 ];
+
+function BellIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="navbar-icon" aria-hidden="true">
+      <path d="M15 17h5l-1.4-1.4a2 2 0 0 1-.6-1.4v-3.2a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 17a2 2 0 0 0 4 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function MenuIcon({ open = false }) {
+  return (
+    <svg viewBox="0 0 24 24" className="navbar-icon" aria-hidden="true">
+      {open ? (
+        <path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      ) : (
+        <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      )}
+    </svg>
+  );
+}
 
 export default function Navbar() {
   const location = useLocation();
@@ -60,6 +81,7 @@ export default function Navbar() {
 
   useEffect(() => {
     if (authHidden) return undefined;
+
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setNotificationOpen(false);
@@ -81,6 +103,31 @@ export default function Navbar() {
     }
   }
 
+  async function handleMarkNotification(notificationId) {
+    try {
+      await markNotificationRead(notificationId);
+      setNotifications((current) =>
+        current.map((notification) =>
+          notification._id === notificationId ? { ...notification, read: true } : notification
+        )
+      );
+    } catch {
+      // Keep current UI state if marking read fails.
+    }
+  }
+
+  async function handleMarkAllRead() {
+    const unreadNotifications = notifications.filter((item) => !item.read);
+    if (!unreadNotifications.length) return;
+
+    try {
+      await Promise.all(unreadNotifications.map((item) => markNotificationRead(item._id)));
+      setNotifications((current) => current.map((notification) => ({ ...notification, read: true })));
+    } catch {
+      // Keep current UI state if marking read fails.
+    }
+  }
+
   return (
     <header className="floating-navbar-wrap">
       <nav className="floating-navbar" aria-label="Primary">
@@ -93,10 +140,6 @@ export default function Navbar() {
             <span className="navbar-brand-subtitle">Save smarter daily</span>
           </span>
         </NavLink>
-
-        <button className="icon-button navbar-toggle" type="button" onClick={() => setMobileOpen((current) => !current)} aria-label="Toggle navigation">
-          =
-        </button>
 
         <div className={`navbar-center ${mobileOpen ? "navbar-center-open" : ""}`}>
           <div className="navbar-links">
@@ -124,10 +167,17 @@ export default function Navbar() {
               }}
               aria-label="Notifications"
             >
-              <span aria-hidden="true">N</span>
+              <BellIcon />
               {unreadCount ? <span className="icon-badge">{unreadCount}</span> : null}
             </button>
-            <NotificationDropdown notifications={notifications} open={notificationOpen} onClose={() => setNotificationOpen(false)} />
+
+            <NotificationDropdown
+              notifications={notifications}
+              open={notificationOpen}
+              onClose={() => setNotificationOpen(false)}
+              onMarkAllRead={handleMarkAllRead}
+              onMarkAsRead={handleMarkNotification}
+            />
           </div>
 
           <div className="navbar-action-wrap">
@@ -154,12 +204,20 @@ export default function Navbar() {
                   <span className="muted">Coming soon</span>
                 </div>
                 <button className="avatar-menu-button" type="button" onClick={handleLogout}>
-                  <span aria-hidden="true">X</span>
                   <span>Logout</span>
                 </button>
               </div>
             ) : null}
           </div>
+
+          <button
+            className="icon-button navbar-toggle"
+            type="button"
+            onClick={() => setMobileOpen((current) => !current)}
+            aria-label="Toggle navigation"
+          >
+            <MenuIcon open={mobileOpen} />
+          </button>
         </div>
       </nav>
     </header>

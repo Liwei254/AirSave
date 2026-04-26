@@ -58,20 +58,20 @@ export default function Transactions() {
         </section>
       </div>
 
-      <Card>
+      <Card className="activity-history-card" hover={false}>
         <SectionHeader
-          title="Full transaction history"
-          subtitle={`You saved ${formatCurrency(weeklySavings)} this week.`}
-          actions={<FilterTabs items={activityFilters} value={filter} onChange={setFilter} />}
+          title="Transaction history"
+          subtitle="Review your savings activity."
+          actions={<FilterTabs items={activityFilters} value={filter} onChange={setFilter} className="activity-history-filters" />}
+          className="activity-history-header"
         />
-        <div className="activity-summary-banner">You saved {formatCurrency(selectedSummary)} {getFilterLabel(filter)}.</div>
         {isLoading ? (
           <div className="loading-panel">
             <span className="spinner spinner-dark" aria-hidden="true" />
             <span>Loading activity...</span>
           </div>
         ) : (
-          <ActivityList items={filteredActivity} emptyMessage="No savings records for this range yet." />
+          <ActivityList items={filteredActivity} emptyMessage="No savings records for this range yet." compact />
         )}
       </Card>
     </Layout>
