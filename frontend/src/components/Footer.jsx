@@ -9,22 +9,22 @@ export default function Footer() {
   }
 
   return (
-    <footer className="mt-auto py-4">
-      <div className="container">
-        <div className="app-card">
-          <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-            <div>
-              <div className="fw-semibold">AirSave</div>
-              <div className="text-body-secondary small">Support and admin tools stay available without cluttering the main navigation.</div>
-            </div>
-            <div className="d-flex flex-wrap gap-3">
-              <NavLink className="btn btn-outline-secondary btn-sm" to="/support">
-                Support
-              </NavLink>
-              <NavLink className="btn btn-outline-secondary btn-sm" to="/admin">
-                Admin
-              </NavLink>
-            </div>
+    <footer className="app-footer">
+      <div className="page-container">
+        <div className="footer-shell">
+          <div className="footer-copy">
+            <span className="footer-kicker">AirSave support</span>
+            <strong className="footer-title">Stay in control without cluttering the main workspace.</strong>
+            <span className="footer-text">Support tools and admin access remain close by, but out of the way of your daily money flow.</span>
+          </div>
+
+          <div className="footer-actions">
+            <NavLink className="footer-link" to="/support">
+              Support
+            </NavLink>
+            <NavLink className="footer-link" to="/admin">
+              Admin
+            </NavLink>
           </div>
         </div>
       </div>

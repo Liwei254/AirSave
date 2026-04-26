@@ -13,6 +13,12 @@ import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
 import { formatCurrency } from "../utils/formatters";
 import { toAmount } from "../utils/savings";
 
+const withdrawSteps = [
+  { title: "Amount", detail: "Choose how much to release" },
+  { title: "Source", detail: "Pick wallet or goal" },
+  { title: "Confirm", detail: "Review payout and fee" },
+];
+
 export default function Withdraw() {
   const navigate = useNavigate();
   const [wallet, setWallet] = useState(null);
@@ -149,8 +155,24 @@ export default function Withdraw() {
             </div>
           ) : (
             <form className="fixed-action-grid withdraw-panel-grid" onSubmit={handleSubmit}>
+              <div className="compact-step-indicator compact-step-indicator-full">
+                {withdrawSteps.map((step, index) => {
+                  const stepNumber = index + 1;
+                  const active = stepNumber === 1 || (stepNumber === 2 && numericAmount > 0) || (stepNumber === 3 && numericAmount > 0 && selectedSource);
+                  return (
+                    <div key={step.title} className={["compact-step", active ? "compact-step-active" : ""].filter(Boolean).join(" ")}>
+                      <span className="compact-step-number">{stepNumber}</span>
+                      <span className="compact-step-copy">
+                        <span className="compact-step-label">{step.title}</span>
+                        <span className="compact-step-detail">{step.detail}</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
               <Card className="action-mini-card" hover={false}>
-                <SectionHeader title="1. How much?" subtitle="Choose a withdrawal amount." />
+                <SectionHeader title="1. Amount" subtitle="Choose a withdrawal amount." />
                 <div className="compact-balance-card">
                   <span>Available balance</span>
                   <strong>{formatCurrency(availableBalance)}</strong>
@@ -172,7 +194,7 @@ export default function Withdraw() {
               </Card>
 
               <Card className="action-mini-card" hover={false}>
-                <SectionHeader title="2. From where?" subtitle="Choose the source and destination details." />
+                <SectionHeader title="2. Source" subtitle="Choose the source and destination details." />
                 <div className="save-panel-subtitle">Withdraw from</div>
                 <FilterTabs
                   items={sourceOptions.map((option) => ({ value: option.value, label: option.label }))}

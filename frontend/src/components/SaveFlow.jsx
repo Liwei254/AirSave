@@ -16,7 +16,11 @@ import {
   toAmount,
 } from "../utils/savings";
 
-const stepLabels = ["1. How much?", "2. Where to?", "3. Confirm"];
+const stepLabels = [
+  { title: "Amount", detail: "Set your charge and number" },
+  { title: "Destination", detail: "Choose a goal and rule" },
+  { title: "Confirm", detail: "Review before the prompt" },
+];
 
 export default function SaveFlow({ goals, activity, onSubmit, isSubmitting, initialGoalId = "" }) {
   const [amount, setAmount] = useState("");
@@ -102,18 +106,21 @@ export default function SaveFlow({ goals, activity, onSubmit, isSubmitting, init
       <Card className="action-page-card save-action-card" hover={false}>
         <SectionHeader
           title="Save with M-Pesa"
-          subtitle="See the full flow at a glance and confirm in seconds."
+          subtitle="Move through the flow in three clear steps, then confirm from a premium preview panel."
         />
 
         <div className="compact-step-indicator">
-          {stepLabels.map((label, index) => {
+          {stepLabels.map((step, index) => {
             const stepNumber = index + 1;
             const active = currentStep === stepNumber || (stepNumber === 3 && reviewReady);
             const complete = currentStep > stepNumber || (stepNumber === 3 && reviewReady);
             return (
-              <div key={label} className={["compact-step", active ? "compact-step-active" : "", complete ? "compact-step-complete" : ""].filter(Boolean).join(" ")}>
+              <div key={step.title} className={["compact-step", active ? "compact-step-active" : "", complete ? "compact-step-complete" : ""].filter(Boolean).join(" ")}>
                 <span className="compact-step-number">{stepNumber}</span>
-                <span className="compact-step-label">{label}</span>
+                <span className="compact-step-copy">
+                  <span className="compact-step-label">{step.title}</span>
+                  <span className="compact-step-detail">{step.detail}</span>
+                </span>
               </div>
             );
           })}
@@ -121,7 +128,7 @@ export default function SaveFlow({ goals, activity, onSubmit, isSubmitting, init
 
         <form className="fixed-action-grid action-panel-grid" onSubmit={handleConfirm}>
           <Card className="action-mini-card" hover={false}>
-            <SectionHeader title="1. How much?" subtitle="Start with the amount and phone number." />
+            <SectionHeader title="1. Amount" subtitle="Start with the amount and phone number." />
             <Input
               label="Amount"
               className="prominent-input"
@@ -138,13 +145,13 @@ export default function SaveFlow({ goals, activity, onSubmit, isSubmitting, init
               placeholder="07XXXXXXXX or +254XXXXXXXXX"
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
-              helper="Most users save Ksh 50-200"
+              helper="Most users save KES 50-200"
               error={phoneError}
             />
           </Card>
 
           <Card className="action-mini-card" hover={false}>
-            <SectionHeader title="2. Where to?" subtitle="Pick the goal and round-up logic." />
+            <SectionHeader title="2. Destination" subtitle="Pick the goal and round-up logic." />
             <div className="save-panel-subtitle">Where do you want to save?</div>
             <FilterTabs
               items={activeGoals.map((goal) => ({ value: goal._id, label: goal.name }))}
@@ -159,8 +166,8 @@ export default function SaveFlow({ goals, activity, onSubmit, isSubmitting, init
               onChange={setRule}
             />
             <div className="compact-helper-card">
-              <strong>{selectedGoalItem ? `You’ll save Ksh ${savingsAmount} after fees` : "Select a goal to continue"}</strong>
-              <span>Your most recent goal is auto-selected to reduce steps.</span>
+              <strong>{selectedGoalItem ? `You will save KES ${savingsAmount} after fees` : "Select a goal to continue"}</strong>
+              <span>Your most recent goal is auto-selected to reduce steps and keep the flow fast.</span>
             </div>
           </Card>
 
