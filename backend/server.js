@@ -27,32 +27,33 @@ const isProduction = process.env.NODE_ENV === 'production';
 const allowedOrigins = [
   'https://airsave-1.onrender.com',
   process.env.FRONTEND_URL,
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
   'http://localhost:3000',
-]
-  .map((origin) => String(origin || '').trim().replace(/\/$/, ''))
-  .filter(Boolean);
+  'http://127.0.0.1:5173',
+  'http://localhost:5173',
+].filter(Boolean);
 
 const corsOptions = {
   origin(origin, callback) {
-    const normalizedOrigin = String(origin || '').trim().replace(/\/$/, '');
-
-    if (!origin || allowedOrigins.includes(normalizedOrigin)) {
-      callback(null, true);
-      return;
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
 
-    callback(new Error('Not allowed by CORS'));
+    return callback(new Error(`CORS blocked origin: ${origin}`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
+console.log('Allowed origins:', allowedOrigins);
+
 app.set('trust proxy', 1);
+app.use((req, res, next) => {
+  console.log('Request origin:', req.headers.origin);
+  next();
+});
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 
 app.use(
   helmet({
