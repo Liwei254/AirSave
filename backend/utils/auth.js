@@ -119,10 +119,12 @@ export function getCookie(req, name) {
 
 function buildCookieOptions(maxAge) {
   const isProduction = process.env.NODE_ENV === "production";
+  const useCrossSiteCookies = isProduction;
+
   return {
     httpOnly: true,
     secure: isProduction,
-    sameSite: "lax",
+    sameSite: useCrossSiteCookies ? "none" : "lax",
     path: "/",
     maxAge,
   };
