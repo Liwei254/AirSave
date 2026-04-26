@@ -1,4 +1,4 @@
-﻿import crypto from "crypto";
+import crypto from "crypto";
 
 export const ACCESS_COOKIE_NAME = "airsave_access";
 export const REFRESH_COOKIE_NAME = "airsave_refresh";
@@ -93,7 +93,7 @@ export function createSecureToken(size = 32) {
 
 export function createNumericOtp(length = 6) {
   const min = 10 ** (length - 1);
-  const max = (10 ** length) - 1;
+  const max = 10 ** length - 1;
   return String(crypto.randomInt(min, max + 1));
 }
 
@@ -121,13 +121,12 @@ function buildCookieOptions(maxAge) {
   const isProductionLike =
     process.env.NODE_ENV === "production" ||
     Boolean(process.env.RENDER_EXTERNAL_URL) ||
-    Boolean(process.env.RENDER) ||
-    String(process.env.FRONTEND_URL || "").startsWith("https://");
+    Boolean(process.env.RENDER);
 
   return {
     httpOnly: true,
     secure: isProductionLike,
-    sameSite: isProductionLike ? "none" : "lax",
+    sameSite: "lax",
     path: "/",
     maxAge,
   };
@@ -163,4 +162,3 @@ export function buildPasswordResetPayload(channel) {
     expiresAt: new Date(Date.now() + PASSWORD_RESET_TTL_MS),
   };
 }
-

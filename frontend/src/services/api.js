@@ -1,8 +1,8 @@
-﻿import axios from "axios";
+import axios from "axios";
 
-const apiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL ||
-  `${window.location.protocol}//${window.location.hostname}:5000/api`;
+const apiBaseUrl = import.meta.env.PROD
+  ? "/api"
+  : import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
 axios.defaults.withCredentials = true;
 

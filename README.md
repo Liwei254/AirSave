@@ -1,227 +1,88 @@
-#  AirSave — Smart Micro-Savings Platform
+# AirSave
 
-AirSave is a fullstack fintech-inspired application that helps users save money automatically through **round-up transactions** and **goal-based savings**.
+AirSave is a full-stack fintech savings application built with React, Vite, Express, and MongoDB.
 
-It simulates a real-world **M-Pesa payment flow**, providing a realistic prototype for digital savings systems.
+## Production deployment
 
----
+Production should run as a single same-origin app:
+- Express serves the API under `/api`
+- Express serves the built frontend from `frontend/dist`
+- Authentication uses HTTP-only cookies on the same origin, so third-party cookies are not required
 
-##  Live Demo
+Recommended Render setup:
+- Service type: `Web Service`
+- Root directory: `backend`
+- Build command: `npm install && npm run build:frontend`
+- Start command: `npm start`
 
-* **Frontend:** https://airsave-1.onrender.com
-* **Backend API:** https://airsave-lg67.onrender.com/api
+Required backend environment variables:
 
----
-
-##  Core Concept
-
-AirSave applies **behavioral finance principles**:
-
-* Spend normally 
-* Automatically round up transactions 
-* Save the difference into goals 
-
-Example:
-
-```text
-You spend: KES 47
-Rounded to: KES 50
-Saved: KES 3
+```env
+NODE_ENV=production
+MONGO_URI=your_mongodb_uri
+JWT_SECRET=your_jwt_secret
 ```
 
----
+Open the app from the backend Render URL after deployment. Example:
+- App + API origin: `https://your-backend-service.onrender.com`
+- API health: `https://your-backend-service.onrender.com/api`
 
-##  Tech Stack
+## Local development
 
-### Frontend
-
-* React (Vite)
-* React Router
-* Axios
-* Custom UI components
+Local development still runs frontend and backend separately.
 
 ### Backend
-
-* Node.js + Express
-* MongoDB (Mongoose)
-* JWT Authentication
-
-### Architecture
-
-* REST API
-* Ledger-based transaction system
-* Async payment simulation (M-Pesa mock)
-
----
-
-##  Features
-
-### ✅ Authentication
-
-* User registration & login
-* JWT-based protected routes
-
-### 💰 Wallet System
-
-* Tracks total savings
-* Displays transaction count
-
-### 🎯 Goals
-
-* Create savings goals
-* Track progress dynamically
-* Goal-based saving allocation
-
-### 💳 Payments (M-Pesa Simulation)
-
-* Initiate payment
-* Async confirmation (STK push simulation)
-* Automatic savings calculation
-
-### 📊 Transactions & Activity
-
-* Ledger-backed transaction history
-* Real-time activity updates
-
-### 🔁 Smart Rounding Modes
-
-* Light Saver → round to 10
-* Balanced → round to 50
-* Aggressive → round to 100
-
----
-
-##  Getting Started
-
-### 1. Clone the repo
-
-```bash
-git clone https://github.com/your-username/airsave.git
-cd airsave
-```
-
----
-
-### 2. Backend Setup
 
 ```bash
 cd backend
 npm install
+npm run dev
 ```
 
-Create `.env`:
+Create `backend/.env`:
 
 ```env
 PORT=5000
 MONGO_URI=your_mongodb_uri
-JWT_SECRET=your_secret
+JWT_SECRET=your_jwt_secret
+FRONTEND_URL=http://localhost:5173
 ```
 
-Run:
-
-```bash
-npm run dev
-```
-
----
-
-### 3. Frontend Setup
+### Frontend
 
 ```bash
 cd frontend
 npm install
+npm run dev
 ```
 
-Create `.env`:
+Optional `frontend/.env`:
 
 ```env
 VITE_API_BASE_URL=http://localhost:5000/api
 ```
 
-Run:
+Behavior:
+- In development, the frontend calls `VITE_API_BASE_URL` or `http://localhost:5000/api`
+- In production, the frontend automatically uses the same-origin relative API path `/api`
 
-```bash
-npm run dev
-```
+## Authentication
 
----
+AirSave uses cookie-based authentication:
+- `httpOnly: true`
+- `secure: true` in production
+- `sameSite: lax`
+- `path: /`
 
-## 🧪 API Example
+Expected production flow:
+1. User logs in from the backend-served app URL
+2. Backend sets auth cookies on the same origin
+3. `/api/auth/me` returns `200`
+4. Protected routes and notifications reuse the same session
 
-### Initiate Payment
+## Build output
 
-```http
-POST /api/payments/initiate
-```
+Frontend production build output is generated at:
+- `frontend/dist/index.html`
 
-```json
-{
-  "amount": 47
-}
-```
-
-Response:
-
-```json
-{
-  "message": "Payment initiated",
-  "rounded": 50,
-  "savings": 3
-}
-```
-
----
-
-##  Authentication
-
-All protected routes require:
-
-```http
-Authorization: Bearer <token>
-```
-
----
-
-##  Known Behaviors
-
-* Render free tier may cause **cold start delays (~30s)**
-* SPA routing requires rewrite configuration (handled in deployment)
-
----
-
-##  System Design Highlights
-
-* **Ledger-based accounting** for data integrity
-* **Async callback simulation** for payment realism
-* **Separation of concerns** (frontend / backend / services)
-* **Scalable architecture** for real fintech integration
-
----
-
-## 🚀 Future Improvements
-
-* Real M-Pesa API integration
-* Withdrawal (B2C simulation)
-* Notifications system
-* Analytics dashboard
-* Mobile responsiveness optimization
-
----
-
-##  License
-
-MIT License
-
----
-
-##  Vision
-
-AirSave is designed as a **real-world fintech prototype** demonstrating:
-
-* Behavioral savings systems
-* Payment lifecycle handling
-* Scalable financial architecture
-
----
-
-🔥 *Built to simulate real financial systems — not just a demo.*
+The backend serves that build automatically in production.
