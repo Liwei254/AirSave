@@ -1,23 +1,20 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button.jsx";
-import Card from "../components/Card.jsx";
-import FilterTabs from "../components/FilterTabs.jsx";
+import ConfirmSummaryCard from "../components/ConfirmSummaryCard.jsx";
+import FormSection from "../components/FormSection.jsx";
+import FormCard from "../components/FormCard.jsx";
+import FormPageLayout from "../components/FormPageLayout.jsx";
 import Input from "../components/Input.jsx";
 import Layout from "../components/Layout.jsx";
-import MpesaPreview from "../components/MpesaPreview.jsx";
-import SectionHeader from "../components/SectionHeader.jsx";
-import StatCard from "../components/StatCard.jsx";
+import SelectPill from "../components/SelectPill.jsx";
+import StepIndicator from "../components/StepIndicator.jsx";
 import { getGoals, getWallet, submitWithdrawal } from "../services/api";
 import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
 import { formatCurrency } from "../utils/formatters";
 import { toAmount } from "../utils/savings";
 
-const withdrawSteps = [
-  { title: "Amount", detail: "Choose how much to release" },
-  { title: "Source", detail: "Pick wallet or goal" },
-  { title: "Confirm", detail: "Review payout and fee" },
-];
+const withdrawSteps = ["1", "2", "3"];
 
 export default function Withdraw() {
   const navigate = useNavigate();
@@ -76,6 +73,7 @@ export default function Withdraw() {
   const totalDeducted = Math.min(numericAmount, availableBalance);
   const fee = totalDeducted > 0 ? Math.min(50, Math.round(totalDeducted * 0.02)) : 0;
   const receiveAmount = Math.max(0, totalDeducted - fee);
+  const currentStep = numericAmount <= 0 ? 1 : !selectedSource ? 2 : 3;
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -121,7 +119,7 @@ export default function Withdraw() {
   }
 
   return (
-    <Layout eyebrow="Withdraw" title="Withdraw your savings" subtitle="Complete your withdrawal from one compact panel without hunting for the next step.">
+    <Layout eyebrow="Withdraw" title="Withdraw your savings" subtitle="Move funds out with a calmer, focused review flow.">
       {feedback ? (
         <div className={`feedback ${feedback.type === "success" ? "feedback-success" : "feedback-error"}`}>
           <strong>{feedback.type === "success" ? "Success:" : "Error:"}</strong>
@@ -136,49 +134,36 @@ export default function Withdraw() {
         </div>
       ) : null}
 
-      <div className="overflow-grid-shell">
-        <section className="fixed-stats-grid">
-          <StatCard label="Wallet balance" value={formatCurrency(wallet?.balance)} hint="Available immediately from your savings wallet" tone="cool" />
-          <StatCard label="Goals available" value={String(goals.length)} hint="You can withdraw from wallet or a selected goal" />
-          <StatCard label="Selected source" value={selectedGoal ? selectedGoal.name : "Wallet"} hint="Current withdrawal source" tone="success" />
+      {isLoading ? (
+        <section className="ui-card loading-panel">
+          <span className="spinner spinner-dark" aria-hidden="true" />
+          <span>Loading withdrawal details...</span>
         </section>
-      </div>
+      ) : (
+        <form onSubmit={handleSubmit}>
+          <FormPageLayout>
+          <FormCard className="withdraw-form-card">
+            <StepIndicator
+              steps={withdrawSteps}
+              currentStep={currentStep}
+              completeStep={numericAmount > 0 && selectedSource ? 3 : 0}
+              ariaLabel="Withdraw progress"
+            />
 
-      <div className="action-page-shell">
-        <Card className="action-page-card withdraw-action-card" hover={false}>
-          <SectionHeader title="Withdraw funds" subtitle="See amount, source, payout, and confirmation at a glance." />
-
-          {isLoading ? (
-            <div className="loading-panel">
-              <span className="spinner spinner-dark" aria-hidden="true" />
-              <span>Loading withdrawal details...</span>
-            </div>
-          ) : (
-            <form className="fixed-action-grid withdraw-panel-grid" onSubmit={handleSubmit}>
-              <div className="compact-step-indicator compact-step-indicator-full">
-                {withdrawSteps.map((step, index) => {
-                  const stepNumber = index + 1;
-                  const active = stepNumber === 1 || (stepNumber === 2 && numericAmount > 0) || (stepNumber === 3 && numericAmount > 0 && selectedSource);
-                  return (
-                    <div key={step.title} className={["compact-step", active ? "compact-step-active" : ""].filter(Boolean).join(" ")}>
-                      <span className="compact-step-number">{stepNumber}</span>
-                      <span className="compact-step-copy">
-                        <span className="compact-step-label">{step.title}</span>
-                        <span className="compact-step-detail">{step.detail}</span>
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <Card className="action-mini-card" hover={false}>
-                <SectionHeader title="1. Amount" subtitle="Choose a withdrawal amount." />
-                <div className="compact-balance-card">
+            <div className="fin-form-stack">
+              <FormSection title="Amount" active={currentStep >= 1}>
+                <div className="fin-inline-metric">
                   <span>Available balance</span>
                   <strong>{formatCurrency(availableBalance)}</strong>
                 </div>
-                <Input label="Withdraw amount" className="prominent-input" type="number" min="1" placeholder="Enter amount" value={amount} onChange={(event) => setAmount(event.target.value)} helper="Enter amount or use quick options" />
-                <FilterTabs
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="Enter amount"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                />
+                <SelectPill
                   items={[
                     { value: "quarter", label: "25%" },
                     { value: "half", label: "50%" },
@@ -190,13 +175,12 @@ export default function Withdraw() {
                     if (value === "half") handleQuickAmount(0.5);
                     if (value === "max") handleQuickAmount(1);
                   }}
+                  ariaLabel="Quick withdrawal amounts"
                 />
-              </Card>
+              </FormSection>
 
-              <Card className="action-mini-card" hover={false}>
-                <SectionHeader title="2. Source" subtitle="Choose the source and destination details." />
-                <div className="save-panel-subtitle">Withdraw from</div>
-                <FilterTabs
+              <FormSection title="Source" active={currentStep >= 2}>
+                <SelectPill
                   items={sourceOptions.map((option) => ({ value: option.value, label: option.label }))}
                   value={selectedSource?.value || "wallet"}
                   onChange={(value) => {
@@ -204,22 +188,40 @@ export default function Withdraw() {
                     setBreakGoal(false);
                     setNeedsBreakConfirmation(false);
                   }}
+                  ariaLabel="Withdrawal source"
                 />
-                <Input label="Send to" type="tel" placeholder="07XXXXXXXX" value={phone} onChange={(event) => setPhone(event.target.value)} helper="Payout confirmation number" />
-                <div className="compact-helper-card compact-helper-card-soft">
-                  <strong>Fee note</strong>
-                  <span>Estimated processing fee is shown in the preview before you confirm.</span>
-                </div>
+                <Input
+                  label="Send to"
+                  type="tel"
+                  placeholder="07XXXXXXXX"
+                  value={phone}
+                  onChange={(event) => setPhone(event.target.value)}
+                />
                 {showMaturityWarning ? (
-                  <div className="compact-helper-card compact-helper-card-warning compact-warning-box">
-                    <strong>! Goal still in progress</strong>
-                    <span>{selectedGoal.name} has not matured yet. Break the goal to continue, or switch back to wallet.</span>
-                    <div className="goal-card-actions">
-                      <Button type="button" variant={breakGoal ? "primary" : "secondary"} onClick={() => { setBreakGoal(true); setNeedsBreakConfirmation(false); }}>
+                  <div className="fin-notice fin-notice-warning">
+                    <strong>Goal still in progress</strong>
+                    <span>{selectedGoal.name} must be broken before withdrawal can continue.</span>
+                    <div className="fin-inline-actions">
+                      <Button
+                        type="button"
+                        variant={breakGoal ? "primary" : "secondary"}
+                        onClick={() => {
+                          setBreakGoal(true);
+                          setNeedsBreakConfirmation(false);
+                        }}
+                      >
                         Break goal
                       </Button>
-                      <Button type="button" variant="ghost" onClick={() => { setSource("wallet"); setBreakGoal(false); setNeedsBreakConfirmation(false); }}>
-                        Cancel
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => {
+                          setSource("wallet");
+                          setBreakGoal(false);
+                          setNeedsBreakConfirmation(false);
+                        }}
+                      >
+                        Switch to wallet
                       </Button>
                     </div>
                   </div>
@@ -230,37 +232,39 @@ export default function Withdraw() {
                     <span>Select Break goal to continue with this withdrawal.</span>
                   </div>
                 ) : null}
-              </Card>
+              </FormSection>
+            </div>
+          </FormCard>
 
-              <div className="action-preview-column">
-                <Card className="action-mini-card withdraw-preview-card dominant-preview-card" hover={false}>
-                  <SectionHeader title="3. Confirm" subtitle="You’ll receive" />
-                  <div className="withdraw-receive-hero">{formatCurrency(receiveAmount)}</div>
-                  <div className="withdraw-preview-list">
-                    <div className="withdraw-preview-row">
-                      <span>Fee</span>
-                      <strong>{formatCurrency(fee)}</strong>
-                    </div>
-                    <div className="withdraw-preview-row">
-                      <span>Total deducted</span>
-                      <strong>{formatCurrency(totalDeducted)}</strong>
-                    </div>
-                  </div>
-                  <div className="compact-helper-card compact-helper-card-soft">
-                    <strong>What happens next?</strong>
-                    <span>We process the withdrawal after submission and update your balance when it completes.</span>
-                  </div>
-                  <Button type="submit" fullWidth className="preview-confirm-button" disabled={isSubmitting || !numericAmount}>
-                    {isSubmitting ? "Submitting..." : "Confirm Withdrawal"}
-                  </Button>
-                </Card>
+          <ConfirmSummaryCard
+            eyebrow="Summary"
+            title="Review withdrawal"
+            className="withdraw-summary-card"
+            footer={(
+              <Button type="submit" fullWidth className="preview-confirm-button" disabled={isSubmitting || !numericAmount}>
+                {isSubmitting ? "Submitting..." : "Confirm Withdrawal"}
+              </Button>
+            )}
+          >
+            <div className="withdraw-receive-hero">{formatCurrency(receiveAmount)}</div>
+            <div className="withdraw-preview-list">
+              <div className="withdraw-preview-row">
+                <span>Fee</span>
+                <strong>{formatCurrency(fee)}</strong>
               </div>
-            </form>
-          )}
-        </Card>
-      </div>
+              <div className="withdraw-preview-row">
+                <span>Total deducted</span>
+                <strong>{formatCurrency(totalDeducted)}</strong>
+              </div>
+              <div className="withdraw-preview-row">
+                <span>Source</span>
+                <strong>{selectedGoal ? selectedGoal.name : "Savings wallet"}</strong>
+              </div>
+            </div>
+          </ConfirmSummaryCard>
+          </FormPageLayout>
+        </form>
+      )}
     </Layout>
   );
 }
-
-

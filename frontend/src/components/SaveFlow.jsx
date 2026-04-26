@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import Card from "./Card.jsx";
+import FormCard from "./FormCard.jsx";
+import FormSection from "./FormSection.jsx";
+import FormPageLayout from "./FormPageLayout.jsx";
 import Input from "./Input.jsx";
 import MpesaPreview from "./MpesaPreview.jsx";
+import SelectPill from "./SelectPill.jsx";
+import StepIndicator from "./StepIndicator.jsx";
 import {
   getMostRecentGoalId,
   phonePattern,
@@ -100,125 +104,79 @@ export default function SaveFlow({ goals, activity, onSubmit, isSubmitting, init
         </div>
       ) : null}
 
-      <form className="save-flow-grid" onSubmit={handleConfirm}>
-        <Card className="save-form-card" hover={false}>
-          <div className="save-flow-header">
-            <span className="save-flow-kicker">M-Pesa</span>
-            <h2 className="save-flow-title">Save with M-Pesa</h2>
-            <p className="save-flow-subtitle">
-              Enter an amount, choose where it goes, then confirm the prompt from your phone.
-            </p>
+      <form onSubmit={handleConfirm}>
+        <FormPageLayout className="save-flow-grid">
+          <FormCard className="save-form-card">
+            <div className="save-flow-header">
+              <span className="save-flow-kicker">M-Pesa</span>
+              <h2 className="save-flow-title">Save with M-Pesa</h2>
+            </div>
+
+            <StepIndicator steps={stepLabels} currentStep={currentStep} completeStep={reviewReady ? 3 : 0} ariaLabel="Save progress" />
+
+            <div className="save-form-stack">
+              <FormSection title="Amount" active={currentStep >= 1}>
+                <input
+                  id="saveAmount"
+                  name="amount"
+                  className="save-clean-input save-clean-input-amount"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Ksh 0"
+                  value={formatAmountInput(amount)}
+                  onChange={(event) => setAmount(parseAmountInput(event.target.value))}
+                />
+                <span className="save-field-note">Typical save: Ksh 50-500</span>
+              </FormSection>
+
+              <FormSection title="Phone" active={currentStep >= 1}>
+                <Input
+                  id="savePhone"
+                  type="tel"
+                  placeholder="07XXXXXXXX or +254XXXXXXXXX"
+                  value={phone}
+                  onChange={(event) => setPhone(event.target.value)}
+                  error={phoneError}
+                  className="save-clean-input"
+                />
+              </FormSection>
+
+            <FormSection title="Goal" active={currentStep >= 2}>
+              <SelectPill
+                items={activeGoals.map((goal) => ({ value: goal._id, label: goal.name }))}
+                value={selectedGoal}
+                  onChange={setSelectedGoal}
+                  ariaLabel="Savings goals"
+                />
+              </FormSection>
+
+              <FormSection title="Round-up rule" active={currentStep >= 2}>
+                <SelectPill
+                  items={roundingOptions.map((option) => ({ value: option.value, label: option.label }))}
+                  value={rule}
+                  onChange={setRule}
+                  ariaLabel="Round-up options"
+                />
+              </FormSection>
+
+              <div className="save-security-note">Secure M-Pesa transaction</div>
+            </div>
+          </FormCard>
+
+          <div className="save-preview-column">
+            <MpesaPreview
+              chargedAmount={roundedAmount}
+              savingsAmount={savingsAmount}
+              goalName={selectedGoalItem?.name}
+              isReady={reviewReady}
+              sticky
+              confirmLabel={isSubmitting ? "Sending request..." : "Confirm Save"}
+              confirmDisabled={!reviewReady || isSubmitting}
+              helperText="Confirm the prompt to complete your save."
+              trustText="Secure M-Pesa transaction"
+            />
           </div>
-
-          <div className="save-progress-minimal" aria-label="Save progress">
-            {stepLabels.map((step, index) => {
-              const stepNumber = index + 1;
-              const active = currentStep === stepNumber || (stepNumber === 3 && reviewReady);
-              const complete = currentStep > stepNumber || (stepNumber === 3 && reviewReady);
-
-              return (
-                <div
-                  key={step}
-                  className={[
-                    "save-progress-item",
-                    active ? "save-progress-item-active" : "",
-                    complete ? "save-progress-item-complete" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
-                  <span className="save-progress-dot">{step}</span>
-                  {stepNumber < stepLabels.length ? <span className="save-progress-line" aria-hidden="true" /> : null}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="save-form-stack">
-            <div className="save-field-group">
-              <label className="save-field-label" htmlFor="saveAmount">
-                Amount
-              </label>
-              <input
-                id="saveAmount"
-                name="amount"
-                className="save-clean-input save-clean-input-amount"
-                type="text"
-                inputMode="numeric"
-                placeholder="Ksh 0"
-                value={formatAmountInput(amount)}
-                onChange={(event) => setAmount(parseAmountInput(event.target.value))}
-              />
-              <span className="save-field-note">Typical save: Ksh 50-500</span>
-            </div>
-
-            <div className="save-field-group">
-              <Input
-                id="savePhone"
-                label="Phone number"
-                type="tel"
-                placeholder="07XXXXXXXX or +254XXXXXXXXX"
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                error={phoneError}
-                className="save-clean-input"
-              />
-            </div>
-
-            <div className="save-field-group">
-              <div className="save-field-heading">
-                <span className="save-field-label">Goal</span>
-                <span className="save-field-caption">Choose a destination</span>
-              </div>
-              <div className="save-goal-pills" role="list" aria-label="Savings goals">
-                {activeGoals.map((goal) => (
-                  <button
-                    key={goal._id}
-                    type="button"
-                    className={["save-goal-pill", selectedGoal === goal._id ? "save-goal-pill-active" : ""].filter(Boolean).join(" ")}
-                    onClick={() => setSelectedGoal(goal._id)}
-                  >
-                    {goal.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="save-field-group">
-              <div className="save-field-heading">
-                <span className="save-field-label">Round-up rule</span>
-              </div>
-              <div className="save-goal-pills save-rule-pills" role="list" aria-label="Round-up options">
-                {roundingOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={["save-goal-pill", rule === option.value ? "save-goal-pill-active" : ""].filter(Boolean).join(" ")}
-                    onClick={() => setRule(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="save-security-note">Secure M-Pesa transaction</div>
-          </div>
-        </Card>
-
-        <div className="save-preview-column">
-          <MpesaPreview
-            chargedAmount={roundedAmount}
-            savingsAmount={savingsAmount}
-            goalName={selectedGoalItem?.name}
-            isReady={reviewReady}
-            sticky
-            confirmLabel={isSubmitting ? "Sending request..." : "Confirm Save"}
-            confirmDisabled={!reviewReady || isSubmitting}
-            helperText="Confirm the prompt to complete your save."
-            trustText="Secure M-Pesa transaction"
-          />
-        </div>
+        </FormPageLayout>
       </form>
     </div>
   );

@@ -1,3 +1,9 @@
+import Button from "../components/Button.jsx";
+import ConfirmSummaryCard from "../components/ConfirmSummaryCard.jsx";
+import FormSection from "../components/FormSection.jsx";
+import FormCard from "../components/FormCard.jsx";
+import FormPageLayout from "../components/FormPageLayout.jsx";
+import Input from "../components/Input.jsx";
 import Layout from "../components/Layout.jsx";
 
 export default function Support() {
@@ -8,80 +14,56 @@ export default function Support() {
       subtitle="Reach out for account questions, product help, or guidance on how to get the most from AirSave."
       shellClassName="support-page-shell"
     >
-      <section className="dashboard-columns support-layout">
-        <article className="app-card">
-          <div className="card-header">
-            <div>
-              <h2 className="card-title">Contact form</h2>
-              <p className="card-subtitle">Send a message and our team will follow up.</p>
-            </div>
-          </div>
-
-          <form className="form-grid" onSubmit={(e) => e.preventDefault()}>
-            <div className="field-group">
-              <label className="field-label" htmlFor="supportName">
-                Name
-              </label>
-              <input id="supportName" className="app-input" type="text" placeholder="Your full name" />
-            </div>
-
-            <div className="field-group">
-              <label className="field-label" htmlFor="supportEmail">
-                Email
-              </label>
-              <input id="supportEmail" className="app-input" type="email" placeholder="you@example.com" />
-            </div>
-
-            <div className="field-group">
-              <label className="field-label" htmlFor="supportMessage">
-                Message
-              </label>
-              <textarea
-                id="supportMessage"
-                className="app-input app-textarea"
+      <form onSubmit={(event) => event.preventDefault()}>
+        <FormPageLayout>
+        <FormCard>
+          <div className="fin-form-stack">
+            <FormSection title="Contact us" active>
+              <div className="fin-form-two-col">
+                <Input label="Name" type="text" placeholder="Your full name" />
+                <Input label="Email" type="email" placeholder="you@example.com" />
+              </div>
+              <Input
+                as="textarea"
+                label="Message"
+                className="fin-form-textarea"
                 rows="6"
                 placeholder="Tell us how we can help"
               />
-            </div>
+            </FormSection>
+          </div>
+        </FormCard>
 
-            <div className="form-actions">
-              <button className="app-button app-button-primary" type="submit">
-                Send message
-              </button>
+        <ConfirmSummaryCard
+          eyebrow="Support"
+          title="What to expect"
+          footer={(
+            <Button type="submit" fullWidth>
+              Send message
+            </Button>
+          )}
+        >
+          <div className="fin-summary-metric">
+            <span>Response time</span>
+            <strong>Within 1 business day</strong>
+          </div>
+          <div className="fin-summary-metric">
+            <span>Best for</span>
+            <strong>Account, product, and payments help</strong>
+          </div>
+          <div className="support-stack fin-summary-list">
+            <div className="support-item">
+              <strong>Round-up savings</strong>
+              <span className="muted">AirSave calculates the difference to your selected round-up rule and saves it automatically.</span>
             </div>
-          </form>
-        </article>
-
-        <article className="app-card">
-          <div className="card-header">
-            <div>
-              <h2 className="card-title">Frequently asked questions</h2>
-              <p className="card-subtitle">Quick answers to common product questions.</p>
+            <div className="support-item">
+              <strong>Goal destination</strong>
+              <span className="muted">Choose a goal during save and progress updates automatically after confirmation.</span>
             </div>
           </div>
-
-          <div className="support-stack">
-            <div className="support-item">
-              <strong>How do round-up savings work?</strong>
-              <span className="muted">
-                Enter a transaction amount and AirSave calculates the amount needed to round up to the next ten.
-              </span>
-            </div>
-            <div className="support-item">
-              <strong>Can I direct savings into a goal?</strong>
-              <span className="muted">
-                Yes. Choose a goal destination when saving and the progress will update automatically.
-              </span>
-            </div>
-            <div className="support-item">
-              <strong>How often does my dashboard refresh?</strong>
-              <span className="muted">
-                The dashboard syncs live data automatically every five seconds while you stay on the page.
-              </span>
-            </div>
-          </div>
-        </article>
-      </section>
+        </ConfirmSummaryCard>
+        </FormPageLayout>
+      </form>
     </Layout>
   );
 }
