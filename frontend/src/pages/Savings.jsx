@@ -33,7 +33,6 @@ export default function Savings() {
       setError("");
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 403) {
-        localStorage.removeItem("token");
         navigate("/");
         return;
       }
@@ -82,3 +81,5 @@ export default function Savings() {
     </Layout>
   );
 }
+
+

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import { getGoals, getNotifications, getTransactions, getWallet } from "../services/api";
@@ -40,7 +40,6 @@ export default function Admin() {
     } catch (err) {
       if (!isMounted) return;
       if (err.response?.status === 401 || err.response?.status === 403) {
-        localStorage.removeItem("token");
         navigate("/");
         return;
       }
@@ -140,3 +139,5 @@ export default function Admin() {
     </Layout>
   );
 }
+
+

@@ -1,3 +1,4 @@
+﻿import { normalizePhone } from "../utils/auth.js";
 import { v4 as uuidv4 } from "uuid";
 import Payment from "../models/Payment.js";
 import Goal from "../models/Goal.js";
@@ -10,9 +11,7 @@ function buildReference(prefix) {
   return `${prefix}-${uuidv4().slice(0, 8).toUpperCase()}`;
 }
 
-export function normalizePhone(phone) {
-  return String(phone || "").replace(/[^\d+]/g, "");
-}
+export { normalizePhone };
 
 export async function initiateSavingsPayment({ user, wallet, amount, rule = 10, goalId }) {
   const normalizedPhone = normalizePhone(user.phone);

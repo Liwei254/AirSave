@@ -1,7 +1,8 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import NotificationDropdown from "./NotificationDropdown.jsx";
-import { getNotifications } from "../services/api";
+import { getNotifications, logoutUser } from "../services/api";
+import logo from "../assets/circle.png";
 
 const navItems = [
   { label: "Dashboard", to: "/dashboard" },
@@ -57,17 +58,25 @@ export default function Navbar() {
 
   if (authHidden) return null;
 
-  function handleLogout() {
-    localStorage.removeItem("token");
-    navigate("/");
+  async function handleLogout() {
+    try {
+      await logoutUser();
+    } finally {
+      navigate("/");
+    }
   }
 
   return (
     <header className="floating-navbar-wrap">
       <nav className="floating-navbar" aria-label="Primary">
-        <NavLink className="navbar-brand" to="/dashboard">
-          <span className="navbar-brand-mark">A</span>
-          <span>AirSave</span>
+        <NavLink className="navbar-brand navbar-brand-logo" to="/dashboard">
+          <span className="navbar-brand-mark">
+            <img src={logo} alt="" className="navbar-brand-image" />
+          </span>
+          <span className="navbar-brand-copy">
+            <span className="navbar-brand-title">AirSave</span>
+            <span className="navbar-brand-subtitle">Save smarter daily</span>
+          </span>
         </NavLink>
 
         <button className="icon-button navbar-toggle" type="button" onClick={() => setMobileOpen((current) => !current)} aria-label="Toggle navigation">

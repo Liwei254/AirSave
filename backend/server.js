@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -14,33 +14,24 @@ import analyticsRoutes from "./routes/analytics.js";
 import notificationRoutes from "./routes/notification.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 
-// Load env vars FIRST
 dotenv.config();
 
 const app = express();
-
-// ==================== CONFIG ====================
-
 const __dirname = path.resolve();
+
+app.set("trust proxy", 1);
 
 app.use(cors({
   origin: ["http://localhost:5173", "https://airsave-1.onrender.com"],
-  credentials: true
+  credentials: true,
 }));
-
-// ==================== MIDDLEWARE ====================
 
 app.use(helmet());
 app.use(morgan('combined'));
-
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false }));
 
-// ==================== DATABASE ====================
-
 connectDB();
-
-// ==================== API ROUTES ====================
 
 app.use("/api/auth", authRoutes);
 app.use("/api/wallet", walletRoutes);
@@ -50,8 +41,6 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/payments", paymentRoutes);
 
-// ==================== ROOT ====================
-
 app.get('/api', (req, res) => {
   res.json({
     message: 'AirSave API - Micro-Savings Platform',
@@ -60,19 +49,12 @@ app.get('/api', (req, res) => {
   });
 });
 
-// ==================== FRONTEND SERVING ====================
-
-// Serve frontend build
 app.use(express.static(path.join(__dirname, "frontend/dist")));
 
-// 🔥 CRITICAL FIX: React Router support
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "frontend", "dist", "index.html"));
 });
 
-// ==================== ERROR HANDLING ====================
-
-// Global error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.status || 500).json({
@@ -81,10 +63,8 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ==================== SERVER ====================
-
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`🚀 AirSave Server running on port ${PORT}`);
+  console.log(`AirSave Server running on port ${PORT}`);
 });

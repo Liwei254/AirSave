@@ -1,27 +1,22 @@
-import jwt from 'jsonwebtoken';
+﻿import jwt from "jsonwebtoken";
+import { ACCESS_TOKEN_TTL, REFRESH_TOKEN_TTL } from "./auth.js";
 
-const signToken = (id, role) => {
-  return jwt.sign(
-    { id, role },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRE }
-  );
-};
+export function signAccessToken(id, role) {
+  return jwt.sign({ id, role, type: "access" }, process.env.JWT_SECRET, {
+    expiresIn: ACCESS_TOKEN_TTL,
+  });
+}
 
-const signRefreshToken = (id) => {
-  return jwt.sign(
-    { id },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_REFRESH_EXPIRE }
-  );
-};
+export function signRefreshToken(id) {
+  return jwt.sign({ id, type: "refresh" }, process.env.JWT_SECRET, {
+    expiresIn: REFRESH_TOKEN_TTL,
+  });
+}
 
-const verifyToken = (token) => {
+export function verifyToken(token) {
   try {
     return jwt.verify(token, process.env.JWT_SECRET);
-  } catch (error) {
+  } catch {
     return null;
   }
-};
-
-export { signToken, signRefreshToken, verifyToken };
+}

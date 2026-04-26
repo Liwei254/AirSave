@@ -5,6 +5,7 @@ import Card from "../components/Card.jsx";
 import FilterTabs from "../components/FilterTabs.jsx";
 import Input from "../components/Input.jsx";
 import Layout from "../components/Layout.jsx";
+import MpesaPreview from "../components/MpesaPreview.jsx";
 import SectionHeader from "../components/SectionHeader.jsx";
 import StatCard from "../components/StatCard.jsx";
 import { getGoals, getWallet, submitWithdrawal } from "../services/api";
@@ -36,7 +37,6 @@ export default function Withdraw() {
     } catch (err) {
       if (!isMounted) return;
       if (err.response?.status === 401 || err.response?.status === 403) {
-        localStorage.removeItem("token");
         navigate("/");
         return;
       }
@@ -115,7 +115,7 @@ export default function Withdraw() {
   }
 
   return (
-    <Layout eyebrow="Withdraw" title="Withdraw your savings" subtitle="Keep the request, destination, and preview visible in one compact action panel.">
+    <Layout eyebrow="Withdraw" title="Withdraw your savings" subtitle="Complete your withdrawal from one compact panel without hunting for the next step.">
       {feedback ? (
         <div className={`feedback ${feedback.type === "success" ? "feedback-success" : "feedback-error"}`}>
           <strong>{feedback.type === "success" ? "Success:" : "Error:"}</strong>
@@ -139,8 +139,8 @@ export default function Withdraw() {
       </div>
 
       <div className="action-page-shell">
-        <Card className="action-page-card" hover={false}>
-          <SectionHeader title="Withdraw funds" subtitle="Amount, destination, preview, and confirmation stay visible above the fold." />
+        <Card className="action-page-card withdraw-action-card" hover={false}>
+          <SectionHeader title="Withdraw funds" subtitle="See amount, source, payout, and confirmation at a glance." />
 
           {isLoading ? (
             <div className="loading-panel">
@@ -150,17 +150,17 @@ export default function Withdraw() {
           ) : (
             <form className="fixed-action-grid withdraw-panel-grid" onSubmit={handleSubmit}>
               <Card className="action-mini-card" hover={false}>
-                <SectionHeader title="Amount" subtitle="Choose how much to withdraw from the selected balance." />
-                <div className="compact-helper-card">
-                  <strong>Available balance: {formatCurrency(availableBalance)}</strong>
-                  <span>Use a quick amount or enter a custom withdrawal value.</span>
+                <SectionHeader title="1. How much?" subtitle="Choose a withdrawal amount." />
+                <div className="compact-balance-card">
+                  <span>Available balance</span>
+                  <strong>{formatCurrency(availableBalance)}</strong>
                 </div>
-                <Input label="Withdraw amount" type="number" min="1" placeholder="Enter amount" value={amount} onChange={(event) => setAmount(event.target.value)} />
+                <Input label="Withdraw amount" className="prominent-input" type="number" min="1" placeholder="Enter amount" value={amount} onChange={(event) => setAmount(event.target.value)} helper="Enter amount or use quick options" />
                 <FilterTabs
                   items={[
                     { value: "quarter", label: "25%" },
                     { value: "half", label: "50%" },
-                    { value: "max", label: "Max" },
+                    { value: "max", label: "MAX" },
                   ]}
                   value=""
                   onChange={(value) => {
@@ -172,7 +172,8 @@ export default function Withdraw() {
               </Card>
 
               <Card className="action-mini-card" hover={false}>
-                <SectionHeader title="Destination" subtitle="Select the source and destination details for this withdrawal." />
+                <SectionHeader title="2. From where?" subtitle="Choose the source and destination details." />
+                <div className="save-panel-subtitle">Withdraw from</div>
                 <FilterTabs
                   items={sourceOptions.map((option) => ({ value: option.value, label: option.label }))}
                   value={selectedSource?.value || "wallet"}
@@ -182,15 +183,15 @@ export default function Withdraw() {
                     setNeedsBreakConfirmation(false);
                   }}
                 />
-                <Input label="Phone number" type="tel" placeholder="07XXXXXXXX" value={phone} onChange={(event) => setPhone(event.target.value)} helper="Used for payout confirmation if required by the processor." />
-                <div className="compact-helper-card">
+                <Input label="Send to" type="tel" placeholder="07XXXXXXXX" value={phone} onChange={(event) => setPhone(event.target.value)} helper="Payout confirmation number" />
+                <div className="compact-helper-card compact-helper-card-soft">
                   <strong>Fee note</strong>
                   <span>Estimated processing fee is shown in the preview before you confirm.</span>
                 </div>
                 {showMaturityWarning ? (
-                  <div className="compact-helper-card compact-helper-card-warning">
-                    <strong>This goal has not matured.</strong>
-                    <span>{selectedGoal.name} is still in progress. Break the goal to continue, or switch back to wallet.</span>
+                  <div className="compact-helper-card compact-helper-card-warning compact-warning-box">
+                    <strong>! Goal still in progress</strong>
+                    <span>{selectedGoal.name} has not matured yet. Break the goal to continue, or switch back to wallet.</span>
                     <div className="goal-card-actions">
                       <Button type="button" variant={breakGoal ? "primary" : "secondary"} onClick={() => { setBreakGoal(true); setNeedsBreakConfirmation(false); }}>
                         Break goal
@@ -210,12 +211,9 @@ export default function Withdraw() {
               </Card>
 
               <div className="action-preview-column">
-                <Card className="action-mini-card withdraw-preview-card" hover={false}>
-                  <SectionHeader title="Preview + Confirm" subtitle="Review fee, payout, and total deduction before submitting." />
-                  <div className="preview-metric preview-metric-primary">
-                    <span>Amount to receive</span>
-                    <strong>{formatCurrency(receiveAmount)}</strong>
-                  </div>
+                <Card className="action-mini-card withdraw-preview-card dominant-preview-card" hover={false}>
+                  <SectionHeader title="3. Confirm" subtitle="You’ll receive" />
+                  <div className="withdraw-receive-hero">{formatCurrency(receiveAmount)}</div>
                   <div className="withdraw-preview-list">
                     <div className="withdraw-preview-row">
                       <span>Fee</span>
@@ -226,8 +224,12 @@ export default function Withdraw() {
                       <strong>{formatCurrency(totalDeducted)}</strong>
                     </div>
                   </div>
-                  <Button type="submit" fullWidth disabled={isSubmitting || !numericAmount}>
-                    {isSubmitting ? "Submitting..." : "Confirm Withdraw"}
+                  <div className="compact-helper-card compact-helper-card-soft">
+                    <strong>What happens next?</strong>
+                    <span>We process the withdrawal after submission and update your balance when it completes.</span>
+                  </div>
+                  <Button type="submit" fullWidth className="preview-confirm-button" disabled={isSubmitting || !numericAmount}>
+                    {isSubmitting ? "Submitting..." : "Confirm Withdrawal"}
                   </Button>
                 </Card>
               </div>
@@ -238,3 +240,5 @@ export default function Withdraw() {
     </Layout>
   );
 }
+
+

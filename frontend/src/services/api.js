@@ -1,22 +1,51 @@
-import axios from "axios";
+﻿import axios from "axios";
 
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL ||
   `${window.location.protocol}//${window.location.hostname}:5000/api`;
 
 const API = axios.create({
-  baseURL: apiBaseUrl
+  baseURL: apiBaseUrl,
+  withCredentials: true,
 });
 
-API.interceptors.request.use((req) => {
-  const token = localStorage.getItem("token");
+let refreshPromise = null;
 
-  if (token) {
-    req.headers.Authorization = `Bearer ${token}`;
+API.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    const status = error?.response?.status;
+    const requestUrl = originalRequest?.url || "";
+
+    const shouldSkipRefresh =
+      !originalRequest ||
+      originalRequest._retry ||
+      status !== 401 ||
+      requestUrl.includes("/auth/login") ||
+      requestUrl.includes("/auth/register") ||
+      requestUrl.includes("/auth/refresh");
+
+    if (shouldSkipRefresh) {
+      return Promise.reject(error);
+    }
+
+    originalRequest._retry = true;
+
+    try {
+      if (!refreshPromise) {
+        refreshPromise = API.post("/auth/refresh").finally(() => {
+          refreshPromise = null;
+        });
+      }
+
+      await refreshPromise;
+      return API(originalRequest);
+    } catch (refreshError) {
+      return Promise.reject(refreshError);
+    }
   }
-
-  return req;
-});
+);
 
 async function requestData(request, transform = (data) => data) {
   try {
@@ -42,6 +71,22 @@ export async function loginUser(payload) {
 
 export async function registerUser(payload) {
   return requestData(API.post("/auth/register", payload));
+}
+
+export async function logoutUser() {
+  return requestData(API.post("/auth/logout"));
+}
+
+export async function getCurrentUser() {
+  return requestData(API.get("/auth/me"), (data) => data.user || null);
+}
+
+export async function requestPasswordReset(payload) {
+  return requestData(API.post("/auth/password-reset/request", payload));
+}
+
+export async function resetPassword(payload) {
+  return requestData(API.post("/auth/password-reset/confirm", payload));
 }
 
 export async function getWallet() {
