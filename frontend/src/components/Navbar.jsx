@@ -164,6 +164,7 @@ export default function Navbar() {
               onClick={() => {
                 setNotificationOpen((current) => !current);
                 setMenuOpen(false);
+                setMobileOpen(false);
               }}
               aria-label="Notifications"
             >
@@ -187,6 +188,7 @@ export default function Navbar() {
               onClick={() => {
                 setMenuOpen((current) => !current);
                 setNotificationOpen(false);
+                setMobileOpen(false);
               }}
               aria-label="User menu"
             >
