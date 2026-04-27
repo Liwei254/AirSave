@@ -126,7 +126,6 @@ export default function GoalNew() {
         <ConfirmationCard
           label="PLAN"
           title="Goal summary"
-          amount={suggestedPlan ? `Save ${formatCurrency(suggestedPlan.amount)}/${suggestedPlan.label}` : ""}
           rows={[
             { label: "Target", value: form.targetAmount ? formatCurrency(form.targetAmount) : "Ksh 0" },
             { label: "Timeline", value: form.durationValue ? `${form.durationValue} ${form.durationUnit}` : "month(s)" },

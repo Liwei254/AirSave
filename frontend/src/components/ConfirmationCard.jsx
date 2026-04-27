@@ -25,6 +25,7 @@ export default function ConfirmationCard({
 }) {
   const titleId = useId();
   const amountId = useId();
+  const hasAmount = amount !== null && amount !== undefined && amount !== "";
 
   return (
     <section
@@ -37,7 +38,7 @@ export default function ConfirmationCard({
         .filter(Boolean)
         .join(" ")}
       aria-labelledby={titleId}
-      aria-describedby={amountId}
+      aria-describedby={hasAmount ? amountId : undefined}
     >
       <div className="confirmation-card-copy">
         {label ? <span className="confirmation-card-label">{label}</span> : null}
@@ -46,9 +47,11 @@ export default function ConfirmationCard({
             {title}
           </h3>
         ) : null}
-        <p id={amountId} className="confirmation-card-amount">
-          {formatDisplayAmount(amount)}
-        </p>
+        {hasAmount ? (
+          <p id={amountId} className="confirmation-card-amount">
+            {formatDisplayAmount(amount)}
+          </p>
+        ) : null}
       </div>
 
       {rows.length ? (
