@@ -129,15 +129,15 @@ export default function Navbar() {
   }
 
   return (
-    <header className="floating-navbar-wrap">
-      <nav className="floating-navbar" aria-label="Primary">
+    <header className="floating-navbar-wrap app-navbar-shell">
+      <nav className="floating-navbar app-navbar" aria-label="Primary">
         <NavLink className="navbar-brand navbar-brand-logo" to="/dashboard">
           <span className="navbar-brand-mark">
             <img src={logo} alt="" className="navbar-brand-image" />
           </span>
           <span className="navbar-brand-copy">
             <span className="navbar-brand-title">AirSave</span>
-            <span className="navbar-brand-subtitle">Save smarter daily</span>
+            <span className="navbar-brand-subtitle">SAVE SMARTER DAILY</span>
           </span>
         </NavLink>
 
