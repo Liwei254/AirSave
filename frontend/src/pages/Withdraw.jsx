@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button.jsx";
-import ConfirmSummaryCard from "../components/ConfirmSummaryCard.jsx";
+import ConfirmationCard from "../components/ConfirmationCard.jsx";
 import FormSection from "../components/FormSection.jsx";
 import FormCard from "../components/FormCard.jsx";
 import FormPageLayout from "../components/FormPageLayout.jsx";
@@ -76,7 +76,7 @@ export default function Withdraw() {
   const currentStep = numericAmount <= 0 ? 1 : !selectedSource ? 2 : 3;
 
   async function handleSubmit(event) {
-    event.preventDefault();
+    event?.preventDefault();
 
     if (!amount || Number(amount) <= 0 || !selectedSource) {
       return;
@@ -142,126 +142,117 @@ export default function Withdraw() {
       ) : (
         <form onSubmit={handleSubmit}>
           <FormPageLayout>
-          <FormCard className="withdraw-form-card">
-            <StepIndicator
-              steps={withdrawSteps}
-              currentStep={currentStep}
-              completeStep={numericAmount > 0 && selectedSource ? 3 : 0}
-              ariaLabel="Withdraw progress"
-            />
+            <FormCard className="withdraw-form-card">
+              <StepIndicator
+                steps={withdrawSteps}
+                currentStep={currentStep}
+                completeStep={numericAmount > 0 && selectedSource ? 3 : 0}
+                ariaLabel="Withdraw progress"
+              />
 
-            <div className="fin-form-stack">
-              <FormSection title="Amount" active={currentStep >= 1}>
-                <div className="fin-inline-metric">
-                  <span>Available balance</span>
-                  <strong>{formatCurrency(availableBalance)}</strong>
-                </div>
-                <Input
-                  type="number"
-                  min="1"
-                  placeholder="Enter amount"
-                  value={amount}
-                  onChange={(event) => setAmount(event.target.value)}
-                />
-                <SelectPill
-                  items={[
-                    { value: "quarter", label: "25%" },
-                    { value: "half", label: "50%" },
-                    { value: "max", label: "MAX" },
-                  ]}
-                  value=""
-                  onChange={(value) => {
-                    if (value === "quarter") handleQuickAmount(0.25);
-                    if (value === "half") handleQuickAmount(0.5);
-                    if (value === "max") handleQuickAmount(1);
-                  }}
-                  ariaLabel="Quick withdrawal amounts"
-                />
-              </FormSection>
+              <div className="fin-form-stack">
+                <FormSection title="Amount" active={currentStep >= 1}>
+                  <div className="fin-inline-metric">
+                    <span>Available balance</span>
+                    <strong>{formatCurrency(availableBalance)}</strong>
+                  </div>
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="Enter amount"
+                    value={amount}
+                    onChange={(event) => setAmount(event.target.value)}
+                  />
+                  <SelectPill
+                    items={[
+                      { value: "quarter", label: "25%" },
+                      { value: "half", label: "50%" },
+                      { value: "max", label: "MAX" },
+                    ]}
+                    value=""
+                    onChange={(value) => {
+                      if (value === "quarter") handleQuickAmount(0.25);
+                      if (value === "half") handleQuickAmount(0.5);
+                      if (value === "max") handleQuickAmount(1);
+                    }}
+                    ariaLabel="Quick withdrawal amounts"
+                  />
+                </FormSection>
 
-              <FormSection title="Source" active={currentStep >= 2}>
-                <SelectPill
-                  items={sourceOptions.map((option) => ({ value: option.value, label: option.label }))}
-                  value={selectedSource?.value || "wallet"}
-                  onChange={(value) => {
-                    setSource(value);
-                    setBreakGoal(false);
-                    setNeedsBreakConfirmation(false);
-                  }}
-                  ariaLabel="Withdrawal source"
-                />
-                <Input
-                  label="Send to"
-                  type="tel"
-                  placeholder="07XXXXXXXX"
-                  value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
-                />
-                {showMaturityWarning ? (
-                  <div className="fin-notice fin-notice-warning">
-                    <strong>Goal still in progress</strong>
-                    <span>{selectedGoal.name} must be broken before withdrawal can continue.</span>
-                    <div className="fin-inline-actions">
-                      <Button
-                        type="button"
-                        variant={breakGoal ? "primary" : "secondary"}
-                        onClick={() => {
-                          setBreakGoal(true);
-                          setNeedsBreakConfirmation(false);
-                        }}
-                      >
-                        Break goal
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => {
-                          setSource("wallet");
-                          setBreakGoal(false);
-                          setNeedsBreakConfirmation(false);
-                        }}
-                      >
-                        Switch to wallet
-                      </Button>
+                <FormSection title="Source" active={currentStep >= 2}>
+                  <SelectPill
+                    items={sourceOptions.map((option) => ({ value: option.value, label: option.label }))}
+                    value={selectedSource?.value || "wallet"}
+                    onChange={(value) => {
+                      setSource(value);
+                      setBreakGoal(false);
+                      setNeedsBreakConfirmation(false);
+                    }}
+                    ariaLabel="Withdrawal source"
+                  />
+                  <Input
+                    label="Send to"
+                    type="tel"
+                    placeholder="07XXXXXXXX"
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                  />
+                  {showMaturityWarning ? (
+                    <div className="fin-notice fin-notice-warning">
+                      <strong>Goal still in progress</strong>
+                      <span>{selectedGoal.name} must be broken before withdrawal can continue.</span>
+                      <div className="fin-inline-actions">
+                        <Button
+                          type="button"
+                          variant={breakGoal ? "primary" : "secondary"}
+                          onClick={() => {
+                            setBreakGoal(true);
+                            setNeedsBreakConfirmation(false);
+                          }}
+                        >
+                          Break goal
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => {
+                            setSource("wallet");
+                            setBreakGoal(false);
+                            setNeedsBreakConfirmation(false);
+                          }}
+                        >
+                          Switch to wallet
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ) : null}
-                {needsBreakConfirmation && !breakGoal ? (
-                  <div className="feedback feedback-error">
-                    <strong>Action required:</strong>
-                    <span>Select Break goal to continue with this withdrawal.</span>
-                  </div>
-                ) : null}
-              </FormSection>
-            </div>
-          </FormCard>
+                  ) : null}
+                  {needsBreakConfirmation && !breakGoal ? (
+                    <div className="feedback feedback-error">
+                      <strong>Action required:</strong>
+                      <span>Select Break goal to continue with this withdrawal.</span>
+                    </div>
+                  ) : null}
+                </FormSection>
+              </div>
+            </FormCard>
 
-          <ConfirmSummaryCard
-            eyebrow="Summary"
-            title="Review withdrawal"
-            className="withdraw-summary-card"
-            footer={(
-              <Button type="submit" fullWidth className="preview-confirm-button" disabled={isSubmitting || !numericAmount}>
-                {isSubmitting ? "Submitting..." : "Confirm Withdrawal"}
-              </Button>
-            )}
-          >
-            <div className="withdraw-receive-hero">{formatCurrency(receiveAmount)}</div>
-            <div className="withdraw-preview-list">
-              <div className="withdraw-preview-row">
-                <span>Fee</span>
-                <strong>{formatCurrency(fee)}</strong>
-              </div>
-              <div className="withdraw-preview-row">
-                <span>Total deducted</span>
-                <strong>{formatCurrency(totalDeducted)}</strong>
-              </div>
-              <div className="withdraw-preview-row">
-                <span>Source</span>
-                <strong>{selectedGoal ? selectedGoal.name : "Savings wallet"}</strong>
-              </div>
-            </div>
-          </ConfirmSummaryCard>
+            <ConfirmationCard
+              label="SUMMARY"
+              title="Review withdrawal"
+              amount={receiveAmount}
+              rows={[
+                { label: "Fee", value: formatCurrency(fee) },
+                { label: "Total deducted", value: formatCurrency(totalDeducted) },
+                { label: "Source", value: selectedGoal ? selectedGoal.name : "Savings wallet" },
+              ]}
+              buttonText={isSubmitting ? "Submitting..." : "Confirm Withdrawal"}
+              onConfirm={handleSubmit}
+              disabled={!numericAmount || isSubmitting}
+              loading={isSubmitting}
+              helperText="Withdrawals are reviewed before processing."
+              variant="withdraw"
+              sticky
+            />
           </FormPageLayout>
         </form>
       )}

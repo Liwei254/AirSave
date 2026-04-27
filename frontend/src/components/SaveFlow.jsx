@@ -72,7 +72,7 @@ export default function SaveFlow({ goals, activity, onSubmit, isSubmitting, init
   const currentStep = numericAmount <= 0 ? 1 : !selectedGoalItem ? 2 : 3;
 
   async function handleConfirm(event) {
-    event.preventDefault();
+    event?.preventDefault();
 
     if (!reviewReady) {
       setFeedback({ type: "error", message: "Complete the amount, goal, and phone number to continue." });
@@ -170,8 +170,10 @@ export default function SaveFlow({ goals, activity, onSubmit, isSubmitting, init
               goalName={selectedGoalItem?.name}
               isReady={reviewReady}
               sticky
+              onConfirm={handleConfirm}
               confirmLabel={isSubmitting ? "Sending request..." : "Confirm Save"}
               confirmDisabled={!reviewReady || isSubmitting}
+              loading={isSubmitting}
               helperText="Confirm the prompt to complete your save."
               trustText="Secure M-Pesa transaction"
             />

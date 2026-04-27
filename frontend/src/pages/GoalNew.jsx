@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Button from "../components/Button.jsx";
+import ConfirmationCard from "../components/ConfirmationCard.jsx";
 import FormCard from "../components/FormCard.jsx";
 import FormSection from "../components/FormSection.jsx";
 import FormPageLayout from "../components/FormPageLayout.jsx";
 import Input from "../components/Input.jsx";
 import Layout from "../components/Layout.jsx";
 import SelectPill from "../components/SelectPill.jsx";
-import ConfirmSummaryCard from "../components/ConfirmSummaryCard.jsx";
 import { createGoal } from "../services/api";
 import { formatCurrency } from "../utils/formatters";
 import { durationUnits, goalTemplates, getSuggestedPlan, toAmount } from "../utils/savings";
@@ -35,7 +34,7 @@ export default function GoalNew() {
   }
 
   async function handleSubmit(event) {
-    event.preventDefault();
+    event?.preventDefault();
     if (createDisabled) {
       setFeedback({ type: "error", message: "Complete all goal details to continue." });
       return;
@@ -124,30 +123,25 @@ export default function GoalNew() {
           </div>
         </FormCard>
 
-        <ConfirmSummaryCard
-          eyebrow="Plan"
+        <ConfirmationCard
+          label="PLAN"
           title="Goal summary"
-          footer={(
-            <Button type="submit" fullWidth disabled={createDisabled}>
-              {isSubmitting ? "Creating..." : "Create goal"}
-            </Button>
-          )}
-        >
-          <div className="fin-summary-metric">
-            <span>Target</span>
-            <strong>{form.targetAmount ? formatCurrency(form.targetAmount) : "Add an amount"}</strong>
-          </div>
-          <div className="fin-summary-metric">
-            <span>Timeline</span>
-            <strong>{form.durationValue ? `${form.durationValue} ${form.durationUnit}` : "Add a duration"}</strong>
-          </div>
-          <div className="plan-card fin-summary-card">
-            <span className="plan-label">Auto-calculated plan</span>
-            <strong className="plan-value">
-              {suggestedPlan ? `Save ${formatCurrency(suggestedPlan.amount)}/${suggestedPlan.label}` : "Add target and duration"}
-            </strong>
-          </div>
-        </ConfirmSummaryCard>
+          amount={suggestedPlan ? `Save ${formatCurrency(suggestedPlan.amount)}/${suggestedPlan.label}` : ""}
+          rows={[
+            { label: "Target", value: form.targetAmount ? formatCurrency(form.targetAmount) : "Ksh 0" },
+            { label: "Timeline", value: form.durationValue ? `${form.durationValue} ${form.durationUnit}` : "month(s)" },
+            {
+              label: "Auto-calculated plan",
+              value: suggestedPlan ? `Save ${formatCurrency(suggestedPlan.amount)}/${suggestedPlan.label}` : "auto-plan",
+            },
+          ]}
+          buttonText="Create goal"
+          onConfirm={handleSubmit}
+          disabled={createDisabled}
+          loading={isSubmitting}
+          variant="default"
+          sticky
+        />
         </FormPageLayout>
       </form>
     </Layout>
