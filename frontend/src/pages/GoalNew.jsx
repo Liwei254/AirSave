@@ -61,7 +61,7 @@ export default function GoalNew() {
   }
 
   return (
-    <Layout eyebrow="New Goal" title="Create a savings goal" subtitle="Set a target, choose a timeline, and review the plan in one place.">
+    <Layout >
       {feedback ? (
         <div className={`feedback ${feedback.type === "success" ? "feedback-success" : "feedback-error"}`}>
           <strong>{feedback.type === "success" ? "Success:" : "Error:"}</strong>

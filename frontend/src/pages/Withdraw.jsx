@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button.jsx";
 import ConfirmationCard from "../components/ConfirmationCard.jsx";
@@ -119,7 +119,7 @@ export default function Withdraw() {
   }
 
   return (
-    <Layout eyebrow="Withdraw" title="Withdraw your savings" subtitle="Move funds out with a calmer, focused review flow.">
+    <Layout>
       {feedback ? (
         <div className={`feedback ${feedback.type === "success" ? "feedback-success" : "feedback-error"}`}>
           <strong>{feedback.type === "success" ? "Success:" : "Error:"}</strong>

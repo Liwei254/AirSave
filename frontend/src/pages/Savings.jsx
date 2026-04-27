@@ -57,7 +57,7 @@ export default function Savings() {
   }
 
   return (
-    <Layout eyebrow="Save" title="Save with M-Pesa" subtitle="A clean, guided save flow with a sticky preview and clear confirmation before you commit.">
+    <Layout >
       {error ? (
         <div className="feedback feedback-error">
           <strong>Error:</strong>

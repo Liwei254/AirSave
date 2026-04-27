@@ -38,9 +38,6 @@ export default function Goals() {
 
   return (
     <Layout
-      eyebrow="Goals"
-      title="Your savings goals"
-      subtitle="Track each target, check what remains, and jump into a quick save whenever you need to."
       actions={<Button onClick={() => navigate("/goals/new")}>New goal</Button>}
     >
       {error ? (

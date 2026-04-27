@@ -42,7 +42,7 @@ export default function Transactions() {
   const selectedSummary = getSavingsSummary(filteredActivity);
 
   return (
-    <Layout eyebrow="Activity" title="Savings activity" subtitle="Filter your savings history, review trends, and keep every contribution easy to scan.">
+    <Layout >
       {error ? (
         <div className="feedback feedback-error">
           <strong>Error:</strong>

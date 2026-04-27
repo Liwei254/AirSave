@@ -79,20 +79,41 @@ function buildWeeklyTrend(items) {
   return days;
 }
 
-function buildSparklinePath(values) {
-  if (!values.length) return "";
+const TRENDLINE_WIDTH = 280;
+const TRENDLINE_HEIGHT = 80;
 
-  const width = 360;
-  const height = 160;
-  const max = Math.max(...values, 1);
+function formatPoint(value) {
+  return Number(value.toFixed(2));
+}
 
-  return values
-    .map((value, index) => {
-      const x = (index / Math.max(values.length - 1, 1)) * width;
-      const y = height - (value / max) * 112 - 24;
-      return `${index === 0 ? "M" : "L"} ${x} ${y}`;
-    })
-    .join(" ");
+function buildSparklinePoints(values) {
+  if (!values.length) return [];
+
+  const topPadding = 10;
+  const bottomPadding = 10;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min;
+  const drawableHeight = TRENDLINE_HEIGHT - topPadding - bottomPadding;
+
+  return values.map((value, index) => {
+    const x = (index / Math.max(values.length - 1, 1)) * TRENDLINE_WIDTH;
+    const y = range === 0
+      ? TRENDLINE_HEIGHT / 2
+      : TRENDLINE_HEIGHT - bottomPadding - ((value - min) / range) * drawableHeight;
+
+    return { x: formatPoint(x), y: formatPoint(y) };
+  });
+}
+
+function buildSmoothSparklinePath(points) {
+  if (!points.length) return "";
+
+  return points.slice(1).reduce((path, point, index) => {
+    const previous = points[index];
+    const controlX = formatPoint((previous.x + point.x) / 2);
+    return `${path} C ${controlX} ${previous.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
+  }, `M ${points[0].x} ${points[0].y}`);
 }
 
 export default function Dashboard() {
@@ -128,30 +149,23 @@ export default function Dashboard() {
 
   const weeklySavings = useMemo(() => getSavingsSummary(activity.filter((item) => isWithinActivityFilter(item, "week"))), [activity]);
   const weeklyTrend = useMemo(() => buildWeeklyTrend(activity), [activity]);
-  const trendPath = useMemo(() => buildSparklinePath(weeklyTrend.map((item) => item.total)), [weeklyTrend]);
-  const chartMax = Math.max(...weeklyTrend.map((item) => item.total), 1);
+  const trendPoints = useMemo(() => buildSparklinePoints(weeklyTrend.map((item) => item.total)), [weeklyTrend]);
+  const trendPath = useMemo(() => buildSmoothSparklinePath(trendPoints), [trendPoints]);
   const primaryGoal = goals[0] || null;
   const activeGoalsCount = goals.filter((goal) => goal.status !== "completed").length;
   const recentTransactions = activity.slice(0, 5);
   const balanceDisplay = balanceVisible ? formatCurrency(wallet?.balance) : "Ksh ******";
   const insightGoalProgress = primaryGoal ? getGoalProgress(primaryGoal) : 0;
-  const suggestedNextSave = primaryGoal
-    ? Math.max(100, Math.ceil((Number(primaryGoal.targetAmount || 0) - Number(primaryGoal.savedAmount || 0)) / 10 / 50) * 50)
-    : 100;
-  const insightTitle = weeklySavings > 0 ? "You're building great momentum." : "Your next save can start the momentum.";
-  const insightWeekly = `+ ${formatCurrency(weeklySavings)} saved this week`;
-  const insightGoal = primaryGoal
-    ? `${primaryGoal.name} is ${insightGoalProgress}% complete`
-    : `${activeGoalsCount ? activeGoalsCount : "No"} active goals in progress`;
-  const insightNextStep = `Next step: Add ${formatCurrency(suggestedNextSave)} to stay on track`;
+  const topGoalName = primaryGoal ? primaryGoal.name : "No top goal yet";
+  const topGoalInsight = primaryGoal
+    ? `${primaryGoal.name} is your leading goal this week.`
+    : "Create a savings goal to start tracking progress this week.";
   const insightPrimaryAction = primaryGoal ? `Save toward ${primaryGoal.name}` : "Create a goal";
   const insightSecondaryAction = primaryGoal ? "View goal" : "View goals";
 
   return (
     <Layout
-      eyebrow="Dashboard"
-      title="Your savings overview"
-      subtitle="A simple view of your balance, weekly momentum, and most recent activity."
+      
     >
       {error ? (
         <div className="feedback feedback-error">
@@ -162,9 +176,9 @@ export default function Dashboard() {
 
       <section className="dashboard-minimal-grid">
         <Card className="dashboard-balance-card dashboard-primary-card dashboard-balance-hero" hover>
-          <div className="dashboard-balance-top">
+          <div className="dashboard-balance-shell">
             <div className="dashboard-balance-copy">
-              <span className="dashboard-kicker">Available balance</span>
+              <span className="dashboard-kicker">AVAILABLE BALANCE</span>
               <div className="dashboard-balance-amount-row">
                 <p className={["dashboard-balance-value", balanceVisible ? "" : "dashboard-balance-value-hidden"].filter(Boolean).join(" ")}>
                   {balanceDisplay}
@@ -179,68 +193,36 @@ export default function Dashboard() {
                 </button>
               </div>
               <span className="dashboard-balance-meta">Updated from confirmed savings activity.</span>
-            </div>
-          </div>
 
-          <div className="dashboard-hero-metrics" aria-label="Savings summary">
-            <div className="dashboard-hero-metric">
-              <span>This week</span>
-              <strong>{formatCurrency(weeklySavings)}</strong>
+              <div className="dashboard-balance-inline-stats" aria-label="Savings summary">
+                <p>
+                  <span>This week:</span>
+                  {formatCurrency(weeklySavings)}
+                </p>
+                <p>
+                  <span>Goal(s):</span>
+                  {activeGoalsCount}
+                </p>
+              </div>
             </div>
-            <div className="dashboard-hero-metric">
-              <span>Active goals</span>
-              <strong>{activeGoalsCount}</strong>
-            </div>
-            <div className="dashboard-hero-metric">
-              <span>Top goal</span>
-              <strong>{primaryGoal ? `${insightGoalProgress}%` : "0%"}</strong>
-            </div>
-          </div>
 
-          <div className="dashboard-balance-actions">
-            <Button onClick={() => navigate("/save")} className="dashboard-save-button">
-              <ActionIcon type="save" />
-              <span>Save</span>
-            </Button>
-            <Button variant="secondary" onClick={() => navigate("/withdraw")} className="dashboard-withdraw-button">
-              <ActionIcon type="withdraw" />
-              <span>Withdraw</span>
-            </Button>
-          </div>
-        </Card>
+            <div className="dashboard-hero-right">
+              <div className="dashboard-balance-actions">
+                <Button onClick={() => navigate("/save")} className="dashboard-save-button">
+                  <ActionIcon type="save" />
+                  <span>Save</span>
+                </Button>
+                <Button variant="secondary" onClick={() => navigate("/withdraw")} className="dashboard-withdraw-button">
+                  <ActionIcon type="withdraw" />
+                  <span>Withdraw</span>
+                </Button>
+              </div>
 
-        <Card className="dashboard-trend-card dashboard-primary-card" hover>
-          <div className="dashboard-trend-header dashboard-trend-header-minimal">
-            <div>
-              <span className="dashboard-kicker">Weekly savings</span>
-              <h2 className="dashboard-trend-title">{formatCurrency(weeklySavings)}</h2>
-            </div>
-          </div>
-
-          <div className="dashboard-chart-panel">
-            <svg viewBox="0 0 360 160" className="dashboard-chart" aria-hidden="true">
-              <defs>
-                <linearGradient id="dashboardMinimalArea" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="rgba(37, 99, 235, 0.22)" />
-                  <stop offset="100%" stopColor="rgba(37, 99, 235, 0.02)" />
-                </linearGradient>
-              </defs>
-              <path d={`${trendPath} L 360 160 L 0 160 Z`} className="dashboard-chart-area-minimal" />
-              <path d={trendPath} className="dashboard-chart-line-minimal" />
-              {weeklyTrend.map((item, index) => {
-                const x = (index / Math.max(weeklyTrend.length - 1, 1)) * 360;
-                const y = 160 - (item.total / chartMax) * 112 - 24;
-                return <circle key={item.key} cx={x} cy={y} r="3" className="dashboard-chart-dot-minimal" />;
-              })}
-            </svg>
-
-            <div className="dashboard-chart-labels dashboard-chart-labels-minimal">
-              {weeklyTrend.map((item) => (
-                <div key={item.key} className="dashboard-chart-label dashboard-chart-label-minimal">
-                  <span>{item.label}</span>
-                  <strong>{formatCurrency(item.total)}</strong>
-                </div>
-              ))}
+              <div className="dashboard-hero-trend" aria-hidden="true">
+                <svg viewBox={`0 0 ${TRENDLINE_WIDTH} ${TRENDLINE_HEIGHT}`} className="dashboard-hero-trendline">
+                  <path d={trendPath} className="dashboard-chart-line-minimal" />
+                </svg>
+              </div>
             </div>
           </div>
         </Card>
@@ -252,16 +234,16 @@ export default function Dashboard() {
             <div className="dashboard-insight-avatar">
               <InsightIcon />
             </div>
-            <span className="dashboard-insight-badge">AI Insight</span>
+            <span className="dashboard-insight-badge">AI INSIGHT</span>
           </div>
           <div className="dashboard-smart-insight-body">
-            <span className="dashboard-smart-insight-label">Next best move</span>
-            <strong className="dashboard-smart-insight-title">{insightTitle}</strong>
-            <div className="dashboard-smart-insight-lines">
-              <span className="dashboard-smart-insight-highlight">{insightWeekly}</span>
-              <span className="dashboard-smart-insight-text">{insightGoal}</span>
-              <span className="dashboard-smart-insight-text">{insightNextStep}</span>
+            <span className="dashboard-smart-insight-label">Top goal</span>
+            <strong className="dashboard-smart-insight-title">{topGoalName}</strong>
+            <div className="dashboard-smart-insight-progress">
+              <span>Current progress</span>
+              <strong>{insightGoalProgress}%</strong>
             </div>
+            <span className="dashboard-smart-insight-text">{topGoalInsight}</span>
             <div className="dashboard-smart-insight-actions">
               <Button
                 className="dashboard-insight-cta"
