@@ -31,7 +31,7 @@ export default function MpesaPreview({
       helperText={helperText || trustText || "Secure M-Pesa transaction"}
       variant="save"
       sticky={sticky}
-      className={isReady ? "confirmation-card-ready" : ""}
+      className={["save-summary-card", isReady ? "confirmation-card-ready" : ""].filter(Boolean).join(" ")}
     />
   );
 }

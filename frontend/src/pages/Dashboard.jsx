@@ -133,7 +133,7 @@ export default function Dashboard() {
   const primaryGoal = goals[0] || null;
   const activeGoalsCount = goals.filter((goal) => goal.status !== "completed").length;
   const recentTransactions = activity.slice(0, 5);
-  const balanceDisplay = balanceVisible ? formatCurrency(wallet?.balance) : "••••••";
+  const balanceDisplay = balanceVisible ? formatCurrency(wallet?.balance) : "Ksh ******";
   const insightGoalProgress = primaryGoal ? getGoalProgress(primaryGoal) : 0;
   const suggestedNextSave = primaryGoal
     ? Math.max(100, Math.ceil((Number(primaryGoal.targetAmount || 0) - Number(primaryGoal.savedAmount || 0)) / 10 / 50) * 50)
@@ -161,7 +161,7 @@ export default function Dashboard() {
       ) : null}
 
       <section className="dashboard-minimal-grid">
-        <Card className="dashboard-balance-card dashboard-primary-card" hover>
+        <Card className="dashboard-balance-card dashboard-primary-card dashboard-balance-hero" hover>
           <div className="dashboard-balance-top">
             <div className="dashboard-balance-copy">
               <span className="dashboard-kicker">Available balance</span>
@@ -179,6 +179,21 @@ export default function Dashboard() {
                 </button>
               </div>
               <span className="dashboard-balance-meta">Updated from confirmed savings activity.</span>
+            </div>
+          </div>
+
+          <div className="dashboard-hero-metrics" aria-label="Savings summary">
+            <div className="dashboard-hero-metric">
+              <span>This week</span>
+              <strong>{formatCurrency(weeklySavings)}</strong>
+            </div>
+            <div className="dashboard-hero-metric">
+              <span>Active goals</span>
+              <strong>{activeGoalsCount}</strong>
+            </div>
+            <div className="dashboard-hero-metric">
+              <span>Top goal</span>
+              <strong>{primaryGoal ? `${insightGoalProgress}%` : "0%"}</strong>
             </div>
           </div>
 

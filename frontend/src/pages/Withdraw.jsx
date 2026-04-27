@@ -252,6 +252,7 @@ export default function Withdraw() {
               helperText="Withdrawals are reviewed before processing."
               variant="withdraw"
               sticky
+              className="withdraw-summary-card"
             />
           </FormPageLayout>
         </form>
