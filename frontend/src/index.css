@@ -5913,3 +5913,373 @@ h6,
     min-height: 42px;
   }
 }
+
+/* Mobile responsiveness hardening */
+
+@media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .page-container {
+    width: 100%;
+    max-width: 100%;
+    padding: 20px 14px 44px;
+  }
+
+  .page-stack {
+    gap: 20px;
+  }
+
+  .page-header {
+    padding: 0;
+  }
+
+  .page-header,
+  .section-header,
+  .activity-history-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-header .section-title,
+  .page-title,
+  .save-flow-title {
+    font-size: clamp(1.9rem, 11vw, 2.8rem);
+    line-height: 1.08;
+  }
+
+  .section-title,
+  .dashboard-smart-insight-title,
+  .confirmation-card-title,
+  .goal-card-title {
+    font-size: clamp(1.25rem, 6vw, 1.6rem);
+  }
+
+  .page-subtitle,
+  .section-subtitle,
+  .dashboard-balance-meta,
+  .dashboard-smart-insight-text,
+  .confirmation-card-helper,
+  .goal-card-copy,
+  .activity-secondary {
+    font-size: 0.9rem;
+  }
+
+  .ui-card,
+  .dashboard-primary-card,
+  .dashboard-smart-insight-card,
+  .dashboard-secondary-grid .ui-card:not(.dashboard-primary-card),
+  .fin-form-main,
+  .save-form-card,
+  .summary-card,
+  .confirmation-card,
+  .auth-card,
+  .auth-card-premium {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .fixed-stats-grid,
+  .fixed-two-grid,
+  .fixed-action-grid,
+  .dashboard-minimal-grid,
+  .dashboard-secondary-grid,
+  .goals-progress-grid,
+  .form-grid-two,
+  .fin-form-two-col,
+  .goal-card-amounts,
+  .preview-metrics {
+    grid-template-columns: 1fr;
+    min-width: 0;
+    gap: 16px;
+  }
+
+  .overflow-grid-shell {
+    overflow-x: visible;
+    padding-bottom: 0;
+  }
+
+  .dashboard-minimal-grid {
+    margin-inline: 0;
+    padding-inline: 0;
+    overflow-x: visible;
+  }
+
+  .dashboard-balance-hero {
+    min-width: 0;
+    min-height: auto;
+    padding: 18px;
+  }
+
+  .dashboard-balance-shell {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .dashboard-balance-value {
+    font-size: clamp(2.15rem, 12vw, 3rem);
+  }
+
+  .dashboard-privacy-button {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+  }
+
+  .dashboard-hero-right {
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .dashboard-hero-right .dashboard-balance-actions,
+  .dashboard-balance-actions,
+  .dashboard-smart-insight-actions,
+  .fin-inline-actions,
+  .section-actions,
+  .header-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .dashboard-save-button,
+  .dashboard-withdraw-button,
+  .dashboard-insight-cta,
+  .ui-button,
+  .confirmation-card-button,
+  .avatar-menu-button {
+    width: 100%;
+  }
+
+  .dashboard-hero-trend {
+    justify-self: stretch;
+    width: 100%;
+    max-width: 320px;
+    height: 76px;
+    margin-left: auto;
+  }
+
+  .dashboard-hero-trendline {
+    height: 76px;
+  }
+
+  .dashboard-smart-insight-progress {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .fin-form-layout,
+  .save-flow-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .save-preview-column {
+    order: 0;
+  }
+
+  .confirmation-card-sticky,
+  .preview-sticky {
+    position: static;
+    top: auto;
+  }
+
+  .fin-form-stack,
+  .save-form-stack,
+  .save-flow-shell {
+    gap: 16px;
+  }
+
+  .form-section {
+    gap: 12px;
+  }
+
+  .step-indicator {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .step-copy {
+    font-size: 0.82rem;
+  }
+
+  .select-pill-group,
+  .filter-tabs,
+  .activity-history-filters {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .select-pill-group::-webkit-scrollbar,
+  .filter-tabs::-webkit-scrollbar,
+  .activity-history-filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .select-pill,
+  .filter-tab,
+  .activity-filter,
+  .quick-add-action {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .save-clean-input-amount,
+  .confirmation-card-amount,
+  .metric-value {
+    font-size: clamp(2rem, 11vw, 2.75rem);
+  }
+
+  .activity-table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .activity-table {
+    min-width: 620px;
+  }
+
+  .activity-table th,
+  .activity-table td {
+    padding: 12px 14px;
+  }
+
+  .activity-feed-row,
+  .activity-feed-meta,
+  .withdraw-summary-row,
+  .withdraw-preview-row,
+  .goal-card-top,
+  .goal-progress-labels {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .activity-feed-meta {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .app-navbar,
+  .floating-navbar.app-navbar {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .app-navbar .navbar-brand {
+    max-width: calc(100vw - 124px);
+    min-width: 0;
+  }
+
+  .app-navbar .navbar-brand-copy {
+    min-width: 0;
+  }
+
+  .app-navbar .navbar-brand-title,
+  .app-navbar .navbar-brand-subtitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-navbar .navbar-center {
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .app-navbar .navbar-links {
+    min-width: max-content;
+  }
+
+  .app-navbar .navbar-link {
+    padding-inline: 14px;
+    white-space: nowrap;
+  }
+
+  .app-footer {
+    margin-top: 40px;
+  }
+
+  .footer-shell {
+    flex-direction: column;
+    gap: 22px;
+    padding: 24px 16px;
+  }
+
+  .footer-actions {
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
+  .footer-contact {
+    justify-items: start;
+    text-align: left;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .fixed-stats-grid,
+  .goals-progress-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-width: 0;
+  }
+
+  .fixed-two-grid,
+  .form-grid-two,
+  .fin-form-two-col,
+  .dashboard-secondary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-width: 0;
+  }
+
+  .fin-form-layout,
+  .save-flow-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .save-preview-column {
+    order: 0;
+  }
+
+  .confirmation-card-sticky,
+  .preview-sticky {
+    position: static;
+    top: auto;
+  }
+}
+
+@media (min-width: 1024px) {
+  .fixed-stats-grid,
+  .goals-progress-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .fixed-two-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fixed-action-grid,
+  .action-panel-grid,
+  .withdraw-panel-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .fin-form-layout,
+  .save-flow-grid {
+    grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+  }
+}
