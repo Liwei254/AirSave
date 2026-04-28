@@ -1,280 +1,226 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import ActivityList from "../components/ActivityList.jsx";
-import Button from "../components/Button.jsx";
-import Card from "../components/Card.jsx";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import Layout from "../components/Layout.jsx";
-import SectionHeader from "../components/SectionHeader.jsx";
-import { getGoals, getSavingsActivity, getWallet } from "../services/api";
-import { formatCurrency, getGoalProgress } from "../utils/formatters";
-import { getSavingsSummary, isWithinActivityFilter, sortActivityByNewest } from "../utils/savings";
 
-function ActionIcon({ type }) {
-  if (type === "save") {
-    return (
-      <svg viewBox="0 0 24 24" className="dashboard-action-icon" aria-hidden="true">
-        <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    );
-  }
+const trendData = [
+  { day: "May 1", value: 90 },
+  { day: "May 3", value: 190 },
+  { day: "May 5", value: 290 },
+  { day: "May 8", value: 450 },
+  { day: "May 10", value: 620 },
+  { day: "May 12", value: 560 },
+  { day: "May 14", value: 740 },
+  { day: "May 16", value: 810 },
+  { day: "May 18", value: 940 },
+  { day: "May 20", value: 980 },
+  { day: "May 22", value: 1120 },
+  { day: "May 24", value: 1180 },
+  { day: "May 26", value: 1210 },
+  { day: "May 29", value: 1250.75 },
+];
+
+const recentActivity = [
+  { type: "deposit", title: "Deposit", subtitle: "From Checking Account", amount: "+$50.00", date: "May 29, 2025", tone: "green" },
+  { type: "roundup", title: "Round-up", subtitle: "Coffee Shop", amount: "+$1.35", date: "May 29, 2025", tone: "blue" },
+  { type: "deposit", title: "Deposit", subtitle: "From Checking Account", amount: "+$75.00", date: "May 28, 2025", tone: "orange" },
+  { type: "roundup", title: "Round-up", subtitle: "Grocery Store", amount: "+$2.45", date: "May 28, 2025", tone: "purple" },
+  { type: "deposit", title: "Deposit", subtitle: "From Checking Account", amount: "+$50.00", date: "May 27, 2025", tone: "green" },
+];
+
+const goals = [
+  { name: "Dream Vacation", amount: "$850 of $2,000", progress: 42, tone: "blue", icon: "✈" },
+  { name: "New Laptop", amount: "$450 of $1,200", progress: 38, tone: "green", icon: "⌂" },
+  { name: "Emergency Fund", amount: "$1,200 of $3,000", progress: 40, tone: "orange", icon: "⬡" },
+];
+
+function StatIcon({ kind }) {
+  const icons = {
+    wallet: <path d="M3 7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v1H5a2 2 0 0 0-2 2V7Zm0 3a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Zm13 2a1 1 0 1 0 0 2h3v-2h-3Z" fill="currentColor" />, 
+    target: <><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" strokeWidth="2"/><path d="M16 8l5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></>,
+    flame: <path d="M13.5 2s.5 2.5-1 4.5S8 10 8 14a6 6 0 0 0 12 0c0-3.5-2-5.5-4-8 0 2-1 3-2.5 4-1-2-1.5-4-.5-8Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+  };
 
   return (
-    <svg viewBox="0 0 24 24" className="dashboard-action-icon" aria-hidden="true">
-      <path d="M12 19V5m0 14 5-5m-5 5-5-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      {icons[kind]}
     </svg>
   );
 }
 
-function InsightIcon() {
+function ActivityBadge({ type }) {
   return (
-    <svg viewBox="0 0 24 24" className="dashboard-insight-icon" aria-hidden="true">
-      <path d="M12 3 13.9 8.1 19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      {type === "deposit" ? (
+        <path d="M12 4v14m0 0 5-5m-5 5-5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      ) : (
+        <path d="M4 6h2l2 10h8l2-7H8M10 19a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm7 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      )}
     </svg>
   );
 }
 
-function EyeIcon({ open = false }) {
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+
   return (
-    <svg viewBox="0 0 24 24" className="dashboard-privacy-icon" aria-hidden="true">
-      <path
-        d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      {!open ? <path d="M4 20 20 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /> : null}
-    </svg>
+    <div className="mockdash-chart-tooltip">
+      <span>{label}</span>
+      <strong>${payload[0].value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+    </div>
   );
-}
-
-function buildWeeklyTrend(items) {
-  const today = new Date();
-  const days = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(today);
-    date.setHours(0, 0, 0, 0);
-    date.setDate(today.getDate() - (6 - index));
-    return {
-      key: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`,
-      label: date.toLocaleDateString("en-KE", { weekday: "short" }),
-      total: 0,
-    };
-  });
-
-  const dayMap = new Map(days.map((day) => [day.key, day]));
-
-  items.forEach((item) => {
-    const date = new Date(item.date);
-    date.setHours(0, 0, 0, 0);
-    const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-    const targetDay = dayMap.get(key);
-
-    if (targetDay) {
-      targetDay.total += Number(item.savings || 0);
-    }
-  });
-
-  return days;
-}
-
-const TRENDLINE_WIDTH = 280;
-const TRENDLINE_HEIGHT = 80;
-
-function formatPoint(value) {
-  return Number(value.toFixed(2));
-}
-
-function buildSparklinePoints(values) {
-  if (!values.length) return [];
-
-  const topPadding = 10;
-  const bottomPadding = 10;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min;
-  const drawableHeight = TRENDLINE_HEIGHT - topPadding - bottomPadding;
-
-  return values.map((value, index) => {
-    const x = (index / Math.max(values.length - 1, 1)) * TRENDLINE_WIDTH;
-    const y = range === 0
-      ? TRENDLINE_HEIGHT / 2
-      : TRENDLINE_HEIGHT - bottomPadding - ((value - min) / range) * drawableHeight;
-
-    return { x: formatPoint(x), y: formatPoint(y) };
-  });
-}
-
-function buildSmoothSparklinePath(points) {
-  if (!points.length) return "";
-
-  return points.slice(1).reduce((path, point, index) => {
-    const previous = points[index];
-    const controlX = formatPoint((previous.x + point.x) / 2);
-    return `${path} C ${controlX} ${previous.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
-  }, `M ${points[0].x} ${points[0].y}`);
 }
 
 export default function Dashboard() {
-  const navigate = useNavigate();
-  const [wallet, setWallet] = useState(null);
-  const [goals, setGoals] = useState([]);
-  const [activity, setActivity] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [balanceVisible, setBalanceVisible] = useState(false);
-
-  const loadDashboard = useCallback(async () => {
-    try {
-      const [walletData, goalsData, activityData] = await Promise.all([getWallet(), getGoals(), getSavingsActivity()]);
-      setWallet(walletData);
-      setGoals(goalsData);
-      setActivity(sortActivityByNewest(activityData));
-      setError("");
-    } catch (err) {
-      if (err.response?.status === 401 || err.response?.status === 403) {
-        navigate("/");
-        return;
-      }
-      setError(err.response?.data?.message || err.message || "We could not load your dashboard.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [navigate]);
-
-  useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
-
-  const weeklySavings = useMemo(() => getSavingsSummary(activity.filter((item) => isWithinActivityFilter(item, "week"))), [activity]);
-  const weeklyTrend = useMemo(() => buildWeeklyTrend(activity), [activity]);
-  const trendPoints = useMemo(() => buildSparklinePoints(weeklyTrend.map((item) => item.total)), [weeklyTrend]);
-  const trendPath = useMemo(() => buildSmoothSparklinePath(trendPoints), [trendPoints]);
-  const primaryGoal = goals[0] || null;
-  const activeGoalsCount = goals.filter((goal) => goal.status !== "completed").length;
-  const recentTransactions = activity.slice(0, 5);
-  const balanceDisplay = balanceVisible ? formatCurrency(wallet?.balance) : "Ksh ******";
-  const insightGoalProgress = primaryGoal ? getGoalProgress(primaryGoal) : 0;
-  const topGoalName = primaryGoal ? primaryGoal.name : "No top goal yet";
-  const topGoalInsight = primaryGoal
-    ? `${primaryGoal.name} is your leading goal this week.`
-    : "Create a savings goal to start tracking progress this week.";
-  const insightPrimaryAction = primaryGoal ? `Save toward ${primaryGoal.name}` : "Create a goal";
-  const insightSecondaryAction = primaryGoal ? "View goal" : "View goals";
-
   return (
-    <Layout
-      
-    >
-      {error ? (
-        <div className="feedback feedback-error">
-          <strong>Error:</strong>
-          <span>{error}</span>
-        </div>
-      ) : null}
-
-      <section className="dashboard-minimal-grid">
-        <Card className="dashboard-balance-card dashboard-primary-card dashboard-balance-hero" hover>
-          <div className="dashboard-balance-shell">
-            <div className="dashboard-balance-copy">
-              <span className="dashboard-kicker">AVAILABLE BALANCE</span>
-              <div className="dashboard-balance-amount-row">
-                <p className={["dashboard-balance-value", balanceVisible ? "" : "dashboard-balance-value-hidden"].filter(Boolean).join(" ")}>
-                  {balanceDisplay}
-                </p>
-                <button
-                  type="button"
-                  className="dashboard-privacy-button"
-                  onClick={() => setBalanceVisible((current) => !current)}
-                  aria-label={balanceVisible ? "Hide balance" : "Show balance"}
-                >
-                  <EyeIcon open={balanceVisible} />
-                </button>
-              </div>
-              <span className="dashboard-balance-meta">Updated from confirmed savings activity.</span>
-
-              <div className="dashboard-balance-inline-stats" aria-label="Savings summary">
-                <p>
-                  <span>This week:</span>
-                  {formatCurrency(weeklySavings)}
-                </p>
-                <p>
-                  <span>Goal(s):</span>
-                  {activeGoalsCount}
-                </p>
-              </div>
-            </div>
-
-            <div className="dashboard-hero-right">
-              <div className="dashboard-balance-actions">
-                <Button onClick={() => navigate("/save")} className="dashboard-save-button">
-                  <ActionIcon type="save" />
-                  <span>Save</span>
-                </Button>
-                <Button variant="secondary" onClick={() => navigate("/withdraw")} className="dashboard-withdraw-button">
-                  <ActionIcon type="withdraw" />
-                  <span>Withdraw</span>
-                </Button>
-              </div>
-
-              <div className="dashboard-hero-trend" aria-hidden="true">
-                <svg viewBox={`0 0 ${TRENDLINE_WIDTH} ${TRENDLINE_HEIGHT}`} className="dashboard-hero-trendline">
-                  <path d={trendPath} className="dashboard-chart-line-minimal" />
-                </svg>
-              </div>
-            </div>
-          </div>
-        </Card>
+    <Layout shellClassName="mockdash-shell">
+      <section className="mockdash-welcome">
+        <h1>Welcome back, Alex!</h1>
+        <p>Here&apos;s what&apos;s happening with your savings today.</p>
       </section>
 
-      <section className="dashboard-secondary-grid">
-        <Card className="dashboard-smart-insight-card" hover>
-          <div className="dashboard-smart-insight-header">
-            <div className="dashboard-insight-avatar">
-              <InsightIcon />
-            </div>
-            <span className="dashboard-insight-badge">AI INSIGHT</span>
+      <section className="mockdash-stats-row">
+        <article className="mockdash-stat-card">
+          <span className="mockdash-stat-icon mockdash-tone-blue"><StatIcon kind="wallet" /></span>
+          <div>
+            <p className="mockdash-stat-label">Total Saved</p>
+            <p className="mockdash-stat-value">$1,250.75</p>
+            <p className="mockdash-stat-meta">↑ 12.5% from last month</p>
           </div>
-          <div className="dashboard-smart-insight-body">
-            <span className="dashboard-smart-insight-label">Top goal</span>
-            <strong className="dashboard-smart-insight-title">{topGoalName}</strong>
-            <div className="dashboard-smart-insight-progress">
-              <span>Current progress</span>
-              <strong>{insightGoalProgress}%</strong>
-            </div>
-            <span className="dashboard-smart-insight-text">{topGoalInsight}</span>
-            <div className="dashboard-smart-insight-actions">
-              <Button
-                className="dashboard-insight-cta"
-                variant="secondary"
-                onClick={() => navigate(primaryGoal ? `/save?goal=${primaryGoal._id}` : "/goals/new")}
-              >
-                {insightPrimaryAction}
-              </Button>
-              <button type="button" className="dashboard-insight-link" onClick={() => navigate("/goals")}>
-                {insightSecondaryAction}
-              </button>
-            </div>
+        </article>
+
+        <article className="mockdash-stat-card">
+          <span className="mockdash-stat-icon mockdash-tone-green"><StatIcon kind="target" /></span>
+          <div>
+            <p className="mockdash-stat-label">Active Goals</p>
+            <p className="mockdash-stat-value">3</p>
+            <p className="mockdash-stat-meta">2 on track</p>
           </div>
-        </Card>
+        </article>
 
-        <Card hover>
-          <SectionHeader
-            title="Recent activity"
-            subtitle="Your five latest savings records."
-            actions={<Button variant="secondary" onClick={() => navigate("/activity")}>View all</Button>}
-          />
+        <article className="mockdash-stat-card">
+          <span className="mockdash-stat-icon mockdash-tone-orange"><StatIcon kind="flame" /></span>
+          <div>
+            <p className="mockdash-stat-label">Streak</p>
+            <p className="mockdash-stat-value">14 <span className="mockdash-inline-unit">days</span></p>
+            <p className="mockdash-stat-meta">Keep it up!</p>
+          </div>
+        </article>
+      </section>
 
-          {isLoading ? (
-            <div className="loading-panel">
-              <span className="spinner spinner-dark" aria-hidden="true" />
-              <span>Loading dashboard...</span>
+      <section className="mockdash-main-row">
+        <article className="mockdash-card mockdash-overview-card">
+          <header className="mockdash-card-header">
+            <h2>Savings Overview</h2>
+            <button type="button" className="mockdash-month-pill">This Month</button>
+          </header>
+
+          <div className="mockdash-overview-total">
+            <p>Total Savings</p>
+            <div>
+              <strong>$1,250.75</strong>
+              <span>↑ 12.5%</span>
             </div>
-          ) : (
-            <ActivityList items={recentTransactions} compact emptyMessage="No savings activity yet. Start with your first save." />
-          )}
-        </Card>
+            <small>vs last month ($1,111.20)</small>
+          </div>
+
+          <div className="mockdash-chart-block">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={trendData} margin={{ top: 18, right: 18, left: -14, bottom: 6 }}>
+                <defs>
+                  <linearGradient id="mockdashArea" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2f6dff" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#2f6dff" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} stroke="#eef3fb" />
+                <XAxis
+                  dataKey="day"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={14}
+                  interval={2}
+                  tick={{ fill: "#8090a8", fontSize: 13, fontWeight: 600 }}
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  width={44}
+                  tickFormatter={(value) => (value >= 1000 ? `$${value / 1000}k` : `$${value}`)}
+                  tick={{ fill: "#8090a8", fontSize: 13, fontWeight: 600 }}
+                />
+                <Tooltip cursor={false} content={<ChartTooltip />} />
+                <Area type="monotone" dataKey="value" stroke="#2f6dff" strokeWidth={3} fill="url(#mockdashArea)" dot={false} activeDot={{ r: 7, fill: "#2f6dff", stroke: "#ffffff", strokeWidth: 4 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          <footer className="mockdash-overview-footer">
+            <div>
+              <p>Average Daily Savings</p>
+              <strong>$41.69</strong>
+            </div>
+            <div>
+              <p>Best Day</p>
+              <strong>May 24, 2025</strong>
+            </div>
+            <strong className="mockdash-highlight">$78.40</strong>
+          </footer>
+        </article>
+
+        <article className="mockdash-card mockdash-activity-card">
+          <header className="mockdash-card-header">
+            <h2>Recent Activity</h2>
+            <a href="/activity">View all</a>
+          </header>
+
+          <div className="mockdash-activity-list">
+            {recentActivity.map((item) => (
+              <article key={`${item.title}-${item.date}-${item.amount}`} className="mockdash-activity-row">
+                <span className={`mockdash-activity-icon mockdash-tone-${item.tone}`}><ActivityBadge type={item.type} /></span>
+                <div className="mockdash-activity-copy">
+                  <strong>{item.title}</strong>
+                  <p>{item.subtitle}</p>
+                </div>
+                <div className="mockdash-activity-meta">
+                  <strong>{item.amount}</strong>
+                  <p>{item.date}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </article>
+      </section>
+
+      <section className="mockdash-card mockdash-goals-card">
+        <header className="mockdash-card-header">
+          <h2>Goals Progress</h2>
+          <a href="/goals">View all goals</a>
+        </header>
+
+        <div className="mockdash-goals-grid">
+          {goals.map((goal) => (
+            <article key={goal.name} className="mockdash-goal-item">
+              <span className={`mockdash-goal-icon mockdash-tone-${goal.tone}`}>{goal.icon}</span>
+              <div className="mockdash-goal-copy">
+                <strong>{goal.name}</strong>
+                <p>{goal.amount}</p>
+                <div className="mockdash-goal-progress-row">
+                  <div className="mockdash-goal-track">
+                    <span className={`mockdash-goal-fill mockdash-fill-${goal.tone}`} style={{ width: `${goal.progress}%` }} />
+                  </div>
+                  <span>{goal.progress}%</span>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
       </section>
     </Layout>
   );
