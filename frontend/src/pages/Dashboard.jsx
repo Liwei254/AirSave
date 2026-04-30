@@ -1,29 +1,112 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import ActivityList from "../components/ActivityList.jsx";
-import Button from "../components/Button.jsx";
-import Card from "../components/Card.jsx";
-import Layout from "../components/Layout.jsx";
-import SectionHeader from "../components/SectionHeader.jsx";
-import { getGoals, getSavingsActivity, getWallet } from "../services/api";
-import { formatCurrency, getGoalProgress } from "../utils/formatters";
-import { getSavingsSummary, sortActivityByNewest } from "../utils/savings";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
+import {
+  authEventName,
+  getCurrentUser,
+  getGoals,
+  getNotifications,
+  getSavingsActivity,
+  getWallet,
+} from "../services/api";
+import { getGoalProgress } from "../utils/formatters";
+import {
+  getActivityDate,
+  getSavingsSummary,
+  isConfirmedSavingsStatus,
+  sortActivityByNewest,
+} from "../utils/savings";
 
-function EyeIcon({ open = false }) {
+const NAV_ITEMS = [
+  { label: "Dashboard", to: "/dashboard" },
+  { label: "Save", to: "/save" },
+  { label: "Goals", to: "/goals" },
+  { label: "Activity", to: "/activity" },
+  { label: "Withdraw", to: "/withdraw" },
+];
+
+const QUICK_ACTIONS = [
+  { label: "Send", to: "/send", icon: "send", tone: "gold" },
+  { label: "Buy Goods", to: "/lipa-na-airsave", icon: "cart", tone: "green" },
+  { label: "Withdraw", to: "/withdraw", icon: "withdraw", tone: "red" },
+];
+
+const TRENDLINE_WIDTH = 430;
+const TRENDLINE_HEIGHT = 130;
+const GOAL_CAPACITY = 5;
+
+function Icon({ name, className = "" }) {
+  const paths = {
+    bell: [
+      "M18 16v-5a6 6 0 0 0-12 0v5l-2 2h16l-2-2Z",
+      "M10 20a2 2 0 0 0 4 0",
+    ],
+    cart: [
+      "M5 6h2l1.8 8.5a2 2 0 0 0 2 1.5h5.6a2 2 0 0 0 1.9-1.4L20 9H8",
+      "M11 20h.01",
+      "M17 20h.01",
+    ],
+    chevron: ["M8 5l8 7-8 7"],
+    eye: [
+      "M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z",
+      "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",
+    ],
+    eyeOff: [
+      "M2 12s3.5-6 10-6c2.2 0 4 .7 5.5 1.7",
+      "M22 12s-3.5 6-10 6c-2.2 0-4-.7-5.5-1.7",
+      "M4 4l16 16",
+      "M9.8 9.8A3 3 0 0 0 14.2 14.2",
+    ],
+    send: ["M4 12h15", "M13 6l6 6-6 6"],
+    withdraw: ["M12 4v12", "M7 11l5 5 5-5", "M5 20h14"],
+  };
+
   return (
-    <svg viewBox="0 0 24 24" className="dashboard-privacy-icon" aria-hidden="true">
-      <path
-        d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      {!open ? <path d="M4 20 20 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /> : null}
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      {(paths[name] || []).map((path) => (
+        <path key={path} d={path} />
+      ))}
     </svg>
   );
+}
+
+function normalizeArray(value) {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.goals)) return value.goals;
+  if (Array.isArray(value?.activity)) return value.activity;
+  if (Array.isArray(value?.transactions)) return value.transactions;
+  return [];
+}
+
+function getUserInitials(user) {
+  const fullName = String(user?.fullName || user?.name || "").trim();
+  if (fullName) {
+    return fullName
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase();
+  }
+
+  return String(user?.email || user?.phone || "AK").slice(0, 2).toUpperCase();
+}
+
+function getWalletBalance(wallet) {
+  return Number(wallet?.balance ?? wallet?.wallet?.balance ?? wallet?.availableBalance ?? 0);
+}
+
+function formatAmount(value) {
+  return Number(value || 0).toLocaleString("en-KE", {
+    maximumFractionDigits: 0,
+  });
+}
+
+function formatKsh(value) {
+  return `Ksh ${formatAmount(value)}`;
+}
+
+function formatPoint(value) {
+  return Number(value.toFixed(2));
 }
 
 function buildWeeklyTrend(items) {
@@ -34,39 +117,34 @@ function buildWeeklyTrend(items) {
     date.setDate(today.getDate() - (6 - index));
     return {
       key: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`,
-      label: date.toLocaleDateString("en-KE", { weekday: "short" }),
       total: 0,
     };
   });
-
   const dayMap = new Map(days.map((day) => [day.key, day]));
 
-  items.forEach((item) => {
-    const date = new Date(item.date);
+  (items || []).forEach((item) => {
+    if (!isConfirmedSavingsStatus(item.status)) return;
+
+    const date = getActivityDate(item);
+    if (Number.isNaN(date.getTime())) return;
+
     date.setHours(0, 0, 0, 0);
     const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
     const targetDay = dayMap.get(key);
 
     if (targetDay) {
-      targetDay.total += Number(item.savings || 0);
+      targetDay.total += Number(item.savings ?? item.amount ?? 0);
     }
   });
 
   return days;
 }
 
-const TRENDLINE_WIDTH = 280;
-const TRENDLINE_HEIGHT = 80;
-
-function formatPoint(value) {
-  return Number(value.toFixed(2));
-}
-
 function buildSparklinePoints(values) {
   if (!values.length) return [];
 
-  const topPadding = 10;
-  const bottomPadding = 10;
+  const topPadding = 18;
+  const bottomPadding = 18;
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min;
@@ -74,9 +152,10 @@ function buildSparklinePoints(values) {
 
   return values.map((value, index) => {
     const x = (index / Math.max(values.length - 1, 1)) * TRENDLINE_WIDTH;
-    const y = range === 0
-      ? TRENDLINE_HEIGHT / 2
-      : TRENDLINE_HEIGHT - bottomPadding - ((value - min) / range) * drawableHeight;
+    const y =
+      range === 0
+        ? TRENDLINE_HEIGHT / 2
+        : TRENDLINE_HEIGHT - bottomPadding - ((value - min) / range) * drawableHeight;
 
     return { x: formatPoint(x), y: formatPoint(y) };
   });
@@ -92,6 +171,334 @@ function buildSmoothSparklinePath(points) {
   }, `M ${points[0].x} ${points[0].y}`);
 }
 
+function formatActivityDate(item) {
+  const date = getActivityDate(item);
+  if (Number.isNaN(date.getTime())) return "Just now";
+
+  return date.toLocaleDateString("en-KE", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function DashboardNavbar() {
+  const navigate = useNavigate();
+  const lastScrollYRef = useRef(0);
+  const scrollFrameRef = useRef(0);
+  const [user, setUser] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [navbarHidden, setNavbarHidden] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadNavigationMeta() {
+      try {
+        const [userData, notificationData] = await Promise.all([getCurrentUser(), getNotifications()]);
+        if (!isMounted) return;
+
+        setUser(userData);
+        setUnreadCount((notificationData || []).filter((item) => !item.read).length);
+      } catch {
+        if (!isMounted) return;
+        setUser(null);
+        setUnreadCount(0);
+      }
+    }
+
+    loadNavigationMeta();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    function handleAuthExpired() {
+      setUser(null);
+      setUnreadCount(0);
+    }
+
+    window.addEventListener(authEventName, handleAuthExpired);
+    return () => window.removeEventListener(authEventName, handleAuthExpired);
+  }, []);
+
+  useEffect(() => {
+    const topThreshold = 20;
+    const hideAfter = 88;
+    const scrollDelta = 6;
+    lastScrollYRef.current = window.scrollY;
+
+    function updateNavbarVisibility() {
+      const currentScrollY = Math.max(window.scrollY, 0);
+      const previousScrollY = lastScrollYRef.current;
+      const distance = currentScrollY - previousScrollY;
+
+      if (currentScrollY < topThreshold) {
+        setNavbarHidden(false);
+        lastScrollYRef.current = currentScrollY;
+      } else if (Math.abs(distance) >= scrollDelta) {
+        setNavbarHidden(distance > 0 && currentScrollY > hideAfter);
+        lastScrollYRef.current = currentScrollY;
+      }
+
+      scrollFrameRef.current = 0;
+    }
+
+    function handleScroll() {
+      if (scrollFrameRef.current) return;
+      scrollFrameRef.current = window.requestAnimationFrame(updateNavbarVisibility);
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (scrollFrameRef.current) {
+        window.cancelAnimationFrame(scrollFrameRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <header
+      className={["premium-dashboard-navbar", navbarHidden ? "premium-dashboard-navbar-hidden" : ""]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <nav className="premium-dashboard-navbar-inner" aria-label="Dashboard">
+        <NavLink className="premium-dashboard-brand" to="/dashboard">
+          <span className="premium-dashboard-brand-mark">A</span>
+          <span className="premium-dashboard-brand-copy">
+            <strong>AirSave</strong>
+            <small>Spend &middot; Save &middot; Grow</small>
+          </span>
+        </NavLink>
+
+        <div className="premium-dashboard-nav-links">
+          {NAV_ITEMS.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                ["premium-dashboard-nav-link", isActive ? "premium-dashboard-nav-link-active" : ""]
+                  .filter(Boolean)
+                  .join(" ")
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </div>
+
+        <div className="premium-dashboard-nav-actions">
+          <button
+            type="button"
+            className="premium-dashboard-bell"
+            onClick={() => navigate("/activity")}
+            aria-label="View activity notifications"
+          >
+            <Icon name="bell" />
+            {unreadCount ? <span className="premium-dashboard-bell-dot" /> : null}
+          </button>
+
+          <button
+            type="button"
+            className="premium-dashboard-avatar"
+            onClick={() => navigate("/profile")}
+            aria-label="Open profile"
+          >
+            {getUserInitials(user)}
+          </button>
+        </div>
+      </nav>
+    </header>
+  );
+}
+
+function BalanceHero({
+  balance,
+  balanceVisible,
+  onToggleBalance,
+  totalSaved,
+  weeklySavings,
+  activeGoalsCount,
+  goalCapacity,
+  trendPath,
+}) {
+  return (
+    <section className="premium-balance-hero" aria-labelledby="dashboard-balance-title">
+      <div className="premium-balance-content">
+        <p className="premium-dashboard-kicker">Available balance</p>
+        <div className="premium-balance-line">
+          <h1 id="dashboard-balance-title" className="premium-balance-amount">
+            <span>Ksh</span> {balanceVisible ? formatAmount(balance) : "*******"}
+          </h1>
+          <button
+            type="button"
+            className="premium-balance-toggle"
+            onClick={onToggleBalance}
+            aria-label={balanceVisible ? "Hide balance" : "Show balance"}
+          >
+            <Icon name={balanceVisible ? "eye" : "eyeOff"} />
+          </button>
+        </div>
+        <p className="premium-balance-subtext">Updated from confirmed savings activity</p>
+
+        <div className="premium-balance-stats" aria-label="Savings summary">
+          <article>
+            <span>Saved total</span>
+            <strong>{formatKsh(totalSaved)}</strong>
+          </article>
+          <article>
+            <span>This week</span>
+            <strong>{formatKsh(weeklySavings)}</strong>
+          </article>
+          <article>
+            <span>Active goals</span>
+            <strong>
+              {activeGoalsCount} <small>/ {goalCapacity}</small>
+            </strong>
+          </article>
+        </div>
+      </div>
+
+      <div className="premium-balance-visual" aria-hidden="true">
+        <div className="premium-balance-glow" />
+        <svg viewBox={`0 0 ${TRENDLINE_WIDTH} ${TRENDLINE_HEIGHT}`} preserveAspectRatio="none">
+          <path d={trendPath} />
+        </svg>
+      </div>
+    </section>
+  );
+}
+
+function QuickActionCard({ action }) {
+  const navigate = useNavigate();
+
+  return (
+    <button
+      type="button"
+      className={`premium-action-card premium-action-${action.tone}`}
+      onClick={() => navigate(action.to)}
+    >
+      <span className="premium-action-icon">
+        <Icon name={action.icon} />
+      </span>
+      <strong>{action.label}</strong>
+    </button>
+  );
+}
+
+function GoalCard({ goal, activeGoalsCount, progress }) {
+  const navigate = useNavigate();
+  const goalName = goal?.name || "No active goal";
+  const safeProgress = Math.min(100, Math.max(0, progress || 0));
+  const activeCopy = goal ? "Active" : "Ready";
+
+  return (
+    <section className="premium-dashboard-card premium-goal-card" aria-labelledby="top-goal-title">
+      <p className="premium-dashboard-kicker">Top goal</p>
+      <h2 id="top-goal-title">{goalName}</h2>
+      <p className="premium-goal-meta">
+        {activeCopy} <span aria-hidden="true">&middot;</span> {activeGoalsCount} of {GOAL_CAPACITY} goals running
+      </p>
+
+      <div className="premium-goal-progress-header">
+        <span>Current progress</span>
+        <strong>{safeProgress}%</strong>
+      </div>
+      <div className="premium-goal-progress-track" aria-label={`${safeProgress}% funded`}>
+        <span style={{ width: `${safeProgress}%` }} />
+      </div>
+      <p className="premium-goal-helper">
+        {goal ? (
+          <>
+            {safeProgress}% of <strong>{goalName}</strong> is funded. Keep contributing to reach your target.
+          </>
+        ) : (
+          "Create a savings goal to start tracking your progress."
+        )}
+      </p>
+
+      <div className="premium-goal-actions">
+        <button
+          type="button"
+          onClick={() => navigate(goal?._id ? `/save?goal=${goal._id}` : "/goals/new")}
+        >
+          Save to goal
+        </button>
+        <button type="button" onClick={() => navigate("/goals")}>
+          View goals
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function ActivityList({ items, isLoading }) {
+  const navigate = useNavigate();
+  const displayItems = items.slice(0, 5);
+
+  return (
+    <section className="premium-dashboard-card premium-activity-card" aria-labelledby="recent-activity-title">
+      <div className="premium-activity-header">
+        <div>
+          <h2 id="recent-activity-title">Recent activity</h2>
+          <p>Your five latest savings records</p>
+        </div>
+        <button type="button" onClick={() => navigate("/activity")}>
+          View all
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="premium-activity-state">Loading dashboard...</div>
+      ) : null}
+
+      {!isLoading && !displayItems.length ? (
+        <div className="premium-activity-state">No savings activity yet.</div>
+      ) : null}
+
+      {!isLoading && displayItems.length ? (
+        <div className="premium-activity-list">
+          {displayItems.map((item, index) => {
+            const goalName = item.goalName || item.goal?.name || "Savings";
+            const amount = Number(item.savings ?? item.amount ?? 0);
+            const status = String(item.status || "confirmed").toLowerCase();
+            const confirmed = isConfirmedSavingsStatus(status);
+
+            return (
+              <article key={item._id || item.id || `${goalName}-${index}`}>
+                <span
+                  className={
+                    goalName.toLowerCase().includes("vacation")
+                      ? "premium-activity-dot premium-activity-dot-gold"
+                      : "premium-activity-dot"
+                  }
+                  aria-hidden="true"
+                />
+                <div className="premium-activity-copy">
+                  <strong>{goalName}</strong>
+                  <span>
+                    {formatActivityDate(item)} <span aria-hidden="true">&middot;</span>{" "}
+                    {item.source || "M-Pesa transfer"}
+                  </span>
+                </div>
+                <div className="premium-activity-amount">
+                  <strong>{formatKsh(amount)}</strong>
+                  <span className={confirmed ? "premium-confirmed-badge" : "premium-pending-badge"}>
+                    {confirmed ? "confirmed" : status || "pending"}
+                  </span>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [wallet, setWallet] = useState(null);
@@ -102,11 +509,18 @@ export default function Dashboard() {
   const [balanceVisible, setBalanceVisible] = useState(false);
 
   const loadDashboard = useCallback(async () => {
+    setIsLoading(true);
+
     try {
-      const [walletData, goalsData, activityData] = await Promise.all([getWallet(), getGoals(), getSavingsActivity()]);
+      const [walletData, goalsData, activityData] = await Promise.all([
+        getWallet(),
+        getGoals(),
+        getSavingsActivity(),
+      ]);
+
       setWallet(walletData);
-      setGoals(goalsData);
-      setActivity(sortActivityByNewest(activityData));
+      setGoals(normalizeArray(goalsData));
+      setActivity(sortActivityByNewest(normalizeArray(activityData)));
       setError("");
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 403) {
@@ -129,133 +543,59 @@ export default function Dashboard() {
     () => weeklyTrend.reduce((sum, item) => sum + Number(item.total || 0), 0),
     [weeklyTrend]
   );
-  const trendPoints = useMemo(() => buildSparklinePoints(weeklyTrend.map((item) => item.total)), [weeklyTrend]);
-  const trendPath = useMemo(() => buildSmoothSparklinePath(trendPoints), [trendPoints]);
-  const primaryGoal = goals[0] || null;
-  const activeGoalsCount = goals.filter((goal) => goal.status !== "completed").length;
-  const recentTransactions = activity.slice(0, 5);
-  const balanceDisplay = balanceVisible ? formatCurrency(wallet?.balance) : "Ksh ******";
-  const insightGoalProgress = primaryGoal ? getGoalProgress(primaryGoal) : 0;
-  const topGoalName = primaryGoal ? primaryGoal.name : "No active goals yet";
-  const topGoalInsight = primaryGoal
-    ? `${insightGoalProgress}% of ${primaryGoal.name} is funded.`
-    : "Create a goal to start tracking progress.";
+  const trendPath = useMemo(() => {
+    const weeklyValues = weeklyTrend.map((item) => item.total);
+    const chartValues = weeklyValues.some((value) => value > 0)
+      ? weeklyValues
+      : [12, 28, 22, 44, 38, 64, 52];
+    return buildSmoothSparklinePath(buildSparklinePoints(chartValues));
+  }, [weeklyTrend]);
+  const activeGoals = useMemo(
+    () => goals.filter((goal) => goal.status !== "completed"),
+    [goals]
+  );
+  const primaryGoal = activeGoals[0] || goals[0] || null;
+  const activeGoalsCount = activeGoals.length;
+  const goalProgress = primaryGoal ? getGoalProgress(primaryGoal) : 0;
+  const balance = getWalletBalance(wallet);
 
   return (
-    <Layout
-      
-    >
-      {error ? (
-        <div className="feedback feedback-error">
-          <strong>Error:</strong>
-          <span>{error}</span>
-        </div>
-      ) : null}
-
-      <section className="dashboard-minimal-grid">
-        <Card className="dashboard-balance-card dashboard-primary-card dashboard-balance-hero" hover>
-          <div className="dashboard-balance-shell">
-            <div className="dashboard-balance-copy">
-              <span className="dashboard-kicker">AVAILABLE BALANCE</span>
-              <div className="dashboard-balance-amount-row">
-                <p className={["dashboard-balance-value", balanceVisible ? "" : "dashboard-balance-value-hidden"].filter(Boolean).join(" ")}>
-                  {balanceDisplay}
-                </p>
-                <button
-                  type="button"
-                  className="dashboard-privacy-button"
-                  onClick={() => setBalanceVisible((current) => !current)}
-                  aria-label={balanceVisible ? "Hide balance" : "Show balance"}
-                >
-                  <EyeIcon open={balanceVisible} />
-                </button>
-              </div>
-              <span className="dashboard-balance-meta">Updated from confirmed savings activity.</span>
-
-              <div className="dashboard-balance-inline-stats" aria-label="Savings summary">
-                <p>
-                  <span>Saved total</span>
-                  {formatCurrency(totalSaved)}
-                </p>
-                <p>
-                  <span>This week</span>
-                  {formatCurrency(weeklySavings)}
-                </p>
-                <p>
-                  <span>Active goals</span>
-                  {activeGoalsCount}/5
-                </p>
-              </div>
-            </div>
-
-            <div className="dashboard-hero-right">
-              <div className="dashboard-hero-trend" aria-hidden="true">
-                <svg viewBox={`0 0 ${TRENDLINE_WIDTH} ${TRENDLINE_HEIGHT}`} className="dashboard-hero-trendline">
-                  <path d={trendPath} className="dashboard-chart-line-minimal" />
-                </svg>
-              </div>
-            </div>
+    <main className="premium-dashboard-shell">
+      <DashboardNavbar />
+      <div className="premium-dashboard-page">
+        {error ? (
+          <div className="premium-dashboard-alert" role="alert">
+            <strong>Error</strong>
+            <span>{error}</span>
           </div>
-        </Card>
-      </section>
+        ) : null}
 
-      <section className="dashboard-quick-actions" aria-label="Quick actions">
-        <button type="button" onClick={() => navigate("/send")}>
-          <span>Send</span>
-        </button>
-        <button type="button" onClick={() => navigate("/lipa-na-airsave")}>
-          <span>Buy Goods</span>
-        </button>
-        <button type="button" onClick={() => navigate("/withdraw")}>
-          <span>Withdraw</span>
-        </button>
-      </section>
+        <BalanceHero
+          balance={balance}
+          balanceVisible={balanceVisible}
+          onToggleBalance={() => setBalanceVisible((current) => !current)}
+          totalSaved={totalSaved}
+          weeklySavings={weeklySavings}
+          activeGoalsCount={activeGoalsCount}
+          goalCapacity={GOAL_CAPACITY}
+          trendPath={trendPath}
+        />
 
-      <section className="dashboard-secondary-grid">
-        <Card className="dashboard-smart-insight-card" hover>
-          <div className="dashboard-smart-insight-header">
-            <span className="dashboard-insight-badge">Goals progress</span>
-          </div>
-          <div className="dashboard-smart-insight-body">
-            <span className="dashboard-smart-insight-label">Top goal</span>
-            <strong className="dashboard-smart-insight-title">{topGoalName}</strong>
-            <div className="dashboard-smart-insight-progress">
-              <span>Current progress</span>
-              <strong>{insightGoalProgress}%</strong>
-            </div>
-            <span className="dashboard-smart-insight-text">{topGoalInsight}</span>
-            <div className="dashboard-smart-insight-actions">
-              <Button
-                className="dashboard-insight-cta"
-                variant="secondary"
-                onClick={() => navigate(primaryGoal ? `/save?goal=${primaryGoal._id}` : "/goals/new")}
-              >
-                {primaryGoal ? "Save to goal" : "Create goal"}
-              </Button>
-              <button type="button" className="dashboard-insight-link" onClick={() => navigate("/goals")}>
-                View goals
-              </button>
-            </div>
-          </div>
-        </Card>
+        <section className="premium-actions-grid" aria-label="Quick actions">
+          {QUICK_ACTIONS.map((action) => (
+            <QuickActionCard key={action.to} action={action} />
+          ))}
+        </section>
 
-        <Card hover>
-          <SectionHeader
-            title="Recent activity"
-            subtitle="Your five latest savings records."
-            actions={<Button variant="secondary" onClick={() => navigate("/activity")}>View all</Button>}
+        <section className="premium-dashboard-lower-grid">
+          <GoalCard
+            goal={primaryGoal}
+            activeGoalsCount={activeGoalsCount}
+            progress={goalProgress}
           />
-
-          {isLoading ? (
-            <div className="loading-panel">
-              <span className="spinner spinner-dark" aria-hidden="true" />
-              <span>Loading dashboard...</span>
-            </div>
-          ) : (
-            <ActivityList items={recentTransactions} compact emptyMessage="No savings activity yet. Start with your first save." />
-          )}
-        </Card>
-      </section>
-    </Layout>
+          <ActivityList items={activity.slice(0, 5)} isLoading={isLoading} />
+        </section>
+      </div>
+    </main>
   );
 }

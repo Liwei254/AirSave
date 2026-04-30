@@ -77,7 +77,11 @@ export default function TopNavbar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const authHidden = location.pathname === "/" || location.pathname === "/login" || location.pathname === "/register";
+  const authHidden =
+    location.pathname === "/" ||
+    location.pathname === "/login" ||
+    location.pathname === "/register" ||
+    location.pathname === "/dashboard";
   const unreadCount = notifications.filter((item) => !item.read).length;
 
   useEffect(() => {
