@@ -11,6 +11,7 @@ const navItems = [
 
 export default function LandingNavbar() {
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     function handleScroll() {
@@ -34,7 +35,7 @@ export default function LandingNavbar() {
 
         <div className="landing-nav-center">
           {navItems.map((item) => (
-            <a key={item.label} className="landing-nav-link" href={item.href}>
+            <a key={item.label} className="landing-nav-link" href={item.href} onClick={() => setMenuOpen(false)}>
               {item.label}
             </a>
           ))}
@@ -46,6 +47,27 @@ export default function LandingNavbar() {
           </Link>
           <Link className="landing-signup-button" to="/register">
             Sign up
+          </Link>
+          <button
+            type="button"
+            className="landing-nav-menu-button"
+            onClick={() => setMenuOpen((current) => !current)}
+            aria-label="Toggle navigation"
+            aria-expanded={menuOpen}
+          >
+            <span />
+            <span />
+          </button>
+        </div>
+
+        <div className={menuOpen ? "landing-nav-mobile landing-nav-mobile-open" : "landing-nav-mobile"}>
+          {navItems.map((item) => (
+            <a key={item.label} className="landing-nav-link" href={item.href} onClick={() => setMenuOpen(false)}>
+              {item.label}
+            </a>
+          ))}
+          <Link className="landing-nav-mobile-login" to="/login" onClick={() => setMenuOpen(false)}>
+            Log in
           </Link>
         </div>
       </nav>
