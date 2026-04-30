@@ -208,7 +208,7 @@ export default function AuthPage({ defaultTab = "login" }) {
     emailPattern.test(draft?.loginIdentifier || readRememberedIdentifier()) ? "email" : "phone"
   );
   const [loginPassword, setLoginPassword] = useState(draft?.loginPassword || "");
-  const [rememberMe, setRememberMe] = useState(Boolean(draft?.rememberMe || readRememberedIdentifier()));
+  const [rememberMe] = useState(Boolean(draft?.rememberMe || readRememberedIdentifier()));
   const [registerFullName, setRegisterFullName] = useState(draft?.registerFullName || "");
   const [registerEmail, setRegisterEmail] = useState(draft?.registerEmail || "");
   const [registerPhone, setRegisterPhone] = useState(draft?.registerPhone || "");

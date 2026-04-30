@@ -1,16 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "../components/Layout.jsx";
+import {
+  AmountInput,
+  PhoneInput,
+  RecentServiceActivity,
+  ServiceFormCard,
+  ServicePageShell,
+  TransactionPreview,
+} from "../components/ServicePageComponents.jsx";
+import {
+  extractKenyaPhoneDigits,
+  formatKsh,
+  formatServiceDate,
+  getFullKenyaPhone,
+  getRoundUp,
+  isValidKenyaPhoneDigits,
+  toAmount,
+} from "../utils/servicePage";
 import {
   getCurrentUser,
   getPaymentStatus,
+  getSavingsActivity,
   initiatePayment,
 } from "../services/api";
+import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
+import { sortActivityByNewest } from "../utils/savings";
 
 const paymentPollDelayMs = 1000;
 const paymentPollAttempts = 7;
 const terminalPaymentStatuses = ["confirmed", "completed", "success", "successful", "failed"];
-const phonePattern = /^(0[17]\d{8}|\+?254[17]\d{8})$/;
 
 function wait(delay) {
   return new Promise((resolve) => {
@@ -18,32 +36,32 @@ function wait(delay) {
   });
 }
 
-function formatCurrency(value) {
-  return new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0));
+function getStatusText(status) {
+  return String(status || "pending").toLowerCase();
 }
 
-function parseAmountInput(value) {
-  const digitsOnly = String(value || "").replace(/[^\d]/g, "");
-  return digitsOnly ? String(Number(digitsOnly)) : "";
-}
-
-function normalizeDisplayPhone(value) {
-  if (!value) return "";
-  if (value.startsWith("+254")) return `0${value.slice(4)}`;
-  if (value.startsWith("254")) return `0${value.slice(3)}`;
-  return value;
+function buildTransferRows(activity) {
+  return (activity || [])
+    .filter((item) => String(item.transactionType || "").toLowerCase() === "send")
+    .slice(0, 5)
+    .map((item) => ({
+      id: item._id || item.reference,
+      title: item.merchant || "Mobile transfer",
+      meta: `${formatServiceDate(item.date || item.createdAt)} - ${getStatusText(item.status)}`,
+      amount: item.purchaseAmount ?? item.originalAmount ?? item.amount ?? 0,
+      helper: "Transfer",
+      tone: "green",
+    }));
 }
 
 export default function Send() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [activity, setActivity] = useState([]);
   const [recipientMode, setRecipientMode] = useState("self");
   const [recipientPhone, setRecipientPhone] = useState("");
   const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
   const [feedback, setFeedback] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,12 +70,13 @@ export default function Send() {
   useEffect(() => {
     let isMounted = true;
 
-    async function loadUser() {
+    async function loadPage() {
       try {
-        const userData = await getCurrentUser();
+        const [userData, activityData] = await Promise.all([getCurrentUser(), getSavingsActivity()]);
         if (!isMounted) return;
+
         setUser(userData);
-        setRecipientPhone(normalizeDisplayPhone(userData?.phone || ""));
+        setActivity(sortActivityByNewest(activityData || []));
       } catch (error) {
         if (!isMounted) return;
         if (error.response?.status === 401 || error.response?.status === 403) {
@@ -70,7 +89,7 @@ export default function Send() {
       }
     }
 
-    loadUser();
+    loadPage();
     return () => {
       isMounted = false;
     };
@@ -78,22 +97,49 @@ export default function Send() {
 
   useEffect(() => {
     if (recipientMode === "self") {
-      setRecipientPhone(normalizeDisplayPhone(user?.phone || ""));
+      setRecipientPhone(extractKenyaPhoneDigits(user?.phone || ""));
     } else {
       setRecipientPhone("");
     }
   }, [recipientMode, user?.phone]);
 
-  const numericAmount = Number(amount || 0);
-  const validPhone = recipientMode === "self" || phonePattern.test(recipientPhone.trim());
+  async function refreshActivity() {
+    try {
+      const activityData = await getSavingsActivity();
+      setActivity(sortActivityByNewest(activityData || []));
+    } catch {
+      // The transfer result is already shown; keep the current activity list if refresh fails.
+    }
+  }
+
+  const numericAmount = toAmount(amount);
+  const validPhone = isValidKenyaPhoneDigits(recipientPhone);
+  const recipientDisplay = getFullKenyaPhone(recipientPhone) || "Not set";
+  const roundUpRule = Number(user?.roundUpRule || 50);
+  const autoSaveApplies = user?.preferences?.autoSaveEnabled !== false;
+  const roundUp = useMemo(() => getRoundUp(numericAmount, roundUpRule), [numericAmount, roundUpRule]);
+  const fee = 0;
+  const totalCharged = autoSaveApplies && numericAmount ? roundUp.rounded + fee : numericAmount + fee;
   const canConfirm = numericAmount > 0 && validPhone && !isSubmitting;
+  const recentRows = useMemo(() => buildTransferRows(activity), [activity]);
+  const previewRows = [
+    { label: "Recipient", value: recipientDisplay },
+    { label: "Amount", value: formatKsh(numericAmount) },
+    { label: "Transfer type", value: recipientMode === "self" ? "Send to myself" : "Mobile transfer" },
+    { label: "Fee", value: formatKsh(fee) },
+    { label: "Total charged", value: formatKsh(totalCharged) },
+  ];
+
+  if (autoSaveApplies && roundUp.savings > 0) {
+    previewRows.push({ label: "Auto-saved", value: formatKsh(roundUp.savings), tone: "success" });
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
     setSubmitted(true);
 
     if (!numericAmount || !validPhone) {
-      setFeedback({ type: "error", message: "Enter a valid amount and recipient before confirming." });
+      setFeedback({ type: "error", message: "Enter a valid recipient and amount before confirming." });
       return;
     }
 
@@ -103,8 +149,8 @@ export default function Send() {
     try {
       const payment = await initiatePayment({
         amount: numericAmount,
-        merchant: recipientMode === "self" ? "Send to myself" : `Send to ${recipientPhone.trim()}`,
-        description: recipientMode === "self" ? "Send to myself" : `Send to another number ${recipientPhone.trim()}`,
+        merchant: recipientMode === "self" ? "Send to myself" : `Send to ${recipientDisplay}`,
+        description: note.trim() || (recipientMode === "self" ? "Send to myself" : `Send to another number ${recipientDisplay}`),
         transactionType: "send",
         mode: "send-mobile",
       });
@@ -125,7 +171,10 @@ export default function Send() {
       }
 
       setAmount("");
+      setNote("");
       setSubmitted(false);
+      await refreshActivity();
+      triggerDashboardRefresh();
       setFeedback({
         type: "success",
         message:
@@ -144,106 +193,81 @@ export default function Send() {
   }
 
   return (
-    <Layout shellClassName="save-reference-shell">
-      <div className="purchase-flow-page">
-        {feedback ? (
-          <div className={`premium-toast premium-toast-${feedback.type}`}>
-            <strong>{feedback.type === "success" ? "Done" : "Action needed"}</strong>
-            <span>{feedback.message}</span>
-          </div>
-        ) : null}
-
-        <div className="service-breadcrumb">
-          <button type="button" onClick={() => navigate("/dashboard")}>Dashboard</button>
-          <span>/</span>
-          <span>Send to Mobile</span>
-        </div>
-
-        {isLoading ? (
-          <section className="premium-panel loading-panel">
-            <span className="spinner spinner-dark" aria-hidden="true" />
-            <span>Loading send flow...</span>
-          </section>
-        ) : (
-          <form className="purchase-grid" onSubmit={handleSubmit}>
-            <section className="purchase-form premium-panel">
-              <div className="premium-section-head">
-                <div>
-                  <span className="premium-kicker">WALLET SERVICE</span>
-                  <h1>Send to Mobile</h1>
-                  <p>Choose a recipient, enter an amount, and confirm the transfer.</p>
-                </div>
-              </div>
-
-              <div className="service-choice-group" aria-label="Recipient options">
+    <ServicePageShell current="Send to Mobile" feedback={feedback}>
+      {isLoading ? (
+        <section className="service-loading-card">
+          <span className="spinner spinner-dark" aria-hidden="true" />
+          <span>Loading send flow...</span>
+        </section>
+      ) : (
+        <>
+          <form className="service-layout-grid" onSubmit={handleSubmit}>
+            <ServiceFormCard
+              label="Wallet service"
+              title={["Send to", "Mobile"]}
+              badge="Instant transfer"
+              subtitle="Send money to yourself or another mobile number."
+            >
+              <div className="service-mode-selector" aria-label="Send mode">
                 <button
                   type="button"
-                  className={recipientMode === "self" ? "service-choice-card service-choice-card-active" : "service-choice-card"}
+                  className={recipientMode === "self" ? "service-mode-active" : ""}
                   onClick={() => setRecipientMode("self")}
                 >
-                  <strong>Send to myself</strong>
-                  <span>{normalizeDisplayPhone(user?.phone || "") || "Your number"}</span>
+                  Send to myself
                 </button>
                 <button
                   type="button"
-                  className={recipientMode === "other" ? "service-choice-card service-choice-card-active" : "service-choice-card"}
+                  className={recipientMode === "other" ? "service-mode-active" : ""}
                   onClick={() => setRecipientMode("other")}
                 >
-                  <strong>Send to another number</strong>
-                  <span>Enter recipient phone number</span>
+                  Send to another number
                 </button>
               </div>
 
-              <div className="premium-form purchase-fields">
-                <label>
-                  <span>Recipient phone number</span>
-                  <input
-                    value={recipientPhone}
-                    onChange={(event) => setRecipientPhone(event.target.value)}
-                    placeholder="07XXXXXXXX"
-                    disabled={recipientMode === "self"}
-                  />
-                </label>
+              <PhoneInput
+                label="Recipient Phone Number"
+                value={recipientPhone}
+                onChange={setRecipientPhone}
+                readOnly={recipientMode === "self"}
+                error={submitted && !validPhone}
+              />
 
-                <label>
-                  <span>Amount</span>
-                  <div className={submitted && !numericAmount ? "purchase-amount-input purchase-input-error" : "purchase-amount-input"}>
-                    <small>KES</small>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="off"
-                      placeholder="100"
-                      value={amount ? new Intl.NumberFormat("en-KE", { maximumFractionDigits: 0 }).format(numericAmount) : ""}
-                      onChange={(event) => setAmount(parseAmountInput(event.target.value))}
-                    />
-                  </div>
-                </label>
-              </div>
-            </section>
+              <AmountInput
+                value={amount}
+                onChange={setAmount}
+                error={submitted && !numericAmount}
+              />
 
-            <aside className="purchase-preview premium-panel">
-              <span className="premium-kicker">Transaction preview</span>
-              <div className="purchase-preview-total">
-                <span>Transfer amount</span>
-                <strong>{formatCurrency(numericAmount)}</strong>
-              </div>
-              <div className="purchase-preview-list">
-                <div><span>Recipient</span><strong>{recipientPhone || "Not set"}</strong></div>
-                <div><span>Source</span><strong>{normalizeDisplayPhone(user?.phone || "") || "AirSave wallet"}</strong></div>
-                <div><span>Amount</span><strong>{formatCurrency(numericAmount)}</strong></div>
-              </div>
-              <button className="purchase-confirm-button" type="submit" disabled={!canConfirm}>
-                {isSubmitting ? <span className="spinner purchase-spinner" aria-hidden="true" /> : null}
-                {isSubmitting ? "Confirming..." : "Confirm Transfer"}
+              <label className="service-field">
+                <span>Optional Note</span>
+                <textarea
+                  className="service-dark-input service-note-input"
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  placeholder="Add a note"
+                  rows={4}
+                />
+              </label>
+            </ServiceFormCard>
+
+            <TransactionPreview totalLabel="Amount Sent" totalAmount={numericAmount} rows={previewRows}>
+              <button className="service-primary-action" type="submit" disabled={!canConfirm}>
+                {isSubmitting ? "Confirming..." : "Confirm Send"}
               </button>
-              <button className="service-secondary-link" type="button" onClick={() => navigate("/dashboard")}>
+              <button className="service-secondary-action" type="button" onClick={() => navigate("/dashboard")}>
                 Cancel
               </button>
-            </aside>
+            </TransactionPreview>
           </form>
-        )}
-      </div>
-    </Layout>
+
+          <RecentServiceActivity
+            title="Recent transfers"
+            items={recentRows}
+            emptyMessage="No mobile transfers yet."
+          />
+        </>
+      )}
+    </ServicePageShell>
   );
 }

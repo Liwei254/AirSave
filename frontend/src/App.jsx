@@ -16,14 +16,14 @@ import Profile from "./pages/Profile.jsx";
 import Support from "./pages/Support.jsx";
 import Admin from "./pages/Admin.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
-import Navbar from "./components/Navbar.jsx";
+import AuthNavbar from "./components/AuthNavbar.jsx";
 import Footer from "./components/Footer.jsx";
 
 function App() {
   return (
     <BrowserRouter>
       <div className="d-flex flex-column min-vh-100">
-        <Navbar />
+        <AuthNavbar />
         <div className="flex-grow-1">
           <Routes>
             <Route path="/" element={<Landing />} />

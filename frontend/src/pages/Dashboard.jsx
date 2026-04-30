@@ -1,10 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  authEventName,
-  getCurrentUser,
   getGoals,
-  getNotifications,
   getSavingsActivity,
   getWallet,
 } from "../services/api";
@@ -15,14 +12,6 @@ import {
   isConfirmedSavingsStatus,
   sortActivityByNewest,
 } from "../utils/savings";
-
-const NAV_ITEMS = [
-  { label: "Dashboard", to: "/dashboard" },
-  { label: "Save", to: "/save" },
-  { label: "Goals", to: "/goals" },
-  { label: "Activity", to: "/activity" },
-  { label: "Withdraw", to: "/withdraw" },
-];
 
 const QUICK_ACTIONS = [
   { label: "Send", to: "/send", icon: "send", tone: "gold" },
@@ -75,20 +64,6 @@ function normalizeArray(value) {
   if (Array.isArray(value?.activity)) return value.activity;
   if (Array.isArray(value?.transactions)) return value.transactions;
   return [];
-}
-
-function getUserInitials(user) {
-  const fullName = String(user?.fullName || user?.name || "").trim();
-  if (fullName) {
-    return fullName
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase();
-  }
-
-  return String(user?.email || user?.phone || "AK").slice(0, 2).toUpperCase();
 }
 
 function getWalletBalance(wallet) {
@@ -180,139 +155,6 @@ function formatActivityDate(item) {
     month: "short",
     year: "numeric",
   });
-}
-
-function DashboardNavbar() {
-  const navigate = useNavigate();
-  const lastScrollYRef = useRef(0);
-  const scrollFrameRef = useRef(0);
-  const [user, setUser] = useState(null);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [navbarHidden, setNavbarHidden] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadNavigationMeta() {
-      try {
-        const [userData, notificationData] = await Promise.all([getCurrentUser(), getNotifications()]);
-        if (!isMounted) return;
-
-        setUser(userData);
-        setUnreadCount((notificationData || []).filter((item) => !item.read).length);
-      } catch {
-        if (!isMounted) return;
-        setUser(null);
-        setUnreadCount(0);
-      }
-    }
-
-    loadNavigationMeta();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    function handleAuthExpired() {
-      setUser(null);
-      setUnreadCount(0);
-    }
-
-    window.addEventListener(authEventName, handleAuthExpired);
-    return () => window.removeEventListener(authEventName, handleAuthExpired);
-  }, []);
-
-  useEffect(() => {
-    const topThreshold = 20;
-    const hideAfter = 88;
-    const scrollDelta = 6;
-    lastScrollYRef.current = window.scrollY;
-
-    function updateNavbarVisibility() {
-      const currentScrollY = Math.max(window.scrollY, 0);
-      const previousScrollY = lastScrollYRef.current;
-      const distance = currentScrollY - previousScrollY;
-
-      if (currentScrollY < topThreshold) {
-        setNavbarHidden(false);
-        lastScrollYRef.current = currentScrollY;
-      } else if (Math.abs(distance) >= scrollDelta) {
-        setNavbarHidden(distance > 0 && currentScrollY > hideAfter);
-        lastScrollYRef.current = currentScrollY;
-      }
-
-      scrollFrameRef.current = 0;
-    }
-
-    function handleScroll() {
-      if (scrollFrameRef.current) return;
-      scrollFrameRef.current = window.requestAnimationFrame(updateNavbarVisibility);
-    }
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-      if (scrollFrameRef.current) {
-        window.cancelAnimationFrame(scrollFrameRef.current);
-      }
-    };
-  }, []);
-
-  return (
-    <header
-      className={["premium-dashboard-navbar", navbarHidden ? "premium-dashboard-navbar-hidden" : ""]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      <nav className="premium-dashboard-navbar-inner" aria-label="Dashboard">
-        <NavLink className="premium-dashboard-brand" to="/dashboard">
-          <span className="premium-dashboard-brand-mark">A</span>
-          <span className="premium-dashboard-brand-copy">
-            <strong>AirSave</strong>
-            <small>Spend &middot; Save &middot; Grow</small>
-          </span>
-        </NavLink>
-
-        <div className="premium-dashboard-nav-links">
-          {NAV_ITEMS.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                ["premium-dashboard-nav-link", isActive ? "premium-dashboard-nav-link-active" : ""]
-                  .filter(Boolean)
-                  .join(" ")
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </div>
-
-        <div className="premium-dashboard-nav-actions">
-          <button
-            type="button"
-            className="premium-dashboard-bell"
-            onClick={() => navigate("/activity")}
-            aria-label="View activity notifications"
-          >
-            <Icon name="bell" />
-            {unreadCount ? <span className="premium-dashboard-bell-dot" /> : null}
-          </button>
-
-          <button
-            type="button"
-            className="premium-dashboard-avatar"
-            onClick={() => navigate("/profile")}
-            aria-label="Open profile"
-          >
-            {getUserInitials(user)}
-          </button>
-        </div>
-      </nav>
-    </header>
-  );
 }
 
 function BalanceHero({
@@ -561,7 +403,6 @@ export default function Dashboard() {
 
   return (
     <main className="premium-dashboard-shell">
-      <DashboardNavbar />
       <div className="premium-dashboard-page">
         {error ? (
           <div className="premium-dashboard-alert" role="alert">
