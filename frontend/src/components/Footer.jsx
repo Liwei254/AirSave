@@ -3,16 +3,18 @@ import logo from "../assets/circle.png";
 
 const footerLinks = [
   { label: "Dashboard", to: "/dashboard" },
+  { label: "Wallet", to: "/wallet" },
   { label: "Save", to: "/save" },
   { label: "Goals", to: "/goals" },
   { label: "Activity", to: "/activity" },
-  { label: "Withdraw", to: "/withdraw" },
+  { label: "Settings", to: "/settings" },
+  { label: "Profile", to: "/profile" },
   { label: "Support", to: "/support" },
 ];
 
 export default function Footer() {
   const location = useLocation();
-  const hidden = location.pathname === "/" || location.pathname === "/register";
+  const hidden = location.pathname === "/" || location.pathname === "/register" || location.pathname === "/dashboard";
 
   if (hidden) {
     return null;

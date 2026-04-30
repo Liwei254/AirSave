@@ -151,6 +151,14 @@ export async function getCurrentUser() {
   return requestData(API.get("/auth/me", { withCredentials: true }), (data) => data.user || null);
 }
 
+export async function updateCurrentUser(payload) {
+  return requestData(API.patch("/auth/me", payload, { withCredentials: true }), (data) => data.user || null);
+}
+
+export async function changePassword(payload) {
+  return requestData(API.post("/auth/change-password", payload, { withCredentials: true }));
+}
+
 export async function requestPasswordReset(payload) {
   return requestData(API.post("/auth/password-reset/request", payload, { withCredentials: true }));
 }

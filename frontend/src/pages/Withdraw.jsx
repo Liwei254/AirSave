@@ -1,41 +1,244 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Button from "../components/Button.jsx";
-import ConfirmationCard from "../components/ConfirmationCard.jsx";
-import FormSection from "../components/FormSection.jsx";
-import FormCard from "../components/FormCard.jsx";
-import FormPageLayout from "../components/FormPageLayout.jsx";
-import Input from "../components/Input.jsx";
 import Layout from "../components/Layout.jsx";
-import SelectPill from "../components/SelectPill.jsx";
-import StepIndicator from "../components/StepIndicator.jsx";
-import { getGoals, getWallet, submitWithdrawal } from "../services/api";
+import { getCurrentUser, getGoals, getSavingsActivity, getWallet, submitWithdrawal } from "../services/api";
 import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
-import { formatCurrency } from "../utils/formatters";
-import { toAmount } from "../utils/savings";
+import { phonePattern, toAmount } from "../utils/savings";
 
-const withdrawSteps = ["1", "2", "3"];
+const amountFormatter = new Intl.NumberFormat("en-KE", {
+  maximumFractionDigits: 0,
+});
+
+function formatKsh(value) {
+  return `Ksh ${amountFormatter.format(Math.max(0, Number(value || 0)))}`;
+}
+
+function parseAmountInput(value) {
+  const digitsOnly = String(value || "").replace(/[^\d]/g, "");
+  return digitsOnly ? String(Number(digitsOnly)) : "";
+}
+
+function normalizeKenyanPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("254") && digits.length === 12) return digits;
+  if (digits.startsWith("0") && digits.length === 10) return `254${digits.slice(1)}`;
+  if ((digits.startsWith("7") || digits.startsWith("1")) && digits.length === 9) return `254${digits}`;
+  return "";
+}
+
+function formatDisplayPhone(value) {
+  const normalized = normalizeKenyanPhone(value);
+  if (!normalized) return String(value || "");
+  return `0${normalized.slice(3)}`;
+}
+
+function getSourceTone(name, type) {
+  const normalized = String(name || "").toLowerCase();
+  if (type === "wallet") return "wallet";
+  if (normalized.includes("shop")) return "shopping";
+  if (normalized.includes("vacation") || normalized.includes("travel") || normalized.includes("trip")) return "vacation";
+  if (normalized.includes("emergency") || normalized.includes("health")) return "emergency";
+  if (normalized.includes("rent") || normalized.includes("home")) return "rent";
+  return "goal";
+}
+
+function CheckIcon({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path d="m5 12 4 4 10-10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function LockIcon({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <rect x="6" y="10" width="12" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M9 10V7a3 3 0 0 1 6 0v3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function WalletIcon({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path d="M4 7.5h14.2A2.8 2.8 0 0 1 21 10.3v7.2A2.5 2.5 0 0 1 18.5 20h-12A3.5 3.5 0 0 1 3 16.5V7.8A3.8 3.8 0 0 1 6.8 4H17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M16.5 13.5h4.5M17.5 13.5h.01" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ShieldIcon({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path d="M12 3 19 6v5.2c0 4.3-2.8 7.9-7 9.8-4.2-1.9-7-5.5-7-9.8V6l7-3Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="m9.2 12 1.8 1.8 3.9-4.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function PhoneIcon({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path d="M8 4.5 10.2 3l3 5-2 1.3a10.5 10.5 0 0 0 4.5 4.5l1.3-2 5 3-1.5 2.2c-.7 1.1-2 1.6-3.2 1.2A19.6 19.6 0 0 1 5.8 6.7C5.4 5.5 5.9 4.2 7 3.5Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function UserIcon({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path d="M20 21a8 8 0 0 0-16 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function SourceIcon({ tone }) {
+  if (tone === "wallet") return <WalletIcon className="withdraw-source-icon" />;
+  if (tone === "shopping") {
+    return (
+      <svg viewBox="0 0 24 24" className="withdraw-source-icon" aria-hidden="true">
+        <path d="M6 8h12l-1 12H7L6 8Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M9 8a3 3 0 0 1 6 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (tone === "vacation") {
+    return (
+      <svg viewBox="0 0 24 24" className="withdraw-source-icon" aria-hidden="true">
+        <path d="m3 13 18-8-7.2 16-3-6.2L3 13Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="m10.8 14.8 4.8-4.7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (tone === "emergency") return <ShieldIcon className="withdraw-source-icon" />;
+  if (tone === "rent") {
+    return (
+      <svg viewBox="0 0 24 24" className="withdraw-source-icon" aria-hidden="true">
+        <path d="m4 10 8-6 8 6v10H4V10Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M10 20v-6h4v6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" className="withdraw-source-icon" aria-hidden="true">
+      <circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function SummaryIllustration() {
+  return (
+    <div className="withdraw-summary-illustration" aria-hidden="true">
+      <div className="withdraw-money-stack withdraw-money-stack-one" />
+      <div className="withdraw-money-stack withdraw-money-stack-two" />
+      <div className="withdraw-summary-wallet">
+        <div className="withdraw-wallet-slot" />
+        <div className="withdraw-wallet-button" />
+      </div>
+      <div className="withdraw-summary-shield">
+        <ShieldIcon />
+      </div>
+      <span className="withdraw-star withdraw-star-one">+</span>
+      <span className="withdraw-star withdraw-star-two">+</span>
+    </div>
+  );
+}
+
+function StepProgress({ currentStep }) {
+  const steps = [
+    { number: 1, label: "Amount" },
+    { number: 2, label: "Review" },
+    { number: 3, label: "Confirm" },
+  ];
+
+  return (
+    <div className="withdraw-stepper" aria-label="Withdraw progress">
+      {steps.map((step, index) => {
+        const active = currentStep >= step.number;
+        return (
+          <div className={["withdraw-step", active ? "withdraw-step-active" : ""].filter(Boolean).join(" ")} key={step.number}>
+            <span className="withdraw-step-node">{step.number}</span>
+            <span className="withdraw-step-label">{step.label}</span>
+            {index < steps.length - 1 ? <span className="withdraw-step-line" /> : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TrustBar() {
+  const items = [
+    {
+      title: "Bank-level security",
+      copy: "Your data and money are protected",
+      tone: "security",
+      icon: <ShieldIcon />,
+    },
+    {
+      title: "Fast & reliable",
+      copy: "Withdrawals are processed quickly",
+      tone: "speed",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m13 2-8 12h6l-1 8 9-13h-6l0-7Z" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ),
+    },
+    {
+      title: "Need help?",
+      copy: "We're here for you 24/7",
+      tone: "help",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 15v-3a7 7 0 0 1 14 0v3" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+          <path d="M5 15h3v5H6a1 1 0 0 1-1-1v-4Zm11 0h3v4a1 1 0 0 1-1 1h-2v-5Z" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+        </svg>
+      ),
+    },
+  ];
+
+  return (
+    <section className="withdraw-trust-bar" aria-label="Withdrawal trust and support">
+      {items.map((item, index) => (
+        <div className="withdraw-trust-item" key={item.title}>
+          <span className={["withdraw-trust-icon", `withdraw-trust-icon-${item.tone}`].join(" ")}>{item.icon}</span>
+          <span>
+            <strong>{item.title}</strong>
+            <small>{item.copy}</small>
+          </span>
+          {index < items.length - 1 ? <span className="withdraw-trust-divider" aria-hidden="true" /> : null}
+        </div>
+      ))}
+    </section>
+  );
+}
 
 export default function Withdraw() {
   const navigate = useNavigate();
   const [wallet, setWallet] = useState(null);
   const [goals, setGoals] = useState([]);
+  const [user, setUser] = useState(null);
   const [amount, setAmount] = useState("");
-  const [source, setSource] = useState("wallet");
+  const [sourceValue, setSourceValue] = useState("wallet");
   const [phone, setPhone] = useState("");
-  const [breakGoal, setBreakGoal] = useState(false);
-  const [needsBreakConfirmation, setNeedsBreakConfirmation] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState(null);
+  const [toast, setToast] = useState(null);
   const [error, setError] = useState("");
 
   const loadWithdrawPage = useCallback(async (isMounted = true) => {
     try {
-      const [walletData, goalsData] = await Promise.all([getWallet(), getGoals()]);
+      const [walletData, goalsData, userData] = await Promise.all([getWallet(), getGoals(), getCurrentUser()]);
       if (!isMounted) return;
       setWallet(walletData);
       setGoals(goalsData);
+      setUser(userData);
       setError("");
     } catch (err) {
       if (!isMounted) return;
@@ -57,73 +260,120 @@ export default function Withdraw() {
     };
   }, [loadWithdrawPage]);
 
-  const sourceOptions = useMemo(
-    () => [
-      { value: "wallet", label: `Savings wallet (${formatCurrency(wallet?.balance)})`, type: "wallet" },
-      ...goals.map((goal) => ({ value: `goal:${goal._id}`, label: goal.name, type: "goal", goal })),
-    ],
-    [goals, wallet?.balance]
-  );
+  const sources = useMemo(() => {
+    const walletSource = {
+      value: "wallet",
+      type: "wallet",
+      name: "Savings wallet",
+      balance: toAmount(wallet?.balance),
+      id: null,
+    };
 
-  const selectedSource = sourceOptions.find((option) => option.value === source) || sourceOptions[0];
-  const selectedGoal = selectedSource?.goal || null;
-  const showMaturityWarning = Boolean(selectedGoal && selectedGoal.status !== "completed");
+    return [
+      walletSource,
+      ...goals.map((goal) => ({
+        value: `goal:${goal._id}`,
+        type: "goal",
+        name: goal.name,
+        balance: toAmount(goal.savedAmount),
+        id: goal._id,
+        goal,
+      })),
+    ];
+  }, [goals, wallet?.balance]);
+
+  const selectedSource = sources.find((source) => source.value === sourceValue) || sources[0] || null;
+  const userDisplayPhone = formatDisplayPhone(user?.phone);
+  const effectivePhone = phoneTouched ? phone : userDisplayPhone || phone;
   const numericAmount = toAmount(amount);
-  const availableBalance = selectedGoal ? toAmount(selectedGoal.savedAmount) : toAmount(wallet?.balance);
-  const totalDeducted = Math.min(numericAmount, availableBalance);
-  const fee = totalDeducted > 0 ? Math.min(50, Math.round(totalDeducted * 0.02)) : 0;
-  const receiveAmount = Math.max(0, totalDeducted - fee);
-  const currentStep = numericAmount <= 0 ? 1 : !selectedSource ? 2 : 3;
+  const sourceBalance = toAmount(selectedSource?.balance);
+  const fee = toAmount(wallet?.withdrawalFee ?? wallet?.withdrawFee ?? wallet?.transactionFee ?? 0);
+  const totalDeducted = numericAmount + fee;
+  const receiveAmount = numericAmount;
+  const normalizedPhone = normalizeKenyanPhone(effectivePhone);
+  const amountError =
+    submitted && !numericAmount
+      ? "Enter a withdrawal amount."
+      : submitted && numericAmount <= 0
+        ? "Amount must be greater than zero."
+        : submitted && totalDeducted > sourceBalance
+          ? "Amount plus fee exceeds the selected source balance."
+          : "";
+  const phoneError =
+    submitted && !effectivePhone.trim()
+      ? "Enter the phone number to receive funds."
+      : effectivePhone.trim() && !phonePattern.test(effectivePhone.trim())
+        ? "Enter a valid Kenyan phone number."
+        : "";
+  const sourceError = submitted && !selectedSource ? "Select a withdrawal source." : "";
+  const canSubmit = Boolean(selectedSource) && numericAmount > 0 && totalDeducted <= sourceBalance && Boolean(normalizedPhone) && !phoneError;
+  const currentStep = numericAmount <= 0 ? 1 : !canSubmit ? 2 : 3;
+
+  function handleQuickAmount(percent) {
+    if (!sourceBalance) {
+      setAmount("");
+      return;
+    }
+    const nextAmount = Math.max(0, Math.floor(sourceBalance * percent - fee));
+    setAmount(String(nextAmount));
+  }
 
   async function handleSubmit(event) {
     event?.preventDefault();
+    setSubmitted(true);
 
-    if (!amount || Number(amount) <= 0 || !selectedSource) {
+    if (!selectedSource) {
+      setToast({ type: "error", message: "Select a withdrawal source." });
       return;
     }
 
-    if (showMaturityWarning && !breakGoal) {
-      setNeedsBreakConfirmation(true);
-      setFeedback(null);
+    if (!numericAmount || numericAmount <= 0) {
+      setToast({ type: "error", message: "Enter a valid withdrawal amount." });
+      return;
+    }
+
+    if (totalDeducted > sourceBalance) {
+      setToast({ type: "error", message: "Amount plus fee exceeds the selected source balance." });
+      return;
+    }
+
+    if (!normalizedPhone || phoneError) {
+      setToast({ type: "error", message: phoneError || "Enter a valid Kenyan phone number." });
       return;
     }
 
     setIsSubmitting(true);
-    setFeedback(null);
+    setToast(null);
 
     try {
-      const response = await submitWithdrawal(
-        selectedSource.type === "goal"
-          ? { amount: Number(amount), sourceType: "goal", sourceId: selectedGoal._id, breakGoal }
-          : { amount: Number(amount), sourceType: "wallet" }
-      );
+      const response = await submitWithdrawal({
+        amount: numericAmount,
+        fee,
+        sourceType: selectedSource.type,
+        sourceId: selectedSource.type === "goal" ? selectedSource.id : undefined,
+        phoneNumber: effectivePhone.trim(),
+        totalDeducted,
+        breakGoal: selectedSource.type === "goal",
+      });
 
       setAmount("");
-      setBreakGoal(false);
-      setNeedsBreakConfirmation(false);
-      setFeedback({ type: "success", message: response.message || "Withdrawal submitted successfully." });
-      await loadWithdrawPage(true);
+      setSubmitted(false);
+      setToast({ type: "success", message: response.message || "Withdrawal submitted successfully." });
+      await Promise.all([loadWithdrawPage(true), getSavingsActivity().catch(() => [])]);
       triggerDashboardRefresh();
     } catch (err) {
-      const message = err.response?.data?.message || "Withdrawal request failed.";
-      setFeedback({ type: "error", message });
-      setNeedsBreakConfirmation(err.response?.data?.code === "GOAL_NOT_MATURED");
+      setToast({ type: "error", message: err.response?.data?.message || err.message || "Withdrawal request failed." });
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  function handleQuickAmount(multiplier) {
-    const nextAmount = Math.floor(availableBalance * multiplier);
-    setAmount(String(nextAmount));
-  }
-
   return (
-    <Layout>
-      {feedback ? (
-        <div className={`feedback ${feedback.type === "success" ? "feedback-success" : "feedback-error"}`}>
-          <strong>{feedback.type === "success" ? "Success:" : "Error:"}</strong>
-          <span>{feedback.message}</span>
+    <Layout shellClassName="withdraw-reference-shell">
+      {toast ? (
+        <div className={["withdraw-toast", toast.type === "success" ? "withdraw-toast-success" : "withdraw-toast-error"].join(" ")}>
+          <strong>{toast.type === "success" ? "Success" : "Error"}</strong>
+          <span>{toast.message}</span>
         </div>
       ) : null}
 
@@ -135,127 +385,162 @@ export default function Withdraw() {
       ) : null}
 
       {isLoading ? (
-        <section className="ui-card loading-panel">
+        <section className="ui-card loading-panel withdraw-reference-loading">
           <span className="spinner spinner-dark" aria-hidden="true" />
           <span>Loading withdrawal details...</span>
         </section>
       ) : (
-        <form onSubmit={handleSubmit}>
-          <FormPageLayout>
-            <FormCard className="withdraw-form-card">
-              <StepIndicator
-                steps={withdrawSteps}
-                currentStep={currentStep}
-                completeStep={numericAmount > 0 && selectedSource ? 3 : 0}
-                ariaLabel="Withdraw progress"
-              />
+        <div className="withdraw-reference-page">
+          <form className="withdraw-reference-grid" onSubmit={handleSubmit}>
+            <section className="withdraw-form-card" aria-labelledby="withdrawPageTitle">
+              <StepProgress currentStep={currentStep} />
 
-              <div className="fin-form-stack">
-                <FormSection title="Amount" active={currentStep >= 1}>
-                  <div className="fin-inline-metric">
-                    <span>Available balance</span>
-                    <strong>{formatCurrency(availableBalance)}</strong>
-                  </div>
-                  <Input
-                    type="number"
-                    min="1"
-                    placeholder="Enter amount"
-                    value={amount}
-                    onChange={(event) => setAmount(event.target.value)}
-                  />
-                  <SelectPill
-                    items={[
-                      { value: "quarter", label: "25%" },
-                      { value: "half", label: "50%" },
-                      { value: "max", label: "MAX" },
-                    ]}
-                    value=""
-                    onChange={(value) => {
-                      if (value === "quarter") handleQuickAmount(0.25);
-                      if (value === "half") handleQuickAmount(0.5);
-                      if (value === "max") handleQuickAmount(1);
-                    }}
-                    ariaLabel="Quick withdrawal amounts"
-                  />
-                </FormSection>
-
-                <FormSection title="Source" active={currentStep >= 2}>
-                  <SelectPill
-                    items={sourceOptions.map((option) => ({ value: option.value, label: option.label }))}
-                    value={selectedSource?.value || "wallet"}
-                    onChange={(value) => {
-                      setSource(value);
-                      setBreakGoal(false);
-                      setNeedsBreakConfirmation(false);
-                    }}
-                    ariaLabel="Withdrawal source"
-                  />
-                  <Input
-                    label="Send to"
-                    type="tel"
-                    placeholder="07XXXXXXXX"
-                    value={phone}
-                    onChange={(event) => setPhone(event.target.value)}
-                  />
-                  {showMaturityWarning ? (
-                    <div className="fin-notice fin-notice-warning">
-                      <strong>Goal still in progress</strong>
-                      <span>{selectedGoal.name} must be broken before withdrawal can continue.</span>
-                      <div className="fin-inline-actions">
-                        <Button
-                          type="button"
-                          variant={breakGoal ? "primary" : "secondary"}
-                          onClick={() => {
-                            setBreakGoal(true);
-                            setNeedsBreakConfirmation(false);
-                          }}
-                        >
-                          Break goal
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => {
-                            setSource("wallet");
-                            setBreakGoal(false);
-                            setNeedsBreakConfirmation(false);
-                          }}
-                        >
-                          Switch to wallet
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
-                  {needsBreakConfirmation && !breakGoal ? (
-                    <div className="feedback feedback-error">
-                      <strong>Action required:</strong>
-                      <span>Select Break goal to continue with this withdrawal.</span>
-                    </div>
-                  ) : null}
-                </FormSection>
+              <div className="withdraw-balance-row">
+                <span className="withdraw-balance-icon">
+                  <WalletIcon />
+                </span>
+                <div className="withdraw-balance-copy">
+                  <span>Available balance</span>
+                  <strong>{formatKsh(wallet?.balance)}</strong>
+                </div>
+                <span className="withdraw-secure-label">
+                  <ShieldIcon />
+                  Secure & protected
+                </span>
               </div>
-            </FormCard>
 
-            <ConfirmationCard
-              label="SUMMARY"
-              title="Review withdrawal"
-              amount={receiveAmount}
-              rows={[
-                { label: "Fee", value: formatCurrency(fee) },
-                { label: "Total deducted", value: formatCurrency(totalDeducted) },
-                { label: "Source", value: selectedGoal ? selectedGoal.name : "Savings wallet" },
-              ]}
-              buttonText={isSubmitting ? "Submitting..." : "Confirm Withdrawal"}
-              onConfirm={handleSubmit}
-              disabled={!numericAmount || isSubmitting}
-              loading={isSubmitting}
-              helperText="Withdrawals are reviewed before processing."
-              variant="withdraw"
-              sticky
-              className="withdraw-summary-card"
-            />
-          </FormPageLayout>
-        </form>
+              <div className="withdraw-field-stack">
+                <section className="withdraw-field-section">
+                  <label className="withdraw-field-label" htmlFor="withdrawAmount">Enter amount</label>
+                  <div className={["withdraw-input-shell", amountError ? "withdraw-input-shell-error" : ""].filter(Boolean).join(" ")}>
+                    <span>Ksh</span>
+                    <input
+                      id="withdrawAmount"
+                      name="amount"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Enter amount"
+                      value={amount ? amountFormatter.format(numericAmount) : ""}
+                      onChange={(event) => setAmount(parseAmountInput(event.target.value))}
+                    />
+                  </div>
+                  {amountError ? <p className="withdraw-helper withdraw-helper-error">{amountError}</p> : null}
+                  <div className="withdraw-quick-row" aria-label="Quick withdrawal amounts">
+                    <button type="button" onClick={() => handleQuickAmount(0.25)}>25%</button>
+                    <button type="button" onClick={() => handleQuickAmount(0.5)}>50%</button>
+                    <button type="button" onClick={() => handleQuickAmount(1)}>MAX</button>
+                  </div>
+                </section>
+
+                <section className="withdraw-field-section">
+                  <div className="withdraw-section-head">
+                    <span className="withdraw-field-label">Source</span>
+                    {sourceError ? <span>{sourceError}</span> : null}
+                  </div>
+                  <div className="withdraw-source-grid">
+                    {sources.map((source) => {
+                      const selected = source.value === selectedSource?.value;
+                      const tone = getSourceTone(source.name, source.type);
+                      return (
+                        <button
+                          type="button"
+                          className={["withdraw-source-card", selected ? "withdraw-source-card-selected" : "", `withdraw-source-${tone}`].filter(Boolean).join(" ")}
+                          onClick={() => {
+                            setSourceValue(source.value);
+                            setAmount("");
+                          }}
+                          aria-pressed={selected}
+                          key={source.value}
+                        >
+                          <span className="withdraw-source-icon-wrap">
+                            <SourceIcon tone={tone} />
+                          </span>
+                          <strong>{source.name}</strong>
+                          <small>{formatKsh(source.balance)}</small>
+                          {selected ? (
+                            <span className="withdraw-source-check">
+                              <CheckIcon />
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <section className="withdraw-field-section">
+                  <label className="withdraw-field-label" htmlFor="withdrawPhone">Send to</label>
+                  <div className={["withdraw-phone-shell", phoneError ? "withdraw-input-shell-error" : ""].filter(Boolean).join(" ")}>
+                    <span className="withdraw-phone-icon">
+                      <PhoneIcon />
+                    </span>
+                    <input
+                      id="withdrawPhone"
+                      name="phone"
+                      type="tel"
+                      inputMode="tel"
+                      placeholder="07XXXXXXXX"
+                      value={effectivePhone}
+                      onChange={(event) => {
+                        setPhone(event.target.value);
+                        setPhoneTouched(true);
+                      }}
+                    />
+                    <span className="withdraw-user-icon">
+                      <UserIcon />
+                    </span>
+                  </div>
+                  {phoneError ? <p className="withdraw-helper withdraw-helper-error">{phoneError}</p> : null}
+                </section>
+
+                <div className="withdraw-security-note">
+                  <LockIcon />
+                  Your money is safe with us. All transactions are encrypted and secure.
+                </div>
+              </div>
+            </section>
+
+            <aside className="withdraw-summary-card" aria-label="Withdrawal summary">
+              <div className="withdraw-summary-kicker">SUMMARY</div>
+              <div className="withdraw-summary-title-wrap">
+                <h1 id="withdrawPageTitle">Review withdrawal</h1>
+                <strong>{formatKsh(numericAmount)}</strong>
+              </div>
+              <SummaryIllustration />
+
+              <div className="withdraw-summary-panel">
+                <div className="withdraw-summary-row">
+                  <span>Fee</span>
+                  <strong>{formatKsh(fee)}</strong>
+                </div>
+                <div className="withdraw-summary-row">
+                  <span>Total deducted</span>
+                  <strong>{formatKsh(totalDeducted)}</strong>
+                </div>
+                <div className="withdraw-summary-divider" />
+                <div className="withdraw-summary-row">
+                  <span>Source</span>
+                  <strong>{selectedSource?.name || "Savings wallet"}</strong>
+                </div>
+                <div className="withdraw-receive-row">
+                  <span>You will receive</span>
+                  <strong>{formatKsh(receiveAmount)}</strong>
+                </div>
+                <div className="withdraw-summary-note">
+                  <span>i</span>
+                  Withdrawals are reviewed before processing to keep your account safe.
+                </div>
+                <button type="submit" className="withdraw-confirm-button" disabled={!canSubmit || isSubmitting}>
+                  {isSubmitting ? <span className="spinner withdraw-confirm-spinner" aria-hidden="true" /> : <LockIcon />}
+                  {isSubmitting ? "Submitting..." : "Confirm Withdrawal"}
+                </button>
+                <p>You can cancel anytime</p>
+              </div>
+            </aside>
+          </form>
+
+          <TrustBar />
+        </div>
       )}
     </Layout>
   );

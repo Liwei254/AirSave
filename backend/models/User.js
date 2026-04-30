@@ -73,6 +73,48 @@ const userSchema = new mongoose.Schema(
       enum: ["active", "suspended"],
       default: "active",
     },
+    roundUpRule: {
+      type: Number,
+      enum: [10, 50, 100],
+      default: 50,
+    },
+    avatar: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    walletBalance: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    preferences: {
+      notifications: {
+        type: Boolean,
+        default: true,
+      },
+      theme: {
+        type: String,
+        enum: ["light", "dark", "system"],
+        default: "light",
+      },
+      privacyMode: {
+        type: Boolean,
+        default: false,
+      },
+      securityAlerts: {
+        type: Boolean,
+        default: true,
+      },
+      linkedPaymentMethods: {
+        type: Boolean,
+        default: true,
+      },
+      autoSaveEnabled: {
+        type: Boolean,
+        default: true,
+      },
+    },
     wallet: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Wallet",

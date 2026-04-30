@@ -3,10 +3,15 @@ import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Savings from "./pages/Savings.jsx";
+import Send from "./pages/Send.jsx";
+import LipaNaAirSave from "./pages/LipaNaAirSave.jsx";
 import Goals from "./pages/Goals.jsx";
 import GoalNew from "./pages/GoalNew.jsx";
 import Transactions from "./pages/Transactions.jsx";
 import Withdraw from "./pages/Withdraw.jsx";
+import Wallet from "./pages/Wallet.jsx";
+import Settings from "./pages/Settings.jsx";
+import Profile from "./pages/Profile.jsx";
 import Support from "./pages/Support.jsx";
 import Admin from "./pages/Admin.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
@@ -32,10 +37,38 @@ function App() {
               }
             />
             <Route
+              path="/wallet"
+              element={
+                <ProtectedRoute>
+                  <Wallet />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wallet/buy-goods"
+              element={<Navigate to="/lipa-na-airsave" replace />}
+            />
+            <Route
               path="/save"
               element={
                 <ProtectedRoute>
                   <Savings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/send"
+              element={
+                <ProtectedRoute>
+                  <Send />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/lipa-na-airsave"
+              element={
+                <ProtectedRoute>
+                  <LipaNaAirSave />
                 </ProtectedRoute>
               }
             />
@@ -73,6 +106,22 @@ function App() {
             />
             <Route path="/savings" element={<Navigate to="/save" replace />} />
             <Route path="/transactions" element={<Navigate to="/activity" replace />} />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/admin"
               element={

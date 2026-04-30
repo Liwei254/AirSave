@@ -4,7 +4,7 @@
   { value: 100, label: "Round to 100" },
 ];
 
-export const quickAddOptions = [50, 100, 500];
+export const quickAddOptions = [100, 500, 1000];
 
 export const activityFilters = [
   { value: "today", label: "Today" },
@@ -24,7 +24,7 @@ export const durationUnits = [
   { value: "months", label: "Months" },
 ];
 
-export const phonePattern = /^(0\d{9}|\+254\d{9}|254\d{9})$/;
+export const phonePattern = /^(0[17]\d{8}|\+?254[17]\d{8})$/;
 export const recentPhoneStorageKey = "airsave:last-phone";
 export const recentGoalStorageKey = "airsave:last-goal";
 
@@ -36,6 +36,10 @@ export function sortActivityByNewest(items) {
   return [...(items || [])].sort(
     (left, right) => new Date(right.date || right.createdAt || 0) - new Date(left.date || left.createdAt || 0)
   );
+}
+
+export function isConfirmedSavingsStatus(status) {
+  return ["confirmed", "completed", "success", "successful"].includes(String(status || "").toLowerCase());
 }
 
 export function getActivityDate(item) {
@@ -65,7 +69,7 @@ export function isWithinActivityFilter(item, filter) {
 
 export function getSavingsSummary(items) {
   return (items || [])
-    .filter((item) => item.status === "confirmed")
+    .filter((item) => isConfirmedSavingsStatus(item.status))
     .reduce((sum, item) => sum + toAmount(item.savings), 0);
 }
 
@@ -160,7 +164,7 @@ export function getMostRecentGoalId(goals, activityItems) {
 }
 
 export function getWeeklySavingsRate(activityItems) {
-  const confirmed = (activityItems || []).filter((item) => item.status === "confirmed");
+  const confirmed = (activityItems || []).filter((item) => isConfirmedSavingsStatus(item.status));
   if (!confirmed.length) {
     return 0;
   }

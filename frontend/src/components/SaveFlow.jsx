@@ -1,185 +1,192 @@
-import { useEffect, useMemo, useState } from "react";
-import FormCard from "./FormCard.jsx";
-import FormSection from "./FormSection.jsx";
-import FormPageLayout from "./FormPageLayout.jsx";
-import Input from "./Input.jsx";
-import MpesaPreview from "./MpesaPreview.jsx";
-import SelectPill from "./SelectPill.jsx";
-import StepIndicator from "./StepIndicator.jsx";
-import {
-  getMostRecentGoalId,
-  phonePattern,
-  recentGoalStorageKey,
-  recentPhoneStorageKey,
-  roundingOptions,
-  toAmount,
-} from "../utils/savings";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { formatCurrency, formatDate } from "../utils/formatters";
+import { isConfirmedSavingsStatus, toAmount } from "../utils/savings";
 
-const stepLabels = ["1", "2", "3"];
+const amountFormatter = new Intl.NumberFormat("en-KE", {
+  maximumFractionDigits: 0,
+});
 
 function parseAmountInput(value) {
   const digitsOnly = String(value || "").replace(/[^\d]/g, "");
   return digitsOnly ? String(Number(digitsOnly)) : "";
 }
 
-function formatAmountInput(value) {
-  const numeric = toAmount(value);
-  if (!numeric) return "";
-  return `Ksh ${new Intl.NumberFormat("en-KE").format(numeric)}`;
+function getRoundUp(amount, rule) {
+  const numericAmount = toAmount(amount);
+  const numericRule = Number(rule || 50);
+  if (!numericAmount) return { rounded: 0, savings: 0 };
+  const rounded = Math.ceil(numericAmount / numericRule) * numericRule;
+  return {
+    rounded,
+    savings: Math.max(0, rounded - numericAmount),
+  };
 }
 
-export default function SaveFlow({ goals, activity, onSubmit, isSubmitting, initialGoalId = "" }) {
+export default function SaveFlow({ activity, user, onSubmit, isSubmitting }) {
+  const navigate = useNavigate();
   const [amount, setAmount] = useState("");
-  const [phone, setPhone] = useState("");
-  const [selectedGoal, setSelectedGoal] = useState("");
-  const [rule, setRule] = useState(10);
+  const [tillNumber, setTillNumber] = useState("");
+  const [note, setNote] = useState("");
   const [feedback, setFeedback] = useState(null);
-
-  const activeGoals = useMemo(() => goals.filter((goal) => goal.status !== "completed"), [goals]);
-
-  useEffect(() => {
-    const storedPhone = localStorage.getItem(recentPhoneStorageKey);
-    if (storedPhone) {
-      setPhone(storedPhone);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!activeGoals.length) {
-      setSelectedGoal("");
-      return;
-    }
-
-    setSelectedGoal((current) => {
-      if (current && activeGoals.some((goal) => goal._id === current)) {
-        return current;
-      }
-
-      if (initialGoalId && activeGoals.some((goal) => goal._id === initialGoalId)) {
-        return initialGoalId;
-      }
-
-      return getMostRecentGoalId(activeGoals, activity);
-    });
-  }, [activeGoals, activity, initialGoalId]);
+  const [submitted, setSubmitted] = useState(false);
 
   const numericAmount = toAmount(amount);
-  const roundedAmount = amount ? Math.ceil(numericAmount / rule) * rule : 0;
-  const savingsAmount = amount ? Math.max(0, roundedAmount - numericAmount) : 0;
-  const selectedGoalItem = activeGoals.find((goal) => goal._id === selectedGoal) || null;
-  const phoneError = phone.trim() && !phonePattern.test(phone.trim()) ? "Use 07XXXXXXXX or +254XXXXXXXXX." : "";
-  const reviewReady = numericAmount > 0 && Boolean(selectedGoalItem) && phone.trim() && !phoneError;
-  const currentStep = numericAmount <= 0 ? 1 : !selectedGoalItem ? 2 : 3;
+  const roundUpRule = Number(user?.roundUpRule || 50);
+  const roundUp = useMemo(() => getRoundUp(numericAmount, roundUpRule), [numericAmount, roundUpRule]);
+  const canConfirm = numericAmount > 0 && tillNumber.trim() && !isSubmitting;
+  const recentRows = (activity || []).slice(0, 5);
 
   async function handleConfirm(event) {
-    event?.preventDefault();
+    event.preventDefault();
+    setSubmitted(true);
 
-    if (!reviewReady) {
-      setFeedback({ type: "error", message: "Complete the amount, goal, and phone number to continue." });
+    if (!numericAmount || !tillNumber.trim()) {
+      setFeedback({ type: "error", message: "Enter a till number and amount before confirming." });
       return;
     }
 
     setFeedback(null);
 
     try {
-      await onSubmit({ amount: numericAmount, phone: phone.trim(), goalId: selectedGoal, rule });
-      localStorage.setItem(recentPhoneStorageKey, phone.trim());
-      localStorage.setItem(recentGoalStorageKey, selectedGoal);
+      const result = await onSubmit({
+        amount: numericAmount,
+        merchant: `Till ${tillNumber.trim()}`,
+        description: note.trim() || `Till ${tillNumber.trim()}`,
+        transactionType: "purchase",
+        mode: "wallet-purchase",
+      });
+
       setAmount("");
-      setFeedback({ type: "success", message: "Payment request sent to your phone." });
+      setTillNumber("");
+      setNote("");
+      setSubmitted(false);
+      setFeedback({
+        type: "success",
+        message: isConfirmedSavingsStatus(result?.status)
+          ? "Purchase confirmed and round-up saved."
+          : "Purchase request sent. Your savings will update after confirmation.",
+      });
     } catch (error) {
       setFeedback({
         type: "error",
-        message: error.response?.data?.message || error.message || "We could not send the payment request.",
+        message: error.response?.data?.message || error.message || "We could not complete this purchase.",
       });
     }
   }
 
   return (
-    <div className="save-flow-shell">
+    <div className="purchase-flow-page">
       {feedback ? (
-        <div className={`feedback ${feedback.type === "success" ? "feedback-success savings-feedback-success" : "feedback-error"}`}>
-          <strong>{feedback.type === "success" ? "Success:" : "Error:"}</strong>
+        <div className={`premium-toast premium-toast-${feedback.type}`}>
+          <strong>{feedback.type === "success" ? "Done" : "Action needed"}</strong>
           <span>{feedback.message}</span>
         </div>
       ) : null}
 
-      <form onSubmit={handleConfirm}>
-        <FormPageLayout className="save-flow-grid">
-          <FormCard className="save-form-card">
-            <div className="save-flow-header">
-              <span className="save-flow-kicker">M-Pesa</span>
-              <h2 className="save-flow-title">Save with M-Pesa</h2>
+      <div className="service-breadcrumb">
+        <button type="button" onClick={() => navigate("/dashboard")}>Dashboard</button>
+        <span>/</span>
+        <span>Lipa na AirSave</span>
+      </div>
+
+      <form className="purchase-grid" onSubmit={handleConfirm}>
+        <section className="purchase-form premium-panel">
+          <div className="premium-section-head">
+            <div>
+              <span className="premium-kicker">WALLET SERVICE</span>
+              <h1>Lipa na AirSave</h1>
+              <p>Pay a till and let AirSave save the round-up automatically.</p>
             </div>
+            <span className="purchase-secure-pill">Auto round-up on</span>
+          </div>
 
-            <StepIndicator steps={stepLabels} currentStep={currentStep} completeStep={reviewReady ? 3 : 0} ariaLabel="Save progress" />
+          <div className="premium-form purchase-fields">
+            <label>
+              <span>Till number</span>
+              <input
+                value={tillNumber}
+                onChange={(event) => setTillNumber(event.target.value.replace(/[^\d]/g, ""))}
+                placeholder="Enter till number"
+              />
+            </label>
 
-            <div className="save-form-stack">
-              <FormSection title="Amount" active={currentStep >= 1}>
+            <label>
+              <span>Amount</span>
+              <div className={submitted && !numericAmount ? "purchase-amount-input purchase-input-error" : "purchase-amount-input"}>
+                <small>KES</small>
                 <input
-                  id="saveAmount"
-                  name="amount"
-                  className="save-clean-input save-clean-input-amount"
                   type="text"
                   inputMode="numeric"
-                  placeholder="Ksh 0"
-                  value={formatAmountInput(amount)}
+                  autoComplete="off"
+                  placeholder="47"
+                  value={amount ? amountFormatter.format(numericAmount) : ""}
                   onChange={(event) => setAmount(parseAmountInput(event.target.value))}
                 />
-                <span className="save-field-note">Typical save: Ksh 50-500</span>
-              </FormSection>
+              </div>
+            </label>
 
-              <FormSection title="Phone" active={currentStep >= 1}>
-                <Input
-                  id="savePhone"
-                  type="tel"
-                  placeholder="07XXXXXXXX or +254XXXXXXXXX"
-                  value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
-                  error={phoneError}
-                  className="save-clean-input"
-                />
-              </FormSection>
-
-            <FormSection title="Goal" active={currentStep >= 2}>
-              <SelectPill
-                items={activeGoals.map((goal) => ({ value: goal._id, label: goal.name }))}
-                value={selectedGoal}
-                  onChange={setSelectedGoal}
-                  ariaLabel="Savings goals"
-                />
-              </FormSection>
-
-              <FormSection title="Round-up rule" active={currentStep >= 2}>
-                <SelectPill
-                  items={roundingOptions.map((option) => ({ value: option.value, label: option.label }))}
-                  value={rule}
-                  onChange={setRule}
-                  ariaLabel="Round-up options"
-                />
-              </FormSection>
-
-              <div className="save-security-note">Secure M-Pesa transaction</div>
-            </div>
-          </FormCard>
-
-          <div className="save-preview-column">
-            <MpesaPreview
-              chargedAmount={roundedAmount}
-              savingsAmount={savingsAmount}
-              goalName={selectedGoalItem?.name}
-              isReady={reviewReady}
-              sticky
-              onConfirm={handleConfirm}
-              confirmLabel={isSubmitting ? "Sending request..." : "Confirm Save"}
-              confirmDisabled={!reviewReady || isSubmitting}
-              loading={isSubmitting}
-              helperText="Confirm the prompt to complete your save."
-              trustText="Secure M-Pesa transaction"
-            />
+            <label>
+              <span>Optional note</span>
+              <input
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                placeholder="Add a note"
+              />
+            </label>
           </div>
-        </FormPageLayout>
+        </section>
+
+        <aside className="purchase-preview premium-panel">
+          <span className="premium-kicker">Transaction preview</span>
+          <div className="purchase-preview-total">
+            <span>Wallet charged</span>
+            <strong>{formatCurrency(roundUp.rounded)}</strong>
+          </div>
+          <div className="purchase-preview-list">
+            <div><span>Till number</span><strong>{tillNumber || "Not set"}</strong></div>
+            <div><span>Amount</span><strong>{formatCurrency(numericAmount)}</strong></div>
+            <div><span>Round-up rule</span><strong>Nearest {roundUpRule}</strong></div>
+            <div><span>Auto-saved</span><strong>{formatCurrency(roundUp.savings)}</strong></div>
+          </div>
+          <button className="purchase-confirm-button" type="submit" disabled={!canConfirm}>
+            {isSubmitting ? <span className="spinner purchase-spinner" aria-hidden="true" /> : null}
+            {isSubmitting ? "Confirming..." : "Confirm Purchase"}
+          </button>
+          <button className="purchase-settings-link" type="button" onClick={() => navigate("/settings")}>
+            Edit round-up rule
+          </button>
+          <button className="service-secondary-link" type="button" onClick={() => navigate("/dashboard")}>
+            Cancel
+          </button>
+        </aside>
       </form>
+
+      <section className="premium-panel purchase-history">
+        <div className="premium-section-head">
+          <div>
+            <span className="premium-kicker">Recent activity</span>
+            <h2>Round-up savings</h2>
+          </div>
+          <button type="button" onClick={() => navigate("/activity")}>View all</button>
+        </div>
+        <div className="purchase-history-list">
+          {recentRows.length ? recentRows.map((item) => (
+            <article key={item._id || item.reference}>
+              <div>
+                <strong>{item.merchant || item.goalName || "Wallet transaction"}</strong>
+                <span>{formatDate(item.date)} {"\u2022"} {item.status}</span>
+              </div>
+              <div>
+                <strong>{formatCurrency(item.savings)}</strong>
+                <span>{item.chargedAmount ? `Charged ${formatCurrency(item.chargedAmount)}` : "Auto-save"}</span>
+              </div>
+            </article>
+          )) : (
+            <div className="empty-state">No purchase savings yet.</div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

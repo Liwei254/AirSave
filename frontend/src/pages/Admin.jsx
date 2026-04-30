@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import { getGoals, getNotifications, getTransactions, getWallet } from "../services/api";
@@ -13,15 +13,7 @@ export default function Admin() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let isMounted = true;
-    loadAdminPage(isMounted);
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  async function loadAdminPage(isMounted = true) {
+  const loadAdminPage = useCallback(async (isMounted = true) => {
     try {
       const [walletData, goalsData, transactionsData, notificationsData] = await Promise.all([
         getWallet(),
@@ -49,7 +41,15 @@ export default function Admin() {
         setIsLoading(false);
       }
     }
-  }
+  }, [navigate]);
+
+  useEffect(() => {
+    let isMounted = true;
+    loadAdminPage(isMounted);
+    return () => {
+      isMounted = false;
+    };
+  }, [loadAdminPage]);
 
   const unreadNotifications = notifications.filter((notification) => !notification.read).length;
 
@@ -139,5 +139,3 @@ export default function Admin() {
     </Layout>
   );
 }
-
-

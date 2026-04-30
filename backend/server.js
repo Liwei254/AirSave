@@ -24,13 +24,23 @@ const __dirname = path.dirname(__filename);
 const frontendDistPath = path.join(__dirname, '../frontend/dist');
 const frontendIndexPath = path.join(frontendDistPath, 'index.html');
 const isProduction = process.env.NODE_ENV === 'production';
-const allowedOrigins = [
+
+const parseOrigins = (value = '') =>
+  value
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+const allowedOrigins = Array.from(new Set([
   'https://airsave-1.onrender.com',
   process.env.FRONTEND_URL,
+  ...parseOrigins(process.env.CLIENT_URLS),
   'http://localhost:3000',
   'http://127.0.0.1:5173',
   'http://localhost:5173',
-].filter(Boolean);
+  'http://127.0.0.1:5174',
+  'http://localhost:5174',
+].filter(Boolean)));
 
 const corsOptions = {
   origin(origin, callback) {
@@ -48,10 +58,12 @@ const corsOptions = {
 console.log('Allowed origins:', allowedOrigins);
 
 app.set('trust proxy', 1);
-app.use((req, res, next) => {
-  console.log('Request origin:', req.headers.origin);
-  next();
-});
+if (!isProduction) {
+  app.use((req, res, next) => {
+    console.log('Request origin:', req.headers.origin);
+    next();
+  });
+}
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
 
@@ -112,6 +124,18 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`AirSave Server running on port ${PORT}`);
+});
+
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use.`);
+    console.error(`Find the process with: netstat -ano | findstr :${PORT}`);
+    console.error('Then stop that PID with: taskkill /PID <PID> /F');
+    process.exit(1);
+  }
+
+  console.error('Server failed to start:', error);
+  process.exit(1);
 });

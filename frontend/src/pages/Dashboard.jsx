@@ -7,31 +7,7 @@ import Layout from "../components/Layout.jsx";
 import SectionHeader from "../components/SectionHeader.jsx";
 import { getGoals, getSavingsActivity, getWallet } from "../services/api";
 import { formatCurrency, getGoalProgress } from "../utils/formatters";
-import { getSavingsSummary, isWithinActivityFilter, sortActivityByNewest } from "../utils/savings";
-
-function ActionIcon({ type }) {
-  if (type === "save") {
-    return (
-      <svg viewBox="0 0 24 24" className="dashboard-action-icon" aria-hidden="true">
-        <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 24 24" className="dashboard-action-icon" aria-hidden="true">
-      <path d="M12 19V5m0 14 5-5m-5 5-5-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function InsightIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="dashboard-insight-icon" aria-hidden="true">
-      <path d="M12 3 13.9 8.1 19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
+import { getSavingsSummary, sortActivityByNewest } from "../utils/savings";
 
 function EyeIcon({ open = false }) {
   return (
@@ -147,8 +123,12 @@ export default function Dashboard() {
     loadDashboard();
   }, [loadDashboard]);
 
-  const weeklySavings = useMemo(() => getSavingsSummary(activity.filter((item) => isWithinActivityFilter(item, "week"))), [activity]);
+  const totalSaved = useMemo(() => getSavingsSummary(activity), [activity]);
   const weeklyTrend = useMemo(() => buildWeeklyTrend(activity), [activity]);
+  const weeklySavings = useMemo(
+    () => weeklyTrend.reduce((sum, item) => sum + Number(item.total || 0), 0),
+    [weeklyTrend]
+  );
   const trendPoints = useMemo(() => buildSparklinePoints(weeklyTrend.map((item) => item.total)), [weeklyTrend]);
   const trendPath = useMemo(() => buildSmoothSparklinePath(trendPoints), [trendPoints]);
   const primaryGoal = goals[0] || null;
@@ -156,12 +136,10 @@ export default function Dashboard() {
   const recentTransactions = activity.slice(0, 5);
   const balanceDisplay = balanceVisible ? formatCurrency(wallet?.balance) : "Ksh ******";
   const insightGoalProgress = primaryGoal ? getGoalProgress(primaryGoal) : 0;
-  const topGoalName = primaryGoal ? primaryGoal.name : "No top goal yet";
+  const topGoalName = primaryGoal ? primaryGoal.name : "No active goals yet";
   const topGoalInsight = primaryGoal
-    ? `${primaryGoal.name} is your leading goal this week.`
-    : "Create a savings goal to start tracking progress this week.";
-  const insightPrimaryAction = primaryGoal ? `Save toward ${primaryGoal.name}` : "Create a goal";
-  const insightSecondaryAction = primaryGoal ? "View goal" : "View goals";
+    ? `${insightGoalProgress}% of ${primaryGoal.name} is funded.`
+    : "Create a goal to start tracking progress.";
 
   return (
     <Layout
@@ -196,28 +174,21 @@ export default function Dashboard() {
 
               <div className="dashboard-balance-inline-stats" aria-label="Savings summary">
                 <p>
-                  <span>This week:</span>
+                  <span>Saved total</span>
+                  {formatCurrency(totalSaved)}
+                </p>
+                <p>
+                  <span>This week</span>
                   {formatCurrency(weeklySavings)}
                 </p>
                 <p>
-                  <span>Goal(s):</span>
-                  {activeGoalsCount}
+                  <span>Active goals</span>
+                  {activeGoalsCount}/5
                 </p>
               </div>
             </div>
 
             <div className="dashboard-hero-right">
-              <div className="dashboard-balance-actions">
-                <Button onClick={() => navigate("/save")} className="dashboard-save-button">
-                  <ActionIcon type="save" />
-                  <span>Save</span>
-                </Button>
-                <Button variant="secondary" onClick={() => navigate("/withdraw")} className="dashboard-withdraw-button">
-                  <ActionIcon type="withdraw" />
-                  <span>Withdraw</span>
-                </Button>
-              </div>
-
               <div className="dashboard-hero-trend" aria-hidden="true">
                 <svg viewBox={`0 0 ${TRENDLINE_WIDTH} ${TRENDLINE_HEIGHT}`} className="dashboard-hero-trendline">
                   <path d={trendPath} className="dashboard-chart-line-minimal" />
@@ -228,13 +199,22 @@ export default function Dashboard() {
         </Card>
       </section>
 
+      <section className="dashboard-quick-actions" aria-label="Quick actions">
+        <button type="button" onClick={() => navigate("/send")}>
+          <span>Send</span>
+        </button>
+        <button type="button" onClick={() => navigate("/lipa-na-airsave")}>
+          <span>Buy Goods</span>
+        </button>
+        <button type="button" onClick={() => navigate("/withdraw")}>
+          <span>Withdraw</span>
+        </button>
+      </section>
+
       <section className="dashboard-secondary-grid">
         <Card className="dashboard-smart-insight-card" hover>
           <div className="dashboard-smart-insight-header">
-            <div className="dashboard-insight-avatar">
-              <InsightIcon />
-            </div>
-            <span className="dashboard-insight-badge">AI INSIGHT</span>
+            <span className="dashboard-insight-badge">Goals progress</span>
           </div>
           <div className="dashboard-smart-insight-body">
             <span className="dashboard-smart-insight-label">Top goal</span>
@@ -250,10 +230,10 @@ export default function Dashboard() {
                 variant="secondary"
                 onClick={() => navigate(primaryGoal ? `/save?goal=${primaryGoal._id}` : "/goals/new")}
               >
-                {insightPrimaryAction}
+                {primaryGoal ? "Save to goal" : "Create goal"}
               </Button>
               <button type="button" className="dashboard-insight-link" onClick={() => navigate("/goals")}>
-                {insightSecondaryAction}
+                View goals
               </button>
             </div>
           </div>

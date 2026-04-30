@@ -1,50 +1,88 @@
 import Goal from "../models/Goal.js";
+import User from "../models/User.js";
 
-// Create Goal
+const MAX_ACTIVE_GOALS = 5;
+
+function parseOptionalDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export const createGoal = async (req, res) => {
   try {
-    const { name, targetAmount, duration } = req.body;
-
-    if (!name || !targetAmount || !duration) {
-      return res.status(400).json({ message: "All fields required" });
-    }
-
-    // ❌ Prevent multiple active goals
-    /*const existingGoal = await Goal.findOne({
-      user: req.user._id,
-      status: "active"
-    });
-
-    if (existingGoal) {
-      return res.status(400).json({
-        message: "You already have an active goal. Complete it first."
-      });
-    } */
-
-    const goal = await Goal.create({
-      user: req.user._id,
+    const {
       name,
       targetAmount,
       duration,
-      savedAmount: 0,
-      status: "active"
+      durationUnit = "",
+      template = "",
+      savedAmount = 0,
+      status = "active",
+      startDate,
+      expectedCompletionDate,
+      roundUpRule,
+    } = req.body;
+    const cleanName = String(name || "").trim();
+    const numericTarget = Number(targetAmount);
+
+    if (!cleanName || !numericTarget || numericTarget <= 0 || !duration) {
+      return res.status(400).json({ message: "All fields required" });
+    }
+
+    if (durationUnit && !["days", "weeks", "months"].includes(durationUnit)) {
+      return res.status(400).json({ message: "Invalid duration unit" });
+    }
+
+    if (status && !["active", "completed"].includes(status)) {
+      return res.status(400).json({ message: "Invalid goal status" });
+    }
+
+    const activeGoalsCount = await Goal.countDocuments({
+      user: req.user._id,
+      status: "active",
     });
 
-    res.status(201).json(goal);
+    if (status === "active" && activeGoalsCount >= MAX_ACTIVE_GOALS) {
+      return res.status(400).json({
+        message: "You can only have 5 active goals. Complete or delete one first.",
+      });
+    }
 
+    if (typeof roundUpRule !== "undefined") {
+      const numericRoundUpRule = Number(roundUpRule);
+      if (![10, 50, 100].includes(numericRoundUpRule)) {
+        return res.status(400).json({ message: "Invalid round-up rule" });
+      }
+
+      await User.findByIdAndUpdate(req.user._id, { roundUpRule: numericRoundUpRule });
+    }
+
+    const goal = await Goal.create({
+      user: req.user._id,
+      name: cleanName,
+      targetAmount: numericTarget,
+      duration,
+      durationUnit,
+      template,
+      savedAmount: Math.max(0, Number(savedAmount || 0)),
+      status,
+      startDate: parseOptionalDate(startDate),
+      expectedCompletionDate: parseOptionalDate(expectedCompletionDate),
+    });
+
+    return res.status(201).json(goal);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
-// Get User Goals
 export const getGoals = async (req, res) => {
   try {
     const goals = await Goal.find({ user: req.user._id });
 
-    res.status(200).json(goals);
-
+    return res.status(200).json(goals);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };

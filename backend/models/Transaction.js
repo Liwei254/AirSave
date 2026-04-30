@@ -34,6 +34,24 @@ const transactionSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    merchant: {
+      type: String,
+      trim: true,
+      maxlength: 140,
+      default: "",
+    },
+    description: {
+      type: String,
+      trim: true,
+      maxlength: 240,
+      default: "",
+    },
+    transactionType: {
+      type: String,
+      enum: ["purchase", "bill", "send", "withdraw", "save"],
+      default: "purchase",
+      index: true,
+    },
     roundingType: {
       type: String,
       enum: ["10", "50", "100"],

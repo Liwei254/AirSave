@@ -35,15 +35,28 @@ export default function Goals() {
   }, [loadGoalsPage]);
 
   const weeklySavingsRate = getWeeklySavingsRate(activity);
+  const activeGoalsCount = goals.filter((goal) => goal.status !== "completed").length;
+  const goalLimitReached = activeGoalsCount >= 5;
 
   return (
     <Layout
-      actions={<Button onClick={() => navigate("/goals/new")}>New goal</Button>}
+      actions={
+        <Button onClick={() => navigate("/goals/new")} disabled={goalLimitReached}>
+          New goal
+        </Button>
+      }
     >
       {error ? (
         <div className="feedback feedback-error">
           <strong>Error:</strong>
           <span>{error}</span>
+        </div>
+      ) : null}
+
+      {goalLimitReached ? (
+        <div className="goal-limit-banner">
+          <strong>You can only have 5 active goals.</strong>
+          <span>Complete or delete one first.</span>
         </div>
       ) : null}
 

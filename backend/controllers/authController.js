@@ -21,12 +21,25 @@ import { signAccessToken, signRefreshToken, verifyToken } from "../utils/jwt.js"
 function sanitizeUser(user) {
   return {
     id: user._id,
+    _id: user._id,
     fullName: user.fullName || "",
     email: user.email || "",
     phone: user.phone,
     role: user.role,
     wallet: user.wallet,
     status: user.status,
+    createdAt: user.createdAt,
+    roundUpRule: user.roundUpRule || 50,
+    avatar: user.avatar || "",
+    walletBalance: Number(user.walletBalance || 0),
+    preferences: {
+      notifications: user.preferences?.notifications ?? true,
+      theme: user.preferences?.theme || "light",
+      privacyMode: user.preferences?.privacyMode ?? false,
+      securityAlerts: user.preferences?.securityAlerts ?? true,
+      linkedPaymentMethods: user.preferences?.linkedPaymentMethods ?? true,
+      autoSaveEnabled: user.preferences?.autoSaveEnabled ?? true,
+    },
   };
 }
 
@@ -291,6 +304,117 @@ export async function logoutUser(req, res) {
 
 export async function getCurrentSession(req, res) {
   return res.status(200).json({ user: sanitizeUser(req.user) });
+}
+
+export async function updateCurrentUser(req, res) {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const fullName = sanitizeFullName(req.body.fullName);
+    if (fullName) {
+      user.fullName = fullName;
+    }
+
+    const email = normalizeEmail(req.body.email);
+    if (email && email !== user.email) {
+      const existingEmailUser = await User.findOne({ email, _id: { $ne: user._id } }).select("_id");
+      if (existingEmailUser) {
+        return res.status(409).json({ message: "Email is already in use" });
+      }
+      user.email = email;
+    }
+
+    if (typeof req.body.avatar === "string") {
+      user.avatar = req.body.avatar.trim().slice(0, 500);
+    }
+
+    if (typeof req.body.roundUpRule !== "undefined") {
+      const roundUpRule = Number(req.body.roundUpRule);
+      if (![10, 50, 100].includes(roundUpRule)) {
+        return res.status(400).json({ message: "Invalid round-up rule" });
+      }
+      user.roundUpRule = roundUpRule;
+    }
+
+    if (req.body.preferences && typeof req.body.preferences === "object") {
+      const currentPreferences = user.preferences || {};
+      const currentPreferencesObject =
+        typeof currentPreferences.toObject === "function"
+          ? currentPreferences.toObject()
+          : currentPreferences;
+      const nextPreferences = { ...currentPreferencesObject };
+      const booleanFields = [
+        "notifications",
+        "privacyMode",
+        "securityAlerts",
+        "linkedPaymentMethods",
+        "autoSaveEnabled",
+      ];
+
+      booleanFields.forEach((field) => {
+        if (typeof req.body.preferences[field] === "boolean") {
+          nextPreferences[field] = req.body.preferences[field];
+        }
+      });
+
+      if (["light", "dark", "system"].includes(req.body.preferences.theme)) {
+        nextPreferences.theme = req.body.preferences.theme;
+      }
+
+      user.preferences = nextPreferences;
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      message: "Profile updated successfully",
+      user: sanitizeUser(user),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to update profile" });
+  }
+}
+
+export async function changePassword(req, res) {
+  try {
+    const currentPassword = String(req.body.currentPassword || "");
+    const newPassword = String(req.body.newPassword || "");
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current password and new password are required" });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: "New password must be at least 8 characters" });
+    }
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const isMatch = await user.matchPassword(currentPassword);
+
+    if (!isMatch) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    user.password = newPassword;
+    user.refreshTokenHash = null;
+    user.refreshTokenExpiresAt = null;
+    await user.save();
+
+    clearAuthCookies(res);
+
+    return res.status(200).json({ message: "Password changed successfully. Please log in again." });
+  } catch {
+    return res.status(500).json({ message: "Unable to change password" });
+  }
 }
 
 export async function requestPasswordReset(req, res) {

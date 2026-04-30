@@ -1,5 +1,6 @@
 import Wallet from "../models/Wallet.js";
 import Ledger from "../models/Ledger.js";
+import User from "../models/User.js";
 import { calculateWalletBalance } from "../services/ledgerService.js";
 
 /**
@@ -19,6 +20,7 @@ export const getWallet = async (req, res) => {
     // Get all transactions for this wallet
     const transactions = await Ledger.find({ wallet: wallet._id, status: "completed" });
     const balance = await calculateWalletBalance(wallet._id);
+    await User.findByIdAndUpdate(req.user._id, { walletBalance: Math.max(0, balance) });
 
     res.status(200).json({
       walletId: wallet._id,

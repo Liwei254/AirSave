@@ -18,6 +18,23 @@ const goalSchema = new mongoose.Schema({
     type: String,
     default: ""
   },
+  durationUnit: {
+    type: String,
+    enum: ["days", "weeks", "months", ""],
+    default: ""
+  },
+  template: {
+    type: String,
+    default: ""
+  },
+  startDate: {
+    type: Date,
+    default: null
+  },
+  expectedCompletionDate: {
+    type: Date,
+    default: null
+  },
   savedAmount: {
     type: Number,
     default: 0
