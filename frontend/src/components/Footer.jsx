@@ -14,7 +14,11 @@ const footerLinks = [
 
 export default function Footer() {
   const location = useLocation();
-  const hidden = location.pathname === "/" || location.pathname === "/register" || location.pathname === "/dashboard";
+  const hidden =
+    location.pathname === "/" ||
+    location.pathname === "/login" ||
+    location.pathname === "/register" ||
+    location.pathname === "/dashboard";
 
   if (hidden) {
     return null;
