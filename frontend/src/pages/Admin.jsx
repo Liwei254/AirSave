@@ -80,9 +80,9 @@ export default function Admin() {
               <div className="metric-meta">Current available savings balance.</div>
             </article>
             <article className="app-card metric-card">
-              <span className="metric-label">Goals</span>
+              <span className="metric-label">Goal records</span>
               <p className="metric-value metric-value-sm">{goals.length}</p>
-              <div className="metric-meta">Total goals in the account.</div>
+              <div className="metric-meta">Historical goal records in the account.</div>
             </article>
             <article className="app-card metric-card">
               <span className="metric-label">Notifications</span>
@@ -124,12 +124,12 @@ export default function Admin() {
 
               <div className="support-stack">
                 <div className="support-item">
-                  <strong>Goals and transactions are page-specific</strong>
+                  <strong>Goal and transactions are page-specific</strong>
                   <span className="muted">Each primary workflow now has its own page and data composition boundary.</span>
                 </div>
                 <div className="support-item">
                   <strong>Reusable UI components are shared</strong>
-                  <span className="muted">Wallet, goals, transactions, notifications, and page layout are componentized.</span>
+                  <span className="muted">Wallet, goal, transactions, notifications, and page layout are componentized.</span>
                 </div>
               </div>
             </article>

@@ -21,5 +21,6 @@ export function formatDate(value) {
 
 export function getGoalProgress(goal) {
   if (!goal?.targetAmount) return 0;
-  return Math.min(100, Math.round((Number(goal.savedAmount || 0) / Number(goal.targetAmount)) * 100));
+  const currentAmount = Number(goal.currentAmount ?? goal.savedAmount ?? 0);
+  return Math.min(100, Math.round((currentAmount / Number(goal.targetAmount)) * 100));
 }

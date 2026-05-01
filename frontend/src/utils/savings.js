@@ -76,11 +76,11 @@ export function getSavingsSummary(items) {
 export function getGoalProgress(goal) {
   const targetAmount = toAmount(goal?.targetAmount);
   if (!targetAmount) return 0;
-  return Math.min(100, Math.round((toAmount(goal?.savedAmount) / targetAmount) * 100));
+  return Math.min(100, Math.round((toAmount(goal?.currentAmount ?? goal?.savedAmount) / targetAmount) * 100));
 }
 
 export function getGoalRemaining(goal) {
-  return Math.max(0, toAmount(goal?.targetAmount) - toAmount(goal?.savedAmount));
+  return Math.max(0, toAmount(goal?.targetAmount) - toAmount(goal?.currentAmount ?? goal?.savedAmount));
 }
 
 export function getGoalMotivation(goal, formatCurrency) {
@@ -133,7 +133,7 @@ export function getSuggestedPlan(targetAmount, durationValue, durationUnit) {
 }
 
 export function getMostRecentGoalId(goals, activityItems) {
-  const activeGoals = (goals || []).filter((goal) => goal.status !== "completed");
+  const activeGoals = (goals || []).filter((goal) => goal.status === "active");
   const storedGoalId = localStorage.getItem(recentGoalStorageKey);
 
   if (storedGoalId && activeGoals.some((goal) => goal._id === storedGoalId)) {

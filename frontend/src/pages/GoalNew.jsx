@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
-import { createGoal, getCurrentUser, getGoals } from "../services/api";
+import { createGoal, getActiveGoal, getCurrentUser } from "../services/api";
 import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
 import { toAmount } from "../utils/savings";
 
@@ -175,7 +175,7 @@ function BenefitsBar() {
   const items = [
     {
       title: "Secure & private",
-      copy: "Your goals are safe with bank-level security.",
+      copy: "Your goal is safe with bank-level security.",
       tone: "secure",
       icon: <ShieldIcon />,
     },
@@ -221,7 +221,7 @@ function BenefitsBar() {
 
 export default function GoalNew() {
   const navigate = useNavigate();
-  const [existingGoals, setExistingGoals] = useState([]);
+  const [activeGoal, setActiveGoal] = useState(null);
   const [isLoadingSetup, setIsLoadingSetup] = useState(true);
   const [roundUpSetupComplete, setRoundUpSetupComplete] = useState(true);
   const [selectedRoundUpRule, setSelectedRoundUpRule] = useState(50);
@@ -242,12 +242,12 @@ export default function GoalNew() {
 
     async function loadSetupState() {
       try {
-        const [goalsData, userData] = await Promise.all([getGoals(), getCurrentUser()]);
+        const [goalData, userData] = await Promise.all([getActiveGoal(), getCurrentUser()]);
         if (!isMounted) return;
 
-        setExistingGoals(goalsData || []);
+        setActiveGoal(goalData);
         setSelectedRoundUpRule(userData?.roundUpRule || 50);
-        setRoundUpSetupComplete((goalsData || []).length > 0);
+        setRoundUpSetupComplete(Boolean(userData?.roundUpRule));
       } catch {
         if (isMounted) {
           setRoundUpSetupComplete(true);
@@ -280,15 +280,14 @@ export default function GoalNew() {
   const goalNameError = submitted && !form.name.trim() ? "Goal name is required." : "";
   const targetError = submitted && targetAmount <= 0 ? "Enter a target amount greater than zero." : "";
   const durationError = submitted && durationValue <= 0 ? "Enter a duration greater than zero." : "";
-  const activeGoalsCount = existingGoals.filter((goal) => goal.status !== "completed").length;
-  const goalLimitReached = activeGoalsCount >= 5;
+  const hasActiveGoal = Boolean(activeGoal);
   const canCreate =
     form.name.trim() &&
     targetAmount > 0 &&
     durationValue > 0 &&
     form.durationUnit &&
     roundUpSetupComplete &&
-    !goalLimitReached &&
+    !hasActiveGoal &&
     !isLoadingSetup &&
     !isSubmitting;
 
@@ -320,8 +319,8 @@ export default function GoalNew() {
     if (!canCreate) {
       setToast({
         type: "error",
-        message: goalLimitReached
-          ? "You can only have 5 active goals. Complete or delete one first."
+        message: hasActiveGoal
+          ? "You already have an active goal. Complete or close it before creating another."
           : "Complete all goal details to continue.",
       });
       return;
@@ -343,7 +342,6 @@ export default function GoalNew() {
         expectedCompletionDate: expectedCompletionDate.toISOString(),
         roundUpRule: selectedRoundUpRule,
       });
-      await getGoals().catch(() => []);
       triggerDashboardRefresh();
       setToast({ type: "success", message: "Goal created successfully." });
       navigate("/goals");
@@ -392,13 +390,16 @@ export default function GoalNew() {
         </div>
       ) : null}
 
-      {goalLimitReached ? (
-        <div className="goal-limit-banner">
-          <strong>You can only have 5 active goals.</strong>
-          <span>Complete or delete one first.</span>
-        </div>
-      ) : null}
-
+      {hasActiveGoal ? (
+        <section className="my-goal-empty">
+          <span className="premium-kicker">My Goal</span>
+          <h1>You already have an active goal.</h1>
+          <p>Complete or close your current goal before creating another one.</p>
+          <button type="button" onClick={() => navigate("/goals")}>
+            View current goal
+          </button>
+        </section>
+      ) : (
       <div className="goal-new-page">
         <form className="goal-new-grid" onSubmit={handleSubmit}>
           <section className="goal-form-card" aria-labelledby="goalNewTitle">
@@ -407,8 +408,8 @@ export default function GoalNew() {
                 <TargetIcon />
               </span>
               <div>
-                <h1 id="goalNewTitle">Create a new goal</h1>
-                <p>Set a goal and let's help you reach it.</p>
+                <h1 id="goalNewTitle">Create your savings goal</h1>
+                <p>Set one clear target and AirSave will help you reach it.</p>
               </div>
             </div>
 
@@ -586,6 +587,7 @@ export default function GoalNew() {
 
         <BenefitsBar />
       </div>
+      )}
     </Layout>
   );
 }

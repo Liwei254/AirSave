@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  getGoals,
+  getActiveGoal,
   getSavingsActivity,
   getWallet,
 } from "../services/api";
@@ -21,7 +21,6 @@ const QUICK_ACTIONS = [
 
 const TRENDLINE_WIDTH = 430;
 const TRENDLINE_HEIGHT = 130;
-const GOAL_CAPACITY = 5;
 
 function Icon({ name, className = "" }) {
   const paths = {
@@ -163,8 +162,8 @@ function BalanceHero({
   onToggleBalance,
   totalSaved,
   weeklySavings,
-  activeGoalsCount,
-  goalCapacity,
+  currentGoal,
+  goalProgress,
   trendPath,
 }) {
   return (
@@ -196,10 +195,8 @@ function BalanceHero({
             <strong>{formatKsh(weeklySavings)}</strong>
           </article>
           <article>
-            <span>Active goals</span>
-            <strong>
-              {activeGoalsCount} <small>/ {goalCapacity}</small>
-            </strong>
+            <span>{currentGoal ? "Goal progress" : "Goal status"}</span>
+            <strong>{currentGoal ? `${goalProgress}%` : "None"}</strong>
           </article>
         </div>
       </div>
@@ -231,18 +228,18 @@ function QuickActionCard({ action }) {
   );
 }
 
-function GoalCard({ goal, activeGoalsCount, progress }) {
+function GoalCard({ goal, progress }) {
   const navigate = useNavigate();
   const goalName = goal?.name || "No active goal";
   const safeProgress = Math.min(100, Math.max(0, progress || 0));
-  const activeCopy = goal ? "Active" : "Ready";
+  const activeCopy = goal ? "Active" : "Ready to start";
 
   return (
     <section className="premium-dashboard-card premium-goal-card" aria-labelledby="top-goal-title">
-      <p className="premium-dashboard-kicker">Top goal</p>
+      <p className="premium-dashboard-kicker">Current goal</p>
       <h2 id="top-goal-title">{goalName}</h2>
       <p className="premium-goal-meta">
-        {activeCopy} <span aria-hidden="true">&middot;</span> {activeGoalsCount} of {GOAL_CAPACITY} goals running
+        {activeCopy} {goal ? <><span aria-hidden="true">&middot;</span> Savings goal</> : null}
       </p>
 
       <div className="premium-goal-progress-header">
@@ -265,12 +262,12 @@ function GoalCard({ goal, activeGoalsCount, progress }) {
       <div className="premium-goal-actions">
         <button
           type="button"
-          onClick={() => navigate(goal?._id ? `/save?goal=${goal._id}` : "/goals/new")}
+          onClick={() => navigate(goal ? "/lipa-na-airsave" : "/goals/new")}
         >
-          Save to goal
+          {goal ? "Add savings" : "Create goal"}
         </button>
         <button type="button" onClick={() => navigate("/goals")}>
-          View goals
+          View goal
         </button>
       </div>
     </section>
@@ -344,7 +341,7 @@ function ActivityList({ items, isLoading }) {
 export default function Dashboard() {
   const navigate = useNavigate();
   const [wallet, setWallet] = useState(null);
-  const [goals, setGoals] = useState([]);
+  const [activeGoal, setActiveGoal] = useState(null);
   const [activity, setActivity] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -354,14 +351,14 @@ export default function Dashboard() {
     setIsLoading(true);
 
     try {
-      const [walletData, goalsData, activityData] = await Promise.all([
+      const [walletData, goalData, activityData] = await Promise.all([
         getWallet(),
-        getGoals(),
+        getActiveGoal(),
         getSavingsActivity(),
       ]);
 
       setWallet(walletData);
-      setGoals(normalizeArray(goalsData));
+      setActiveGoal(goalData);
       setActivity(sortActivityByNewest(normalizeArray(activityData)));
       setError("");
     } catch (err) {
@@ -392,12 +389,7 @@ export default function Dashboard() {
       : [12, 28, 22, 44, 38, 64, 52];
     return buildSmoothSparklinePath(buildSparklinePoints(chartValues));
   }, [weeklyTrend]);
-  const activeGoals = useMemo(
-    () => goals.filter((goal) => goal.status !== "completed"),
-    [goals]
-  );
-  const primaryGoal = activeGoals[0] || goals[0] || null;
-  const activeGoalsCount = activeGoals.length;
+  const primaryGoal = activeGoal?.status === "active" ? activeGoal : null;
   const goalProgress = primaryGoal ? getGoalProgress(primaryGoal) : 0;
   const balance = getWalletBalance(wallet);
 
@@ -417,8 +409,8 @@ export default function Dashboard() {
           onToggleBalance={() => setBalanceVisible((current) => !current)}
           totalSaved={totalSaved}
           weeklySavings={weeklySavings}
-          activeGoalsCount={activeGoalsCount}
-          goalCapacity={GOAL_CAPACITY}
+          currentGoal={primaryGoal}
+          goalProgress={goalProgress}
           trendPath={trendPath}
         />
 
@@ -431,7 +423,6 @@ export default function Dashboard() {
         <section className="premium-dashboard-lower-grid">
           <GoalCard
             goal={primaryGoal}
-            activeGoalsCount={activeGoalsCount}
             progress={goalProgress}
           />
           <ActivityList items={activity.slice(0, 5)} isLoading={isLoading} />

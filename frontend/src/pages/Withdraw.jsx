@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
-import { getCurrentUser, getGoals, getSavingsActivity, getWallet, submitWithdrawal } from "../services/api";
+import { getActiveGoal, getCurrentUser, getSavingsActivity, getWallet, submitWithdrawal } from "../services/api";
 import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
 import { phonePattern, toAmount } from "../utils/savings";
 
@@ -77,23 +77,6 @@ function ShieldIcon({ className = "" }) {
   );
 }
 
-function PhoneIcon({ className = "" }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <path d="M8 4.5 10.2 3l3 5-2 1.3a10.5 10.5 0 0 0 4.5 4.5l1.3-2 5 3-1.5 2.2c-.7 1.1-2 1.6-3.2 1.2A19.6 19.6 0 0 1 5.8 6.7C5.4 5.5 5.9 4.2 7 3.5Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function UserIcon({ className = "" }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <path d="M20 21a8 8 0 0 0-16 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
 function SourceIcon({ tone }) {
   if (tone === "wallet") return <WalletIcon className="withdraw-source-icon" />;
   if (tone === "shopping") {
@@ -129,25 +112,7 @@ function SourceIcon({ tone }) {
   );
 }
 
-function SummaryIllustration() {
-  return (
-    <div className="withdraw-summary-illustration" aria-hidden="true">
-      <div className="withdraw-money-stack withdraw-money-stack-one" />
-      <div className="withdraw-money-stack withdraw-money-stack-two" />
-      <div className="withdraw-summary-wallet">
-        <div className="withdraw-wallet-slot" />
-        <div className="withdraw-wallet-button" />
-      </div>
-      <div className="withdraw-summary-shield">
-        <ShieldIcon />
-      </div>
-      <span className="withdraw-star withdraw-star-one">+</span>
-      <span className="withdraw-star withdraw-star-two">+</span>
-    </div>
-  );
-}
-
-function StepProgress({ currentStep }) {
+function WithdrawStepper({ currentStep }) {
   const steps = [
     { number: 1, label: "Amount" },
     { number: 2, label: "Review" },
@@ -157,7 +122,7 @@ function StepProgress({ currentStep }) {
   return (
     <div className="withdraw-stepper" aria-label="Withdraw progress">
       {steps.map((step, index) => {
-        const active = currentStep >= step.number;
+        const active = currentStep === step.number;
         return (
           <div className={["withdraw-step", active ? "withdraw-step-active" : ""].filter(Boolean).join(" ")} key={step.number}>
             <span className="withdraw-step-node">{step.number}</span>
@@ -170,57 +135,116 @@ function StepProgress({ currentStep }) {
   );
 }
 
-function TrustBar() {
-  const items = [
-    {
-      title: "Bank-level security",
-      copy: "Your data and money are protected",
-      tone: "security",
-      icon: <ShieldIcon />,
-    },
-    {
-      title: "Fast & reliable",
-      copy: "Withdrawals are processed quickly",
-      tone: "speed",
-      icon: (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="m13 2-8 12h6l-1 8 9-13h-6l0-7Z" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      ),
-    },
-    {
-      title: "Need help?",
-      copy: "We're here for you 24/7",
-      tone: "help",
-      icon: (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M5 15v-3a7 7 0 0 1 14 0v3" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
-          <path d="M5 15h3v5H6a1 1 0 0 1-1-1v-4Zm11 0h3v4a1 1 0 0 1-1 1h-2v-5Z" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
-        </svg>
-      ),
-    },
-  ];
+function BalanceCard({ balance }) {
+  return (
+    <div className="withdraw-balance-row">
+      <span className="withdraw-balance-icon">
+        <LockIcon />
+      </span>
+      <div className="withdraw-balance-copy">
+        <span>Available balance</span>
+        <strong>{formatKsh(balance)}</strong>
+      </div>
+      <span className="withdraw-secure-label">
+        <ShieldIcon />
+        Secure & protected
+      </span>
+    </div>
+  );
+}
+
+function AmountInput({ value, numericAmount, error, onChange }) {
+  return (
+    <div className={["withdraw-input-shell", error ? "withdraw-input-shell-error" : ""].filter(Boolean).join(" ")}>
+      <span>Ksh</span>
+      <input
+        id="withdrawAmount"
+        name="amount"
+        type="text"
+        inputMode="numeric"
+        placeholder="Enter amount"
+        value={value ? amountFormatter.format(numericAmount) : ""}
+        onChange={(event) => onChange(parseAmountInput(event.target.value))}
+      />
+    </div>
+  );
+}
+
+function SourceCard({ source, selected, onSelect }) {
+  const tone = getSourceTone(source.name, source.type);
 
   return (
-    <section className="withdraw-trust-bar" aria-label="Withdrawal trust and support">
-      {items.map((item, index) => (
-        <div className="withdraw-trust-item" key={item.title}>
-          <span className={["withdraw-trust-icon", `withdraw-trust-icon-${item.tone}`].join(" ")}>{item.icon}</span>
-          <span>
-            <strong>{item.title}</strong>
-            <small>{item.copy}</small>
-          </span>
-          {index < items.length - 1 ? <span className="withdraw-trust-divider" aria-hidden="true" /> : null}
+    <button
+      type="button"
+      className={["withdraw-source-card", selected ? "withdraw-source-card-selected" : "", `withdraw-source-${tone}`].filter(Boolean).join(" ")}
+      onClick={onSelect}
+      aria-pressed={selected}
+    >
+      <span className="withdraw-source-icon-wrap">
+        <SourceIcon tone={tone} />
+      </span>
+      <strong>{source.name}</strong>
+      <small>{formatKsh(source.balance)}</small>
+      {selected ? (
+        <span className="withdraw-source-check">
+          <CheckIcon />
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+function WithdrawSummary({
+  amount,
+  fee,
+  totalDeducted,
+  sourceName,
+  receiveAmount,
+  canSubmit,
+  isSubmitting,
+}) {
+  return (
+    <aside className="withdraw-summary-card" aria-label="Withdrawal summary">
+      <div className="withdraw-summary-kicker">Summary</div>
+      <div className="withdraw-summary-total-card">
+        <span>Review withdrawal</span>
+        <strong>{formatKsh(amount)}</strong>
+      </div>
+
+      <div className="withdraw-summary-panel">
+        <div className="withdraw-summary-row">
+          <span>Fee</span>
+          <strong>{formatKsh(fee)}</strong>
         </div>
-      ))}
-    </section>
+        <div className="withdraw-summary-row">
+          <span>Total deducted</span>
+          <strong>{formatKsh(totalDeducted)}</strong>
+        </div>
+        <div className="withdraw-summary-row">
+          <span>Source</span>
+          <strong>{sourceName || "Savings wallet"}</strong>
+        </div>
+        <div className="withdraw-receive-row">
+          <span>You will receive</span>
+          <strong>{formatKsh(receiveAmount)}</strong>
+        </div>
+        <div className="withdraw-summary-note">
+          <span>i</span>
+          Withdrawals are reviewed before processing to keep your account safe.
+        </div>
+        <button type="submit" className="withdraw-confirm-button" disabled={!canSubmit || isSubmitting}>
+          {isSubmitting ? <span className="spinner withdraw-confirm-spinner" aria-hidden="true" /> : null}
+          {isSubmitting ? "Submitting..." : "Confirm Withdrawal"}
+        </button>
+      </div>
+    </aside>
   );
 }
 
 export default function Withdraw() {
   const navigate = useNavigate();
   const [wallet, setWallet] = useState(null);
-  const [goals, setGoals] = useState([]);
+  const [activeGoal, setActiveGoal] = useState(null);
   const [user, setUser] = useState(null);
   const [amount, setAmount] = useState("");
   const [sourceValue, setSourceValue] = useState("wallet");
@@ -234,10 +258,10 @@ export default function Withdraw() {
 
   const loadWithdrawPage = useCallback(async (isMounted = true) => {
     try {
-      const [walletData, goalsData, userData] = await Promise.all([getWallet(), getGoals(), getCurrentUser()]);
+      const [walletData, goalData, userData] = await Promise.all([getWallet(), getActiveGoal(), getCurrentUser()]);
       if (!isMounted) return;
       setWallet(walletData);
-      setGoals(goalsData);
+      setActiveGoal(goalData);
       setUser(userData);
       setError("");
     } catch (err) {
@@ -269,18 +293,22 @@ export default function Withdraw() {
       id: null,
     };
 
+    if (!activeGoal?._id || activeGoal.status !== "active") {
+      return [walletSource];
+    }
+
     return [
       walletSource,
-      ...goals.map((goal) => ({
-        value: `goal:${goal._id}`,
+      {
+        value: `goal:${activeGoal._id}`,
         type: "goal",
-        name: goal.name,
-        balance: toAmount(goal.savedAmount),
-        id: goal._id,
-        goal,
-      })),
+        name: activeGoal.name || "Current goal",
+        balance: toAmount(activeGoal.currentAmount ?? activeGoal.savedAmount),
+        id: activeGoal._id,
+        goal: activeGoal,
+      },
     ];
-  }, [goals, wallet?.balance]);
+  }, [activeGoal, wallet?.balance]);
 
   const selectedSource = sources.find((source) => source.value === sourceValue) || sources[0] || null;
   const userDisplayPhone = formatDisplayPhone(user?.phone);
@@ -308,6 +336,7 @@ export default function Withdraw() {
   const sourceError = submitted && !selectedSource ? "Select a withdrawal source." : "";
   const canSubmit = Boolean(selectedSource) && numericAmount > 0 && totalDeducted <= sourceBalance && Boolean(normalizedPhone) && !phoneError;
   const currentStep = numericAmount <= 0 ? 1 : !canSubmit ? 2 : 3;
+  const quickAmountsDisabled = !sourceBalance || isSubmitting;
 
   function handleQuickAmount(percent) {
     if (!sourceBalance) {
@@ -392,77 +421,40 @@ export default function Withdraw() {
       ) : (
         <div className="withdraw-reference-page">
           <form className="withdraw-reference-grid" onSubmit={handleSubmit}>
-            <section className="withdraw-form-card" aria-labelledby="withdrawPageTitle">
-              <StepProgress currentStep={currentStep} />
-
-              <div className="withdraw-balance-row">
-                <span className="withdraw-balance-icon">
-                  <WalletIcon />
-                </span>
-                <div className="withdraw-balance-copy">
-                  <span>Available balance</span>
-                  <strong>{formatKsh(wallet?.balance)}</strong>
-                </div>
-                <span className="withdraw-secure-label">
-                  <ShieldIcon />
-                  Secure & protected
-                </span>
-              </div>
+            <section className="withdraw-form-card" aria-label="Withdrawal form">
+              <WithdrawStepper currentStep={currentStep} />
+              <BalanceCard balance={wallet?.balance} />
 
               <div className="withdraw-field-stack">
                 <section className="withdraw-field-section">
                   <label className="withdraw-field-label" htmlFor="withdrawAmount">Enter amount</label>
-                  <div className={["withdraw-input-shell", amountError ? "withdraw-input-shell-error" : ""].filter(Boolean).join(" ")}>
-                    <span>Ksh</span>
-                    <input
-                      id="withdrawAmount"
-                      name="amount"
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="Enter amount"
-                      value={amount ? amountFormatter.format(numericAmount) : ""}
-                      onChange={(event) => setAmount(parseAmountInput(event.target.value))}
-                    />
-                  </div>
+                  <AmountInput value={amount} numericAmount={numericAmount} error={amountError} onChange={setAmount} />
                   {amountError ? <p className="withdraw-helper withdraw-helper-error">{amountError}</p> : null}
                   <div className="withdraw-quick-row" aria-label="Quick withdrawal amounts">
-                    <button type="button" onClick={() => handleQuickAmount(0.25)}>25%</button>
-                    <button type="button" onClick={() => handleQuickAmount(0.5)}>50%</button>
-                    <button type="button" onClick={() => handleQuickAmount(1)}>MAX</button>
+                    <button type="button" disabled={quickAmountsDisabled} onClick={() => handleQuickAmount(0.25)}>25%</button>
+                    <button type="button" disabled={quickAmountsDisabled} onClick={() => handleQuickAmount(0.5)}>50%</button>
+                    <button type="button" disabled={quickAmountsDisabled} onClick={() => handleQuickAmount(1)}>MAX</button>
                   </div>
                 </section>
 
                 <section className="withdraw-field-section">
                   <div className="withdraw-section-head">
                     <span className="withdraw-field-label">Source</span>
-                    {sourceError ? <span>{sourceError}</span> : null}
+                    {sourceError ? <span className="withdraw-section-error">{sourceError}</span> : null}
                   </div>
                   <div className="withdraw-source-grid">
                     {sources.map((source) => {
                       const selected = source.value === selectedSource?.value;
-                      const tone = getSourceTone(source.name, source.type);
                       return (
-                        <button
-                          type="button"
-                          className={["withdraw-source-card", selected ? "withdraw-source-card-selected" : "", `withdraw-source-${tone}`].filter(Boolean).join(" ")}
-                          onClick={() => {
+                        <SourceCard
+                          key={source.value}
+                          source={source}
+                          selected={selected}
+                          onSelect={() => {
                             setSourceValue(source.value);
                             setAmount("");
                           }}
-                          aria-pressed={selected}
-                          key={source.value}
-                        >
-                          <span className="withdraw-source-icon-wrap">
-                            <SourceIcon tone={tone} />
-                          </span>
-                          <strong>{source.name}</strong>
-                          <small>{formatKsh(source.balance)}</small>
-                          {selected ? (
-                            <span className="withdraw-source-check">
-                              <CheckIcon />
-                            </span>
-                          ) : null}
-                        </button>
+                        />
                       );
                     })}
                   </div>
@@ -471,75 +463,33 @@ export default function Withdraw() {
                 <section className="withdraw-field-section">
                   <label className="withdraw-field-label" htmlFor="withdrawPhone">Send to</label>
                   <div className={["withdraw-phone-shell", phoneError ? "withdraw-input-shell-error" : ""].filter(Boolean).join(" ")}>
-                    <span className="withdraw-phone-icon">
-                      <PhoneIcon />
-                    </span>
                     <input
                       id="withdrawPhone"
                       name="phone"
                       type="tel"
                       inputMode="tel"
-                      placeholder="07XXXXXXXX"
+                      placeholder="M-Pesa number or account"
                       value={effectivePhone}
                       onChange={(event) => {
                         setPhone(event.target.value);
                         setPhoneTouched(true);
                       }}
                     />
-                    <span className="withdraw-user-icon">
-                      <UserIcon />
-                    </span>
                   </div>
                   {phoneError ? <p className="withdraw-helper withdraw-helper-error">{phoneError}</p> : null}
                 </section>
-
-                <div className="withdraw-security-note">
-                  <LockIcon />
-                  Your money is safe with us. All transactions are encrypted and secure.
-                </div>
               </div>
             </section>
-
-            <aside className="withdraw-summary-card" aria-label="Withdrawal summary">
-              <div className="withdraw-summary-kicker">SUMMARY</div>
-              <div className="withdraw-summary-title-wrap">
-                <h1 id="withdrawPageTitle">Review withdrawal</h1>
-                <strong>{formatKsh(numericAmount)}</strong>
-              </div>
-              <SummaryIllustration />
-
-              <div className="withdraw-summary-panel">
-                <div className="withdraw-summary-row">
-                  <span>Fee</span>
-                  <strong>{formatKsh(fee)}</strong>
-                </div>
-                <div className="withdraw-summary-row">
-                  <span>Total deducted</span>
-                  <strong>{formatKsh(totalDeducted)}</strong>
-                </div>
-                <div className="withdraw-summary-divider" />
-                <div className="withdraw-summary-row">
-                  <span>Source</span>
-                  <strong>{selectedSource?.name || "Savings wallet"}</strong>
-                </div>
-                <div className="withdraw-receive-row">
-                  <span>You will receive</span>
-                  <strong>{formatKsh(receiveAmount)}</strong>
-                </div>
-                <div className="withdraw-summary-note">
-                  <span>i</span>
-                  Withdrawals are reviewed before processing to keep your account safe.
-                </div>
-                <button type="submit" className="withdraw-confirm-button" disabled={!canSubmit || isSubmitting}>
-                  {isSubmitting ? <span className="spinner withdraw-confirm-spinner" aria-hidden="true" /> : <LockIcon />}
-                  {isSubmitting ? "Submitting..." : "Confirm Withdrawal"}
-                </button>
-                <p>You can cancel anytime</p>
-              </div>
-            </aside>
+            <WithdrawSummary
+              amount={numericAmount}
+              fee={fee}
+              totalDeducted={totalDeducted}
+              sourceName={selectedSource?.name}
+              receiveAmount={receiveAmount}
+              canSubmit={canSubmit}
+              isSubmitting={isSubmitting}
+            />
           </form>
-
-          <TrustBar />
         </div>
       )}
     </Layout>

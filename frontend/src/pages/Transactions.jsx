@@ -177,7 +177,7 @@ function getSparkPath(values) {
 }
 
 function buildCsv(records) {
-  const headers = ["Date", "Time", "Goal", "Type", "Channel", "Amount", "Status", "Reference"];
+  const headers = ["Date", "Time", "Destination", "Type", "Channel", "Amount", "Status", "Reference"];
   const rows = records.map((record) => {
     const parts = getDateParts(record);
     return [
@@ -576,7 +576,7 @@ export default function Transactions() {
       "AirSave transaction receipt",
       `Reference: ${record.reference}`,
       `Date: ${parts.date} ${parts.time}`,
-      `Goal: ${record.goalName}`,
+      `Destination: ${record.goalName}`,
       `Type: ${record.type === "withdraw" ? "Withdraw" : "Deposit"}`,
       `Channel: ${record.channel}`,
       `Amount: ${formatSignedKsh(record.signedAmount)}`,
@@ -651,9 +651,9 @@ export default function Transactions() {
 
           <div className="activity-filter-row">
             <label className="activity-select-wrap">
-              <span className="sr-only">Filter by goal</span>
+              <span className="sr-only">Filter by savings destination</span>
               <select value={goalFilter} onChange={(event) => setGoalFilter(event.target.value)}>
-                <option value="all">All Goals</option>
+                <option value="all">All destinations</option>
                 {goalOptions.map((goal) => (
                   <option key={goal.value} value={goal.value}>{goal.label}</option>
                 ))}
@@ -711,7 +711,7 @@ export default function Transactions() {
                   <thead>
                     <tr>
                       <th>Date &amp; Time</th>
-                      <th>Goal</th>
+                      <th>Destination</th>
                       <th>Type</th>
                       <th>Channel</th>
                       <th>Amount</th>

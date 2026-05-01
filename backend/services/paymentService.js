@@ -24,10 +24,12 @@ export async function initiateSavingsPayment({ user, wallet, amount, rule = 10, 
 
   let goal = null;
   if (goalId) {
-    goal = await Goal.findOne({ _id: goalId, user: user._id });
+    goal = await Goal.findOne({ _id: goalId, user: user._id, status: "active" });
     if (!goal) {
-      throw new Error("Selected goal not found.");
+      throw new Error("Active goal not found.");
     }
+  } else {
+    goal = await Goal.findOne({ user: user._id, status: "active" }).sort({ updatedAt: -1, createdAt: -1 });
   }
 
   const providerReference = buildReference("PAY");
@@ -91,6 +93,7 @@ export async function confirmSavingsPayment({ callbackReference, status = "confi
     savingsAmount: payment.savingsAmount,
     roundingType: payment.roundingType,
     wallet: payment.wallet,
+    goal: payment.goal || null,
     ledgerRef: ledgerEntry._id,
     status: "completed",
     reference: payment.providerReference,
@@ -106,9 +109,11 @@ export async function confirmSavingsPayment({ callbackReference, status = "confi
     const goal = await Goal.findById(payment.goal);
 
     if (goal) {
-      goal.savedAmount += payment.savingsAmount;
+      const nextAmount = Number(goal.currentAmount ?? goal.savedAmount ?? 0) + Number(payment.savingsAmount || 0);
+      goal.savedAmount = nextAmount;
+      goal.currentAmount = nextAmount;
 
-      if (goal.savedAmount >= goal.targetAmount) {
+      if (goal.currentAmount >= goal.targetAmount) {
         goal.status = "completed";
         await Notification.create({
           user: payment.user,

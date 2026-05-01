@@ -16,8 +16,8 @@ const howItWorks = [
   },
   {
     icon: "03",
-    title: "Save toward goals",
-    description: "Spare change moves into goals instantly.",
+    title: "Save toward one goal",
+    description: "Spare change moves into your active goal.",
   },
 ];
 
@@ -25,7 +25,7 @@ const coreFeatures = [
   { icon: "S", title: "Send money", description: "Move funds quickly." },
   { icon: "B", title: "Buy goods", description: "Pay and save in one flow." },
   { icon: "W", title: "Withdraw", description: "Access funds when needed." },
-  { icon: "G", title: "Savings goals", description: "Track progress clearly." },
+  { icon: "G", title: "Savings goal", description: "Track progress clearly." },
   { icon: "A", title: "Activity tracking", description: "See every movement." },
 ];
 

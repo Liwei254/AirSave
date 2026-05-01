@@ -58,7 +58,7 @@ export default function Support() {
             </div>
             <div className="support-item">
               <strong>Goal destination</strong>
-              <span className="muted">Choose a goal during save and progress updates automatically after confirmation.</span>
+              <span className="muted">Round-ups move into your active goal automatically, or into your savings wallet if no goal is active.</span>
             </div>
           </div>
         </ConfirmSummaryCard>

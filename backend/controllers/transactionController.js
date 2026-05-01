@@ -71,9 +71,11 @@ async function confirmTransactionByReference(paymentReference) {
     const goal = await Goal.findById(transaction.goal);
 
     if (goal) {
-      goal.savedAmount = Number(goal.savedAmount || 0) + savingsValue;
+      const nextAmount = Number(goal.currentAmount ?? goal.savedAmount ?? 0) + savingsValue;
+      goal.savedAmount = nextAmount;
+      goal.currentAmount = nextAmount;
 
-      if (goal.savedAmount >= Number(goal.targetAmount || 0)) {
+      if (goal.currentAmount >= Number(goal.targetAmount || 0)) {
         goal.status = "completed";
       }
 
@@ -156,11 +158,13 @@ export const initiatePayment = async (req, res) => {
 
     let goal = null;
     if (goalId) {
-      goal = await Goal.findOne({ _id: goalId, user: req.user._id });
+      goal = await Goal.findOne({ _id: goalId, user: req.user._id, status: "active" });
 
       if (!goal) {
-        return res.status(404).json({ message: "Selected goal not found." });
+        return res.status(404).json({ message: "Active goal not found." });
       }
+    } else {
+      goal = await Goal.findOne({ user: req.user._id, status: "active" }).sort({ updatedAt: -1, createdAt: -1 });
     }
 
     const rounding = roundAmount(numericAmount, rule);
@@ -390,20 +394,22 @@ export const submitWithdrawal = async (req, res) => {
     let goal = null;
 
     if (sourceType === "goal") {
-      goal = await Goal.findOne({ _id: sourceId, user: req.user._id });
+      goal = await Goal.findOne({ _id: sourceId, user: req.user._id, status: "active" });
 
       if (!goal) {
-        return res.status(404).json({ message: "Selected goal not found." });
+        return res.status(404).json({ message: "Current active goal not found." });
       }
 
-      selectedSourceBalance = Number(goal.savedAmount || 0);
+      selectedSourceBalance = Number(goal.currentAmount ?? goal.savedAmount ?? 0);
 
       if (requestedTotal > selectedSourceBalance) {
         return res.status(400).json({ message: "Withdrawal amount exceeds the goal balance." });
       }
 
-      goal.savedAmount = Math.max(0, selectedSourceBalance - requestedTotal);
-      if (goal.savedAmount < Number(goal.targetAmount || 0)) {
+      const nextGoalBalance = Math.max(0, selectedSourceBalance - requestedTotal);
+      goal.savedAmount = nextGoalBalance;
+      goal.currentAmount = nextGoalBalance;
+      if (goal.currentAmount < Number(goal.targetAmount || 0)) {
         goal.status = "active";
       }
       await goal.save();

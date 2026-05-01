@@ -20770,3 +20770,1031 @@ html[data-airsave-theme="dark"] .landing-nav-scrolled .landing-nav {
     gap: 6px;
   }
 }
+
+/* Premium withdrawal page */
+.withdraw-reference-shell {
+  --withdraw-navy: #06142e;
+  --withdraw-gold: #b9922f;
+  --withdraw-ink: #101828;
+  --withdraw-muted: #6b7890;
+  --withdraw-border: #dfe4ec;
+  --withdraw-soft: #f7f9fc;
+  background: #ffffff !important;
+  color: var(--withdraw-ink);
+  overflow-x: hidden;
+  padding-top: 0 !important;
+}
+
+.withdraw-reference-shell::before,
+.withdraw-reference-shell::after {
+  display: none !important;
+}
+
+.withdraw-reference-shell .page-container {
+  width: min(calc(100% - 80px), 1440px);
+  max-width: 1440px !important;
+  padding: 24px 0 44px !important;
+}
+
+.withdraw-reference-page {
+  display: block;
+  width: 100%;
+}
+
+.withdraw-reference-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(420px, 0.9fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.withdraw-form-card,
+.withdraw-summary-card {
+  border: 1px solid var(--withdraw-border) !important;
+  border-radius: 24px !important;
+  background: #ffffff !important;
+  box-shadow: 0 16px 34px rgba(6, 20, 46, 0.04) !important;
+  color: var(--withdraw-ink);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.withdraw-form-card {
+  display: grid;
+  gap: 14px;
+  min-height: 0;
+  padding: 24px 30px;
+}
+
+.withdraw-stepper {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+}
+
+.withdraw-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.withdraw-step-node {
+  position: relative;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: #f0f2f6;
+  color: #6b7890;
+  font-size: 0.9rem;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.withdraw-step-active .withdraw-step-node {
+  border-color: transparent;
+  background: var(--withdraw-navy);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.withdraw-step-label {
+  color: #6b7890;
+  font-size: 0.95rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.withdraw-step-active .withdraw-step-label {
+  color: var(--withdraw-ink);
+}
+
+.withdraw-step-line {
+  position: static;
+  flex: 1 1 auto;
+  height: 2px;
+  min-width: 18px;
+  background: #e3e7ee;
+  transform: none;
+}
+
+.withdraw-balance-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 86px;
+  padding: 14px 18px;
+  border: 1px solid var(--withdraw-border);
+  border-radius: 20px;
+  background: var(--withdraw-soft);
+}
+
+.withdraw-balance-icon {
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(185, 146, 47, 0.42);
+  border-radius: 16px;
+  background: #fffdf7;
+  color: var(--withdraw-gold);
+}
+
+.withdraw-balance-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.withdraw-balance-copy span {
+  color: #73809a;
+  font-size: 0.8rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.withdraw-balance-copy strong {
+  color: var(--withdraw-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.42rem;
+  font-weight: 500;
+}
+
+.withdraw-secure-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid rgba(25, 166, 111, 0.32) !important;
+  border-radius: 12px;
+  background: rgba(25, 166, 111, 0.08) !important;
+  color: #0a9a62 !important;
+  box-shadow: none !important;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.withdraw-secure-label svg {
+  width: 16px;
+  height: 16px;
+}
+
+.withdraw-field-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.withdraw-field-section {
+  display: grid;
+  gap: 8px;
+}
+
+.withdraw-field-label,
+.withdraw-section-head {
+  color: #40506a;
+  font-size: 0.94rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.withdraw-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.withdraw-section-error {
+  color: #b91c1c;
+  font-size: 0.9rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.withdraw-input-shell,
+.withdraw-phone-shell {
+  min-height: 52px;
+  overflow: hidden;
+  border: 1px solid rgba(6, 20, 46, 0.16) !important;
+  border-radius: 14px !important;
+  background: #2f302d !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+.withdraw-input-shell:focus-within,
+.withdraw-phone-shell:focus-within {
+  border-color: rgba(185, 146, 47, 0.74) !important;
+  box-shadow: 0 0 0 4px rgba(185, 146, 47, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+.withdraw-input-shell-error,
+.withdraw-input-shell-error:focus-within {
+  border-color: rgba(220, 38, 38, 0.7) !important;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12) !important;
+}
+
+.withdraw-input-shell > span:first-child {
+  width: 76px;
+  min-width: 76px;
+  border-right: 1px solid #e2e7ef;
+  background: #f8fafc;
+  color: #73809a;
+  font-size: 1.02rem;
+  font-weight: 500;
+}
+
+.withdraw-input-shell input,
+.withdraw-phone-shell input {
+  height: 52px;
+  background: transparent !important;
+  color: #ffffff !important;
+  font-size: 1.08rem;
+  outline: none;
+}
+
+.withdraw-input-shell input {
+  padding: 0 20px;
+}
+
+.withdraw-phone-shell input {
+  padding: 0 20px;
+}
+
+.withdraw-input-shell input::placeholder,
+.withdraw-phone-shell input::placeholder {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.withdraw-helper {
+  margin: -2px 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.withdraw-helper-error {
+  color: #b91c1c;
+}
+
+.withdraw-quick-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 112px));
+  gap: 12px;
+}
+
+.withdraw-quick-row button {
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid #e7e9ee !important;
+  border-radius: 14px;
+  background: #ffffff !important;
+  color: var(--withdraw-gold) !important;
+  box-shadow: none !important;
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+.withdraw-quick-row button:disabled {
+  color: rgba(6, 20, 46, 0.08) !important;
+  cursor: not-allowed;
+}
+
+.withdraw-source-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.withdraw-source-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  row-gap: 2px;
+  align-items: center;
+  justify-items: start;
+  align-content: center;
+  min-height: 84px;
+  padding: 10px 14px;
+  border: 1px solid var(--withdraw-border) !important;
+  border-radius: 18px;
+  background: #ffffff !important;
+  color: var(--withdraw-ink) !important;
+  box-shadow: none !important;
+  text-align: left;
+}
+
+.withdraw-source-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(6, 20, 46, 0.055) !important;
+}
+
+.withdraw-source-card-selected {
+  border-color: var(--withdraw-navy) !important;
+  background: #f8fafc !important;
+  box-shadow: inset 0 0 0 1px var(--withdraw-navy) !important;
+}
+
+.withdraw-source-icon-wrap {
+  grid-row: 1 / 3;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #f0f2f6 !important;
+  color: #6b7890 !important;
+}
+
+.withdraw-source-wallet .withdraw-source-icon-wrap {
+  background: #fffaf0 !important;
+  color: var(--withdraw-gold) !important;
+}
+
+.withdraw-source-icon {
+  width: 19px;
+  height: 19px;
+}
+
+.withdraw-source-card strong {
+  max-width: 100%;
+  color: var(--withdraw-ink) !important;
+  font-size: 0.96rem;
+  font-weight: 500;
+  line-height: 1.18;
+  white-space: normal;
+}
+
+.withdraw-source-card small {
+  color: var(--withdraw-gold) !important;
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+.withdraw-source-card:not(.withdraw-source-card-selected) small {
+  color: #73809a !important;
+}
+
+.withdraw-source-check {
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  background: var(--withdraw-navy);
+  box-shadow: none;
+}
+
+.withdraw-source-check svg {
+  width: 12px;
+  height: 12px;
+}
+
+.withdraw-summary-card {
+  position: sticky;
+  top: 92px;
+  display: grid;
+  gap: 14px;
+  min-height: 0;
+  padding: 24px 28px 28px;
+}
+
+.withdraw-summary-card::before {
+  display: none;
+}
+
+.withdraw-summary-kicker {
+  color: var(--withdraw-gold) !important;
+  font-size: 0.92rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.withdraw-summary-total-card {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  min-height: 104px;
+  padding: 22px 28px;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 88% 20%, rgba(185, 146, 47, 0.12), transparent 30%),
+    linear-gradient(135deg, #06142e 0%, #111827 100%);
+  color: #ffffff;
+}
+
+.withdraw-summary-total-card span {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.88rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.withdraw-summary-total-card strong {
+  color: #ffffff !important;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2.4rem, 4vw, 3.15rem);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.withdraw-summary-total-card strong::first-letter {
+  color: var(--withdraw-gold);
+}
+
+.withdraw-summary-panel {
+  display: grid;
+  gap: 0;
+  margin-top: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent !important;
+  color: var(--withdraw-ink);
+  box-shadow: none !important;
+}
+
+.withdraw-summary-row,
+.withdraw-receive-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 48px;
+  border-bottom: 1px solid #e8edf3;
+  color: #6b7890;
+  font-size: 1.02rem;
+}
+
+.withdraw-summary-row strong {
+  color: var(--withdraw-ink) !important;
+  font-size: 1.02rem;
+  font-weight: 500;
+  text-align: right;
+}
+
+.withdraw-receive-row {
+  padding: 0;
+  border-radius: 0;
+  background: transparent !important;
+}
+
+.withdraw-receive-row strong {
+  color: #0a9a62 !important;
+  font-size: 1.02rem;
+  font-weight: 500;
+}
+
+.withdraw-summary-note {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 14px;
+  min-height: 64px;
+  margin-top: 12px;
+  padding: 12px 16px;
+  border: 1px solid rgba(37, 99, 235, 0.28);
+  border-radius: 16px;
+  background: #edf5ff;
+  color: #185aa8;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.withdraw-summary-note span {
+  width: 30px;
+  height: 30px;
+  background: #1e63ad;
+  font-size: 1rem;
+}
+
+.withdraw-confirm-button {
+  min-height: 52px;
+  margin-top: 12px;
+  border: 1px solid transparent !important;
+  border-radius: 14px;
+  background: var(--withdraw-navy) !important;
+  color: #ffffff !important;
+  box-shadow: 0 18px 30px rgba(6, 20, 46, 0.16) !important;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.withdraw-confirm-button:disabled {
+  border-color: #e8edf3 !important;
+  background: #ffffff !important;
+  color: rgba(6, 20, 46, 0.08) !important;
+  box-shadow: none !important;
+}
+
+.withdraw-confirm-spinner {
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+}
+
+.withdraw-toast {
+  top: 92px;
+  border-radius: 14px;
+}
+
+@media (max-width: 1100px) {
+  .withdraw-reference-shell .page-container {
+    width: min(calc(100% - 48px), 900px);
+    padding-top: 36px !important;
+  }
+
+  .withdraw-reference-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .withdraw-summary-card {
+    position: static;
+  }
+}
+
+@media (max-width: 700px) {
+  .withdraw-reference-shell .page-container {
+    width: calc(100% - 32px);
+    padding: 22px 0 44px !important;
+  }
+
+  .withdraw-reference-grid {
+    gap: 18px;
+  }
+
+  .withdraw-form-card,
+  .withdraw-summary-card {
+    padding: 22px 18px;
+    border-radius: 22px !important;
+  }
+
+  .withdraw-stepper {
+    gap: 8px;
+  }
+
+  .withdraw-step {
+    gap: 8px;
+  }
+
+  .withdraw-step-node {
+    width: 38px;
+    height: 38px;
+    font-size: 0.95rem;
+  }
+
+  .withdraw-step-label {
+    font-size: 0.88rem;
+  }
+
+  .withdraw-step-line {
+    min-width: 12px;
+  }
+
+  .withdraw-balance-row {
+    grid-template-columns: 54px minmax(0, 1fr);
+    gap: 16px;
+    min-height: 0;
+    padding: 18px;
+  }
+
+  .withdraw-balance-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 16px;
+  }
+
+  .withdraw-balance-copy span {
+    font-size: 0.88rem;
+  }
+
+  .withdraw-balance-copy strong {
+    font-size: 1.55rem;
+  }
+
+  .withdraw-secure-label {
+    grid-column: 1 / -1;
+    min-height: 46px;
+    justify-content: center;
+    padding: 0 14px;
+    font-size: 0.95rem;
+  }
+
+  .withdraw-field-stack {
+    gap: 24px;
+  }
+
+  .withdraw-field-label,
+  .withdraw-section-head {
+    font-size: 0.9rem;
+  }
+
+  .withdraw-input-shell,
+  .withdraw-phone-shell,
+  .withdraw-input-shell input,
+  .withdraw-phone-shell input {
+    min-height: 56px;
+    height: 56px;
+  }
+
+  .withdraw-input-shell > span:first-child {
+    width: 74px;
+    min-width: 74px;
+    font-size: 1rem;
+  }
+
+  .withdraw-input-shell input,
+  .withdraw-phone-shell input {
+    padding: 0 16px;
+    font-size: 1.08rem;
+  }
+
+  .withdraw-quick-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .withdraw-quick-row button {
+    min-height: 48px;
+    font-size: 0.95rem;
+  }
+
+  .withdraw-source-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .withdraw-source-card {
+    min-height: 132px;
+    padding: 16px 12px;
+  }
+
+  .withdraw-source-icon-wrap {
+    width: 48px;
+    height: 48px;
+  }
+
+  .withdraw-source-card strong,
+  .withdraw-source-card small {
+    font-size: 0.95rem;
+  }
+
+  .withdraw-source-check {
+    top: 12px;
+    right: 12px;
+    width: 28px;
+    height: 28px;
+  }
+
+  .withdraw-summary-total-card {
+    min-height: 126px;
+    padding: 24px;
+  }
+
+  .withdraw-summary-total-card strong {
+    font-size: 2.6rem;
+  }
+
+  .withdraw-summary-row,
+  .withdraw-receive-row {
+    min-height: 58px;
+    font-size: 0.98rem;
+  }
+
+  .withdraw-summary-row strong,
+  .withdraw-receive-row strong {
+    font-size: 0.98rem;
+  }
+
+  .withdraw-summary-note {
+    min-height: 0;
+    padding: 16px;
+    font-size: 0.95rem;
+  }
+
+  .withdraw-confirm-button {
+    min-height: 54px;
+    margin-top: 22px;
+  }
+}
+
+@media (max-width: 380px) {
+  .withdraw-reference-shell .page-container {
+    width: calc(100% - 24px);
+  }
+
+  .withdraw-step-label {
+    display: none;
+  }
+
+  .withdraw-stepper {
+    gap: 14px;
+  }
+
+  .withdraw-step-line {
+    min-width: 24px;
+  }
+
+  .withdraw-source-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* One active goal experience */
+.my-goal-card,
+.my-goal-empty {
+  width: min(100%, 980px);
+  margin: 0 auto;
+  border: 1px solid #dfe4ec;
+  border-radius: 28px;
+  background: #ffffff;
+  box-shadow: 0 18px 42px rgba(6, 20, 46, 0.045);
+  color: #101828;
+}
+
+.my-goal-card {
+  display: grid;
+  gap: 28px;
+  padding: 34px;
+}
+
+.my-goal-empty {
+  display: grid;
+  gap: 16px;
+  place-items: center;
+  padding: 64px 28px;
+  text-align: center;
+}
+
+.my-goal-empty h1,
+.my-goal-top h1 {
+  margin: 0;
+  color: #06142e;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 500;
+}
+
+.my-goal-empty h1 {
+  font-size: clamp(2rem, 4vw, 3.25rem);
+}
+
+.my-goal-empty p,
+.my-goal-top p {
+  margin: 0;
+  color: #6b7890;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.my-goal-empty button,
+.my-goal-actions button,
+.my-goal-edit-actions button,
+.goal-limit-banner button {
+  min-height: 46px;
+  border: 1px solid #d8b75e;
+  border-radius: 14px;
+  background: #06142e;
+  color: #ffffff;
+  font-weight: 700;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.my-goal-empty button {
+  padding: 0 24px;
+}
+
+.my-goal-empty button:hover,
+.my-goal-actions button:hover,
+.my-goal-edit-actions button:hover,
+.goal-limit-banner button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(6, 20, 46, 0.12);
+}
+
+.my-goal-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.my-goal-top h1 {
+  font-size: clamp(2.4rem, 4vw, 4rem);
+}
+
+.my-goal-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid rgba(25, 166, 111, 0.28);
+  border-radius: 999px;
+  background: rgba(25, 166, 111, 0.08);
+  color: #0a9a62;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.my-goal-progress-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.my-goal-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: #64748b;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.my-goal-progress-head strong {
+  color: #b9922f;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.my-goal-progress-track {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf0f4;
+}
+
+.my-goal-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #b9922f, #d8b75e);
+}
+
+.my-goal-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.my-goal-stats article {
+  display: grid;
+  gap: 8px;
+  min-height: 104px;
+  padding: 18px;
+  border: 1px solid #e5e9f0;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.my-goal-stats span {
+  color: #6b7890;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.my-goal-stats strong {
+  color: #06142e;
+  font-size: 1.08rem;
+}
+
+.my-goal-edit-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #e5e9f0;
+  border-radius: 20px;
+  background: #f8fafc;
+}
+
+.my-goal-edit-form label {
+  display: grid;
+  gap: 8px;
+  color: #40506a;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.my-goal-edit-form input {
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid #dfe4ec;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #06142e;
+  padding: 0 14px;
+  font: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.my-goal-edit-form input:focus {
+  border-color: rgba(185, 146, 47, 0.7);
+  box-shadow: 0 0 0 4px rgba(185, 146, 47, 0.12);
+  outline: none;
+}
+
+.my-goal-edit-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 180px));
+  gap: 12px;
+}
+
+.my-goal-edit-actions button:nth-child(2),
+.my-goal-actions button:not(:first-child) {
+  background: #ffffff;
+  color: #06142e;
+  border-color: #dfe4ec;
+}
+
+.my-goal-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.my-goal-actions button {
+  width: 100%;
+}
+
+.my-goal-actions button:disabled,
+.my-goal-edit-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.my-goal-feedback {
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-weight: 700;
+}
+
+.my-goal-feedback-success {
+  border: 1px solid rgba(25, 166, 111, 0.24);
+  background: rgba(25, 166, 111, 0.08);
+  color: #087a4f;
+}
+
+.my-goal-feedback-error {
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  background: #fff1f2;
+  color: #b91c1c;
+}
+
+.goal-limit-banner {
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.goal-limit-banner button {
+  min-height: 38px;
+  padding: 0 14px;
+  background: #b9922f;
+  border-color: rgba(185, 146, 47, 0.45);
+  color: #ffffff;
+}
+
+@media (max-width: 900px) {
+  .my-goal-card {
+    padding: 24px;
+    border-radius: 22px;
+  }
+
+  .my-goal-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .my-goal-edit-form,
+  .my-goal-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .my-goal-edit-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .my-goal-top {
+    display: grid;
+  }
+
+  .my-goal-stats {
+    grid-template-columns: 1fr;
+  }
+}

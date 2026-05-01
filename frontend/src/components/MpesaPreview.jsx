@@ -22,7 +22,7 @@ export default function MpesaPreview({
       rows={[
         { label: "Amount saved", value: formatCurrency(savingsAmount) },
         { label: "Fee", value: formatCurrency(0) },
-        { label: "Goal", value: goalName || "Choose a goal" },
+        { label: "Destination", value: goalName || "Active goal or savings wallet" },
       ]}
       buttonText={confirmLabel}
       onConfirm={onConfirm}

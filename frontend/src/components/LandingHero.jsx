@@ -16,7 +16,7 @@ export default function LandingHero() {
           <h1>Spend. Save. Grow.</h1>
           <p className="landing-hero-subtitle">
             AirSave turns everyday payments into automatic savings &mdash; so every purchase moves you closer to your
-            goals.
+            goal.
           </p>
           <div className="landing-hero-actions">
             <Link className="landing-primary-cta" to="/register">

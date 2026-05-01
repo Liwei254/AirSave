@@ -175,8 +175,20 @@ export async function getGoals() {
   return requestData(API.get("/goals", { withCredentials: true }));
 }
 
+export async function getActiveGoal() {
+  return requestData(API.get("/goals/active", { withCredentials: true }), (data) => data.goal || null);
+}
+
 export async function createGoal(payload) {
   return requestData(API.post("/goals", payload, { withCredentials: true }));
+}
+
+export async function updateGoal(id, payload) {
+  return requestData(API.put(`/goals/${id}`, payload, { withCredentials: true }));
+}
+
+export async function deleteGoal(id) {
+  return requestData(API.delete(`/goals/${id}`, { withCredentials: true }));
 }
 
 export async function getTransactions() {

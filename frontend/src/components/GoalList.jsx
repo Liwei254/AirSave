@@ -2,12 +2,12 @@
 
 export default function GoalList({ goals, selectedGoalId, onSelectGoal, weeklySavingsRate, showQuickSave = false }) {
   if (!goals.length) {
-    return <div className="empty-state">No goals yet. Create one to start saving.</div>;
+    return <div className="empty-state">No active goal yet. Create one to start saving.</div>;
   }
 
   return (
     <div className="goals-progress-grid">
-      {goals.map((goal) => (
+      {goals.slice(0, 1).map((goal) => (
         <GoalCard
           key={goal._id}
           goal={goal}
