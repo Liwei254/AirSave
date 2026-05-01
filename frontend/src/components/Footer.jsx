@@ -3,10 +3,10 @@ import logo from "../assets/circle.png";
 
 const footerLinks = [
   { label: "Dashboard", to: "/dashboard" },
-  { label: "Wallet", to: "/wallet" },
+  { label: "Payments", to: "/payments" },
   { label: "Save", to: "/save" },
-  { label: "Goals", to: "/goals" },
   { label: "Activity", to: "/activity" },
+  { label: "Withdraw", to: "/withdraw" },
   { label: "Settings", to: "/settings" },
   { label: "Profile", to: "/profile" },
   { label: "Support", to: "/support" },

@@ -85,9 +85,9 @@ export default function SaveFlow({ activity, user, onSubmit, isSubmitting }) {
       ) : null}
 
       <div className="service-breadcrumb">
-        <button type="button" onClick={() => navigate("/dashboard")}>Dashboard</button>
+        <button type="button" onClick={() => navigate("/payments")}>Payments</button>
         <span>/</span>
-        <span>Lipa na AirSave</span>
+        <span>Buy Goods</span>
       </div>
 
       <form className="purchase-grid" onSubmit={handleConfirm}>
@@ -95,7 +95,7 @@ export default function SaveFlow({ activity, user, onSubmit, isSubmitting }) {
           <div className="premium-section-head">
             <div>
               <span className="premium-kicker">WALLET SERVICE</span>
-              <h1>Lipa na AirSave</h1>
+              <h1>Buy Goods</h1>
               <p>Pay a till and let AirSave save the round-up automatically.</p>
             </div>
             <span className="purchase-secure-pill">Auto round-up on</span>

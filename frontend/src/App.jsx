@@ -3,7 +3,7 @@ import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
-import Savings from "./pages/Savings.jsx";
+import Payments from "./pages/Payments.jsx";
 import Send from "./pages/Send.jsx";
 import LipaNaAirSave from "./pages/LipaNaAirSave.jsx";
 import Goals from "./pages/Goals.jsx";
@@ -51,10 +51,26 @@ function App() {
               element={<Navigate to="/lipa-na-airsave" replace />}
             />
             <Route
+              path="/payments"
+              element={
+                <ProtectedRoute>
+                  <Payments />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/save"
               element={
                 <ProtectedRoute>
-                  <Savings />
+                  <Goals />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/save/create"
+              element={
+                <ProtectedRoute>
+                  <GoalNew />
                 </ProtectedRoute>
               }
             />
@@ -76,19 +92,11 @@ function App() {
             />
             <Route
               path="/goals"
-              element={
-                <ProtectedRoute>
-                  <Goals />
-                </ProtectedRoute>
-              }
+              element={<Navigate to="/save" replace />}
             />
             <Route
               path="/goals/new"
-              element={
-                <ProtectedRoute>
-                  <GoalNew />
-                </ProtectedRoute>
-              }
+              element={<Navigate to="/save/create" replace />}
             />
             <Route
               path="/activity"

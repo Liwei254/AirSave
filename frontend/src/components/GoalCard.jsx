@@ -60,8 +60,8 @@ export default function GoalCard({ goal, weeklySavingsRate = 0, selected = false
           </Button>
         ) : null}
         {showQuickSave ? (
-          <Button type="button" variant="primary" onClick={() => navigate("/lipa-na-airsave")}>
-            Quick save
+          <Button type="button" variant="primary" onClick={() => navigate("/payments")}>
+            Add savings
           </Button>
         ) : null}
       </div>

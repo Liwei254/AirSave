@@ -193,7 +193,7 @@ export default function Send() {
   }
 
   return (
-    <ServicePageShell current="Send to Mobile" feedback={feedback}>
+    <ServicePageShell current="Send Money" feedback={feedback}>
       {isLoading ? (
         <section className="service-loading-card">
           <span className="spinner spinner-dark" aria-hidden="true" />

@@ -262,11 +262,11 @@ function GoalCard({ goal, progress }) {
       <div className="premium-goal-actions">
         <button
           type="button"
-          onClick={() => navigate(goal ? "/lipa-na-airsave" : "/goals/new")}
+          onClick={() => navigate(goal ? "/save" : "/save/create")}
         >
           {goal ? "Add savings" : "Create goal"}
         </button>
-        <button type="button" onClick={() => navigate("/goals")}>
+        <button type="button" onClick={() => navigate("/save")}>
           View goal
         </button>
       </div>

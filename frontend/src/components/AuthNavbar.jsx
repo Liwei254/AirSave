@@ -11,24 +11,23 @@ import {
 
 const navItems = [
   { label: "Dashboard", to: "/dashboard" },
+  { label: "Payments", to: "/payments" },
   { label: "Save", to: "/save" },
-  { label: "Goals", to: "/goals" },
   { label: "Activity", to: "/activity" },
   { label: "Withdraw", to: "/withdraw" },
 ];
 
 function getActiveNavTarget(pathname) {
-  if (pathname === "/send" || pathname === "/lipa-na-airsave" || pathname === "/savings") {
-    return "/save";
+  if (pathname === "/payments" || pathname === "/send" || pathname === "/lipa-na-airsave") {
+    return "/payments";
   }
 
-  if (pathname === "/goals/new" || pathname.startsWith("/goals/")) {
-    return "/goals";
+  if (pathname === "/savings" || pathname.startsWith("/goals") || pathname.startsWith("/save")) {
+    return "/save";
   }
 
   if (pathname.startsWith("/activity")) return "/activity";
   if (pathname.startsWith("/withdraw")) return "/withdraw";
-  if (pathname.startsWith("/save")) return "/save";
   if (pathname.startsWith("/dashboard")) return "/dashboard";
 
   return "";

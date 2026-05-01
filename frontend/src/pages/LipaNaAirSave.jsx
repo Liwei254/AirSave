@@ -160,7 +160,7 @@ export default function LipaNaAirSave() {
   }
 
   return (
-    <ServicePageShell current="Lipa na AirSave" feedback={pageFeedback}>
+    <ServicePageShell current="Buy Goods" feedback={pageFeedback}>
       {isLoading ? (
         <section className="service-loading-card">
           <span className="spinner spinner-dark" aria-hidden="true" />

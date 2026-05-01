@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button.jsx";
 import Layout from "../components/Layout.jsx";
-import { deleteGoal, getActiveGoal, updateGoal } from "../services/api";
+import { deleteGoal, getActiveGoal, getCurrentUser, updateGoal } from "../services/api";
 import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
 import { formatCurrency, formatDate, getGoalProgress } from "../utils/formatters";
 
@@ -24,6 +24,27 @@ function toDateInputValue(value) {
 
 function getGoalAmount(goal) {
   return Number(goal?.currentAmount ?? goal?.savedAmount ?? 0);
+}
+
+function RoundUpRulePanel({ user }) {
+  const navigate = useNavigate();
+  const roundUpRule = Number(user?.roundUpRule || 50);
+  const autoSaveEnabled = user?.preferences?.autoSaveEnabled !== false;
+
+  return (
+    <section className="save-roundup-panel" aria-labelledby="saveRoundupTitle">
+      <div>
+        <span className="premium-kicker">Round-up rule</span>
+        <h2 id="saveRoundupTitle">Nearest {roundUpRule}</h2>
+        <p>
+          Auto-save is {autoSaveEnabled ? "on" : "off"}. Eligible payment round-ups are sent to your active goal first.
+        </p>
+      </div>
+      <button type="button" onClick={() => navigate("/settings")}>
+        Edit rule
+      </button>
+    </section>
+  );
 }
 
 function MyGoalCard({ goal, onChanged }) {
@@ -208,7 +229,7 @@ function MyGoalCard({ goal, onChanged }) {
       ) : null}
 
       <div className="my-goal-actions">
-        <button type="button" onClick={() => navigate("/lipa-na-airsave")}>
+        <button type="button" onClick={() => navigate("/payments")}>
           Add savings
         </button>
         <button type="button" onClick={() => setIsEditing((current) => !current)}>
@@ -228,6 +249,7 @@ function MyGoalCard({ goal, onChanged }) {
 export default function Goals() {
   const navigate = useNavigate();
   const [activeGoal, setActiveGoal] = useState(null);
+  const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -235,8 +257,9 @@ export default function Goals() {
     setIsLoading(true);
 
     try {
-      const goal = await getActiveGoal();
+      const [goal, userData] = await Promise.all([getActiveGoal(), getCurrentUser()]);
       setActiveGoal(goal);
+      setUser(userData);
       setError("");
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 403) {
@@ -255,7 +278,7 @@ export default function Goals() {
 
   const actions = useMemo(() => {
     if (activeGoal) return null;
-    return <Button onClick={() => navigate("/goals/new")}>Create goal</Button>;
+    return <Button onClick={() => navigate("/save/create")}>Create goal</Button>;
   }, [activeGoal, navigate]);
 
   return (
@@ -273,16 +296,22 @@ export default function Goals() {
           <span>Loading goal...</span>
         </section>
       ) : activeGoal ? (
-        <MyGoalCard goal={activeGoal} onChanged={loadGoalPage} />
+        <>
+          <MyGoalCard goal={activeGoal} onChanged={loadGoalPage} />
+          <RoundUpRulePanel user={user} />
+        </>
       ) : (
-        <section className="my-goal-empty">
-          <span className="premium-kicker">My Goal</span>
-          <h1>No active goal yet.</h1>
-          <p>Create one savings goal and AirSave will send eligible round-ups there automatically.</p>
-          <button type="button" onClick={() => navigate("/goals/new")}>
-            Create your savings goal
-          </button>
-        </section>
+        <>
+          <section className="my-goal-empty">
+            <span className="premium-kicker">My Goal</span>
+            <h1>No active goal yet.</h1>
+            <p>Create one savings goal and AirSave will send eligible round-ups there automatically.</p>
+            <button type="button" onClick={() => navigate("/save/create")}>
+              Create your savings goal
+            </button>
+          </section>
+          <RoundUpRulePanel user={user} />
+        </>
       )}
     </Layout>
   );

@@ -13,7 +13,7 @@ const amountFormatter = new Intl.NumberFormat("en-KE", {
   maximumFractionDigits: 0,
 });
 
-export function ServicePageShell({ current, feedback, children }) {
+export function ServicePageShell({ current, feedback, children, parentLabel = "Payments", parentPath = "/payments" }) {
   const navigate = useNavigate();
 
   return (
@@ -27,8 +27,8 @@ export function ServicePageShell({ current, feedback, children }) {
         ) : null}
 
         <nav className="service-premium-breadcrumb" aria-label="Breadcrumb">
-          <button type="button" onClick={() => navigate("/dashboard")}>
-            Dashboard
+          <button type="button" onClick={() => navigate(parentPath)}>
+            {parentLabel}
           </button>
           <span aria-hidden="true">/</span>
           <strong>{current}</strong>

@@ -344,7 +344,7 @@ export default function GoalNew() {
       });
       triggerDashboardRefresh();
       setToast({ type: "success", message: "Goal created successfully." });
-      navigate("/goals");
+      navigate("/save");
     } catch (error) {
       setToast({
         type: "error",
@@ -395,7 +395,7 @@ export default function GoalNew() {
           <span className="premium-kicker">My Goal</span>
           <h1>You already have an active goal.</h1>
           <p>Complete or close your current goal before creating another one.</p>
-          <button type="button" onClick={() => navigate("/goals")}>
+          <button type="button" onClick={() => navigate("/save")}>
             View current goal
           </button>
         </section>
@@ -581,7 +581,7 @@ export default function GoalNew() {
               {isSubmitting ? <span className="spinner goal-create-spinner" aria-hidden="true" /> : <TargetIcon />}
               {isSubmitting ? "Creating..." : "Create goal"}
             </button>
-            <button type="button" className="goal-cancel-button" onClick={() => navigate("/goals")}>Cancel</button>
+            <button type="button" className="goal-cancel-button" onClick={() => navigate("/save")}>Cancel</button>
           </aside>
         </form>
 
