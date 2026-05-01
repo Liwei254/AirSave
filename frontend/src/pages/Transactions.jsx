@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
-import { getGoals, getSavingsActivity } from "../services/api";
+import { getActiveGoal, getSavingsActivity } from "../services/api";
 
 const rangeOptions = [
   { value: "today", label: "Today" },
@@ -96,7 +96,11 @@ function getSignedAmount(record) {
 function normalizeRecord(record) {
   const type = getType(record);
   const signedAmount = getSignedAmount(record);
-  const goalName = record?.merchant || record?.goalName || record?.goal?.name || record?.sourceName || "Savings wallet";
+  const goalName =
+    record?.goalName ||
+    record?.goal?.name ||
+    record?.sourceName ||
+    (type === "deposit" ? "Purchase" : "Savings wallet");
   const status = String(record?.status || "pending").toLowerCase();
 
   return {
@@ -105,6 +109,7 @@ function normalizeRecord(record) {
     date: record?.date || record?.createdAt,
     goalName,
     goalId: record?.goalId || record?.goal?._id || null,
+    merchant: record?.merchant || "",
     type,
     signedAmount,
     amount: Math.abs(signedAmount),
@@ -113,6 +118,14 @@ function normalizeRecord(record) {
     channel: record?.channel || record?.provider || "M-Pesa",
     reference: record?.reference || record?.paymentReference || record?.mpesaReceipt || "Pending",
   };
+}
+
+function isCurrentGoalRecord(record, activeGoal) {
+  if (!activeGoal?._id && !activeGoal?.name) return false;
+  return (
+    record.goalId === activeGoal?._id ||
+    String(record.goalName || "").toLowerCase() === String(activeGoal?.name || "").toLowerCase()
+  );
 }
 
 function getDateParts(record) {
@@ -177,7 +190,7 @@ function getSparkPath(values) {
 }
 
 function buildCsv(records) {
-  const headers = ["Date", "Time", "Destination", "Type", "Channel", "Amount", "Status", "Reference"];
+  const headers = ["Date", "Time", "Goal / Source", "Type", "Channel", "Amount", "Status", "Reference"];
   const rows = records.map((record) => {
     const parts = getDateParts(record);
     return [
@@ -204,37 +217,6 @@ function buildCsv(records) {
     .join("\n");
 }
 
-function ChartIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 18h16" />
-      <path d="M6 15l4-4 3 2 5-7" />
-      <path d="M18 6h-4" />
-      <path d="M18 6v4" />
-    </svg>
-  );
-}
-
-function DollarIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 3v18" />
-      <path d="M16 7.5c-.8-1-2-1.5-3.6-1.5-2.1 0-3.4 1-3.4 2.6 0 1.7 1.3 2.3 3.7 2.8 2.2.5 3.6 1.1 3.6 2.9 0 1.6-1.3 2.8-3.8 2.8-1.9 0-3.4-.6-4.4-1.8" />
-    </svg>
-  );
-}
-
-function DocumentIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M7 3h7l4 4v14H7z" />
-      <path d="M14 3v5h5" />
-      <path d="M9 13h6" />
-      <path d="M9 17h6" />
-    </svg>
-  );
-}
-
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -250,16 +232,6 @@ function DownloadIcon() {
       <path d="M12 4v11" />
       <path d="m8 11 4 4 4-4" />
       <path d="M5 20h14" />
-    </svg>
-  );
-}
-
-function MoreIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="5" r="1.6" />
-      <circle cx="12" cy="12" r="1.6" />
-      <circle cx="12" cy="19" r="1.6" />
     </svg>
   );
 }
@@ -377,12 +349,11 @@ function Sparkline({ values, tone }) {
   );
 }
 
-function SummaryCard({ label, value, hint, tone, icon, growth, values }) {
+function SummaryCard({ label, value, hint, tone, growth, values }) {
   const growthNumber = toNumber(growth);
 
   return (
-    <article className="activity-stat-card">
-      <div className={`activity-stat-icon activity-stat-icon-${tone}`}>{icon}</div>
+    <article className={`activity-stat-card activity-stat-${tone}`}>
       <div className="activity-stat-copy">
         <span>{label}</span>
         <strong>{value}</strong>
@@ -390,7 +361,7 @@ function SummaryCard({ label, value, hint, tone, icon, growth, values }) {
       </div>
       {typeof growth !== "undefined" ? (
         <div className={`activity-growth-badge ${growthNumber < 0 ? "activity-growth-negative" : ""}`}>
-          <span>{growthNumber < 0 ? "↓" : "↑"}</span>
+          <span>{growthNumber < 0 ? "-" : "+"}</span>
           {Math.abs(growthNumber).toFixed(1)}%
         </div>
       ) : null}
@@ -419,7 +390,7 @@ function Toast({ toast, onClose }) {
 export default function Transactions() {
   const navigate = useNavigate();
   const [activity, setActivity] = useState([]);
-  const [goals, setGoals] = useState([]);
+  const [activeGoal, setActiveGoal] = useState(null);
   const [range, setRange] = useState("week");
   const [goalFilter, setGoalFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -429,7 +400,6 @@ export default function Transactions() {
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [openMenuId, setOpenMenuId] = useState("");
   const [detailRecord, setDetailRecord] = useState(null);
   const [toast, setToast] = useState(null);
 
@@ -437,9 +407,9 @@ export default function Transactions() {
     setIsLoading(true);
 
     try {
-      const [activityData, goalsData] = await Promise.all([getSavingsActivity(), getGoals()]);
+      const [activityData, goalData] = await Promise.all([getSavingsActivity(), getActiveGoal()]);
       setActivity((activityData || []).map(normalizeRecord).sort((left, right) => getRecordDate(right) - getRecordDate(left)));
-      setGoals(goalsData || []);
+      setActiveGoal(goalData);
       setError("");
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 403) {
@@ -461,15 +431,12 @@ export default function Transactions() {
   }, [range, goalFilter, typeFilter, statusFilter, searchTerm, rowsPerPage]);
 
   const goalOptions = useMemo(() => {
-    const options = new Map();
-    goals.forEach((goal) => {
-      if (goal?.name) options.set(String(goal.name).toLowerCase(), goal.name);
-    });
-    activity.forEach((record) => {
-      if (record.goalName) options.set(String(record.goalName).toLowerCase(), record.goalName);
-    });
-    return Array.from(options.entries()).map(([value, label]) => ({ value, label }));
-  }, [activity, goals]);
+    const options = [{ value: "wallet", label: "Savings wallet" }];
+    if (activeGoal?._id || activeGoal?.name) {
+      options.unshift({ value: "goal", label: `Current goal${activeGoal?.name ? ` - ${activeGoal.name}` : ""}` });
+    }
+    return options;
+  }, [activeGoal]);
 
   const filteredRecords = useMemo(() => {
     const rangeStart = getRangeStart(range);
@@ -478,7 +445,10 @@ export default function Transactions() {
     return activity.filter((record) => {
       const recordDate = getRecordDate(record);
       const matchesRange = recordDate >= rangeStart;
-      const matchesGoal = goalFilter === "all" || String(record.goalName || "").toLowerCase() === goalFilter;
+      const matchesGoal =
+        goalFilter === "all" ||
+        (goalFilter === "goal" && isCurrentGoalRecord(record, activeGoal)) ||
+        (goalFilter === "wallet" && !isCurrentGoalRecord(record, activeGoal));
       const matchesType = typeFilter === "all" || record.type === typeFilter;
       const matchesStatus = statusFilter === "all" || record.statusLabel.toLowerCase() === statusFilter;
       const searchable = [
@@ -487,6 +457,7 @@ export default function Transactions() {
         record.channel,
         record.statusLabel,
         record.type,
+        record.merchant,
         String(record.amount),
         String(record.signedAmount),
       ]
@@ -495,7 +466,7 @@ export default function Transactions() {
 
       return matchesRange && matchesGoal && matchesType && matchesStatus && (!query || searchable.includes(query));
     });
-  }, [activity, goalFilter, range, searchTerm, statusFilter, typeFilter]);
+  }, [activity, activeGoal, goalFilter, range, searchTerm, statusFilter, typeFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filteredRecords.length / rowsPerPage));
   const currentPage = Math.min(page, pageCount);
@@ -539,17 +510,6 @@ export default function Transactions() {
     setToast({ type, message });
   }
 
-  async function copyReference(record) {
-    try {
-      await navigator.clipboard.writeText(record.reference);
-      showToast("success", "Reference copied to clipboard.");
-    } catch {
-      showToast("error", "Could not copy the reference.");
-    } finally {
-      setOpenMenuId("");
-    }
-  }
-
   function downloadTextFile(filename, text, type = "text/plain;charset=utf-8") {
     const blob = new Blob([text], { type });
     const url = URL.createObjectURL(blob);
@@ -570,23 +530,6 @@ export default function Transactions() {
     showToast("success", "Filtered activity exported as CSV.");
   }
 
-  function downloadReceipt(record) {
-    const parts = getDateParts(record);
-    const receipt = [
-      "AirSave transaction receipt",
-      `Reference: ${record.reference}`,
-      `Date: ${parts.date} ${parts.time}`,
-      `Destination: ${record.goalName}`,
-      `Type: ${record.type === "withdraw" ? "Withdraw" : "Deposit"}`,
-      `Channel: ${record.channel}`,
-      `Amount: ${formatSignedKsh(record.signedAmount)}`,
-      `Status: ${record.statusLabel}`,
-    ].join("\n");
-
-    downloadTextFile(`airsave-receipt-${record.reference}.txt`, receipt);
-    setOpenMenuId("");
-  }
-
   return (
     <Layout shellClassName="activity-reference-shell">
       <Toast toast={toast} onClose={() => setToast(null)} />
@@ -604,9 +547,8 @@ export default function Transactions() {
           <SummaryCard
             label="THIS WEEK"
             value={formatKsh(weeklySavings)}
-            hint="You saved this much in the last 7 days"
-            tone="blue"
-            icon={<ChartIcon />}
+            hint="Saved in the last 7 days"
+            tone="gold"
             growth={growth}
             values={weeklySpark}
           />
@@ -614,16 +556,14 @@ export default function Transactions() {
             label="CURRENT VIEW"
             value={formatSignedKsh(filteredTotal)}
             hint="Confirmed savings this week"
-            tone="green"
-            icon={<DollarIcon />}
+            tone={filteredTotal < 0 ? "red" : "slate"}
             values={currentViewSpark}
           />
           <SummaryCard
             label="ENTRIES"
             value={String(filteredRecords.length)}
             hint="Filtered savings records"
-            tone="purple"
-            icon={<DocumentIcon />}
+            tone="green"
             values={entriesSpark}
           />
         </section>
@@ -649,11 +589,11 @@ export default function Transactions() {
             </div>
           </div>
 
-          <div className="activity-filter-row">
+          <div className="activity-filter-stack">
             <label className="activity-select-wrap">
-              <span className="sr-only">Filter by savings destination</span>
+              <span className="sr-only">Filter by source</span>
               <select value={goalFilter} onChange={(event) => setGoalFilter(event.target.value)}>
-                <option value="all">All destinations</option>
+                <option value="all">All Sources</option>
                 {goalOptions.map((goal) => (
                   <option key={goal.value} value={goal.value}>{goal.label}</option>
                 ))}
@@ -683,20 +623,23 @@ export default function Transactions() {
               <ChevronIcon />
             </label>
 
-            <label className="activity-search-wrap">
-              <SearchIcon />
-              <span className="sr-only">Search transactions</span>
-              <input
-                type="search"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search transactions..."
-              />
-            </label>
+            <div className="activity-search-row">
+              <label className="activity-search-wrap">
+                <SearchIcon />
+                <span className="sr-only">Search transactions</span>
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search transactions..."
+                />
+              </label>
 
-            <button className="activity-export-button" type="button" onClick={exportCsv} aria-label="Export filtered activity">
-              <DownloadIcon />
-            </button>
+              <button className="activity-export-button" type="button" onClick={exportCsv} disabled={!filteredRecords.length}>
+                <DownloadIcon />
+                <span>Export</span>
+              </button>
+            </div>
           </div>
 
           {isLoading ? (
@@ -711,13 +654,12 @@ export default function Transactions() {
                   <thead>
                     <tr>
                       <th>Date &amp; Time</th>
-                      <th>Destination</th>
+                      <th>Goal / Source</th>
                       <th>Type</th>
                       <th>Channel</th>
                       <th>Amount</th>
                       <th>Status</th>
                       <th>Reference</th>
-                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -755,24 +697,7 @@ export default function Transactions() {
                               {record.statusLabel}
                             </span>
                           </td>
-                          <td>{record.reference}</td>
-                          <td className="activity-actions-cell">
-                            <button
-                              type="button"
-                              className="activity-row-menu-button"
-                              aria-label={`Actions for ${record.reference}`}
-                              onClick={() => setOpenMenuId((current) => (current === record.id ? "" : record.id))}
-                            >
-                              <MoreIcon />
-                            </button>
-                            {openMenuId === record.id ? (
-                              <div className="activity-row-menu">
-                                <button type="button" onClick={() => { setDetailRecord(record); setOpenMenuId(""); }}>View details</button>
-                                <button type="button" onClick={() => copyReference(record)}>Copy reference</button>
-                                <button type="button" onClick={() => downloadReceipt(record)}>Download receipt</button>
-                              </div>
-                            ) : null}
-                          </td>
+                          <td className="activity-reference-cell">{record.reference}</td>
                         </tr>
                       );
                     })}
@@ -815,7 +740,7 @@ export default function Transactions() {
 
               <div className="activity-pagination-row">
                 <span>
-                  Showing {filteredRecords.length ? pageStart + 1 : 0} to {pageEnd} of {filteredRecords.length} entries
+                  Showing {filteredRecords.length ? pageStart + 1 : 0}-{pageEnd} of {filteredRecords.length} entries
                 </span>
 
                 <div className="activity-pagination-controls">
