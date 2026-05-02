@@ -63,6 +63,7 @@ export default function AuthNavbar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [navbarHidden, setNavbarHidden] = useState(false);
+  const [navbarScrolled, setNavbarScrolled] = useState(false);
 
   const authHidden =
     location.pathname === "/" ||
@@ -134,18 +135,22 @@ export default function AuthNavbar() {
   useEffect(() => {
     if (authHidden) {
       setNavbarHidden(false);
+      setNavbarScrolled(false);
       return undefined;
     }
 
     const topThreshold = 20;
+    const glassThreshold = 40;
     const hideAfter = 88;
     const scrollDelta = 6;
     lastScrollYRef.current = window.scrollY;
+    setNavbarScrolled(window.scrollY > glassThreshold);
 
     function updateNavbarVisibility() {
       const currentScrollY = Math.max(window.scrollY, 0);
       const previousScrollY = lastScrollYRef.current;
       const distance = currentScrollY - previousScrollY;
+      setNavbarScrolled(currentScrollY > glassThreshold);
 
       if (currentScrollY < topThreshold) {
         setNavbarHidden(false);
@@ -209,7 +214,11 @@ export default function AuthNavbar() {
 
   return (
     <header
-      className={["auth-navbar-shell", navbarHidden ? "auth-navbar-shell-hidden" : ""]
+      className={[
+        "auth-navbar-shell",
+        navbarHidden ? "auth-navbar-shell-hidden" : "",
+        navbarScrolled ? "auth-navbar-shell-scrolled" : "",
+      ]
         .filter(Boolean)
         .join(" ")}
       ref={navbarRef}

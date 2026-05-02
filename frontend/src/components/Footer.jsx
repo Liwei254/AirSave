@@ -2,25 +2,19 @@ import { NavLink, useLocation } from "react-router-dom";
 import logo from "../assets/circle.png";
 
 const footerLinks = [
-  { label: "Dashboard", to: "/dashboard" },
-  { label: "Payments", to: "/payments" },
-  { label: "Save", to: "/save" },
-  { label: "Activity", to: "/activity" },
-  { label: "Withdraw", to: "/withdraw" },
-  { label: "Settings", to: "/settings" },
-  { label: "Profile", to: "/profile" },
-  { label: "Support", to: "/support" },
+  { label: "Personal", to: "/" },
+  { label: "Wallet", to: "/" },
+  { label: "Savings", to: "/" },
+  { label: "Company", to: "/" },
+  { label: "Log in", to: "/login" },
+  { label: "Sign up", to: "/register" },
 ];
 
 export default function Footer() {
   const location = useLocation();
-  const hidden =
-    location.pathname === "/" ||
-    location.pathname === "/login" ||
-    location.pathname === "/register" ||
-    location.pathname === "/dashboard";
+  const showFooter = location.pathname === "/";
 
-  if (hidden) {
+  if (!showFooter) {
     return null;
   }
 
@@ -28,7 +22,7 @@ export default function Footer() {
     <footer className="app-footer">
       <div className="footer-shell">
         <div className="footer-copy">
-          <NavLink className="footer-brand" to="/dashboard">
+          <NavLink className="footer-brand" to="/">
             <span className="footer-brand-mark">
               <img src={logo} alt="" className="footer-brand-image" />
             </span>
