@@ -75,6 +75,7 @@ export default function Wallet() {
             </section>
 
             <section className="wallet-action-grid">
+              <button type="button" onClick={() => navigate("/deposit")}><span>Deposit</span></button>
               <button type="button" onClick={() => navigate("/send")}><span>Send</span></button>
               <button type="button" onClick={() => navigate("/lipa-na-airsave")}><span>Buy Goods</span></button>
               <button type="button" onClick={() => navigate("/withdraw")}><span>Withdraw</span></button>

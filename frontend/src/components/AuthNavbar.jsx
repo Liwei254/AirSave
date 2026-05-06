@@ -18,7 +18,13 @@ const navItems = [
 ];
 
 function getActiveNavTarget(pathname) {
-  if (pathname === "/payments" || pathname === "/send" || pathname === "/lipa-na-airsave") {
+  if (
+    pathname === "/payments" ||
+    pathname === "/deposit" ||
+    pathname === "/send" ||
+    pathname === "/lipa-na-airsave" ||
+    pathname.startsWith("/payments/")
+  ) {
     return "/payments";
   }
 

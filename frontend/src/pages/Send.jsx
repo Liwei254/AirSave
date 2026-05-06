@@ -13,7 +13,6 @@ import {
   formatKsh,
   formatServiceDate,
   getFullKenyaPhone,
-  getRoundUp,
   isValidKenyaPhoneDigits,
   toAmount,
 } from "../utils/servicePage";
@@ -115,11 +114,8 @@ export default function Send() {
   const numericAmount = toAmount(amount);
   const validPhone = isValidKenyaPhoneDigits(recipientPhone);
   const recipientDisplay = getFullKenyaPhone(recipientPhone) || "Not set";
-  const roundUpRule = Number(user?.roundUpRule || 50);
-  const autoSaveApplies = user?.preferences?.autoSaveEnabled !== false;
-  const roundUp = useMemo(() => getRoundUp(numericAmount, roundUpRule), [numericAmount, roundUpRule]);
   const fee = 0;
-  const totalCharged = autoSaveApplies && numericAmount ? roundUp.rounded + fee : numericAmount + fee;
+  const totalCharged = numericAmount + fee;
   const canConfirm = numericAmount > 0 && validPhone && !isSubmitting;
   const recentRows = useMemo(() => buildTransferRows(activity), [activity]);
   const previewRows = [
@@ -129,10 +125,6 @@ export default function Send() {
     { label: "Fee", value: formatKsh(fee) },
     { label: "Total charged", value: formatKsh(totalCharged) },
   ];
-
-  if (autoSaveApplies && roundUp.savings > 0) {
-    previewRows.push({ label: "Auto-saved", value: formatKsh(roundUp.savings), tone: "success" });
-  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -149,6 +141,7 @@ export default function Send() {
     try {
       const payment = await initiatePayment({
         amount: numericAmount,
+        phone: recipientDisplay,
         merchant: recipientMode === "self" ? "Send to myself" : `Send to ${recipientDisplay}`,
         description: note.trim() || (recipientMode === "self" ? "Send to myself" : `Send to another number ${recipientDisplay}`),
         transactionType: "send",

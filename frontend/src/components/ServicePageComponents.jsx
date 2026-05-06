@@ -13,8 +13,12 @@ const amountFormatter = new Intl.NumberFormat("en-KE", {
   maximumFractionDigits: 0,
 });
 
-export function ServicePageShell({ current, feedback, children, parentLabel = "Payments", parentPath = "/payments" }) {
+export function ServicePageShell({ current, feedback, children, parentLabel = "Payments", parentPath = "/payments", trail }) {
   const navigate = useNavigate();
+  const breadcrumbItems = trail || [
+    { label: parentLabel, path: parentPath },
+    { label: current },
+  ];
 
   return (
     <Layout shellClassName="service-premium-shell">
@@ -27,11 +31,22 @@ export function ServicePageShell({ current, feedback, children, parentLabel = "P
         ) : null}
 
         <nav className="service-premium-breadcrumb" aria-label="Breadcrumb">
-          <button type="button" onClick={() => navigate(parentPath)}>
-            {parentLabel}
-          </button>
-          <span aria-hidden="true">/</span>
-          <strong>{current}</strong>
+          {breadcrumbItems.map((item, index) => {
+            const isLast = index === breadcrumbItems.length - 1;
+
+            return (
+              <span className="service-breadcrumb-item" key={`${item.label}-${index}`}>
+                {item.path && !isLast ? (
+                  <button type="button" onClick={() => navigate(item.path)}>
+                    {item.label}
+                  </button>
+                ) : (
+                  <strong>{item.label}</strong>
+                )}
+                {!isLast ? <span aria-hidden="true">/</span> : null}
+              </span>
+            );
+          })}
         </nav>
 
         {children}

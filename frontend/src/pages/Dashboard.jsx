@@ -14,6 +14,7 @@ import {
 } from "../utils/savings";
 
 const QUICK_ACTIONS = [
+  { label: "Deposit", to: "/deposit", icon: "deposit", tone: "blue" },
   { label: "Send", to: "/send", icon: "send", tone: "gold" },
   { label: "Buy Goods", to: "/lipa-na-airsave", icon: "cart", tone: "green" },
   { label: "Withdraw", to: "/withdraw", icon: "withdraw", tone: "red" },
@@ -34,6 +35,7 @@ function Icon({ name, className = "" }) {
       "M17 20h.01",
     ],
     chevron: ["M8 5l8 7-8 7"],
+    deposit: ["M12 20V8", "M7 13l5-5 5 5", "M5 4h14"],
     eye: [
       "M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z",
       "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",

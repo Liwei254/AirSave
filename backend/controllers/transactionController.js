@@ -39,6 +39,10 @@ function getWithdrawalPhone(description) {
   return match?.[1] || "";
 }
 
+function shouldAutoSave(transactionType) {
+  return ["purchase", "bill", "save"].includes(String(transactionType || "").toLowerCase());
+}
+
 async function confirmTransactionByReference(paymentReference) {
   const transaction = await Transaction.findOne({ paymentReference });
 
@@ -56,13 +60,38 @@ async function confirmTransactionByReference(paymentReference) {
   }
 
   let ledgerEntry = null;
+  const debitAmount = Number(Number(transaction.roundedAmount ?? transaction.amount ?? transaction.originalAmount ?? 0).toFixed(2));
+  const walletBalance = await calculateWalletBalance(wallet._id);
+
+  if (debitAmount > 0 && walletBalance < debitAmount) {
+    transaction.status = "failed";
+    await transaction.save();
+
+    await Notification.create({
+      user: transaction.user,
+      message: "Payment failed because your wallet balance is insufficient.",
+      type: "system",
+    });
+
+    return transaction;
+  }
+
+  if (debitAmount > 0) {
+    await createLedgerEntry({
+      walletId: wallet._id,
+      amount: debitAmount,
+      type: "DEBIT",
+      reference: transaction.paymentReference || transaction.reference,
+      description: `Wallet debit for ${transaction.transactionType || "payment"}: ${transaction.merchant || transaction.description || "AirSave payment"}.`,
+    });
+  }
 
   if (savingsValue > 0) {
     ledgerEntry = await createLedgerEntry({
       walletId: wallet._id,
       amount: savingsValue,
       type: "CREDIT",
-      reference: transaction.paymentReference || transaction.reference,
+      reference: `${transaction.paymentReference || transaction.reference}-SAVE`,
       description: `Auto-saved ${savingsValue} KES from ${transaction.merchant || transaction.description || "purchase"}`,
     });
   }
@@ -95,7 +124,7 @@ async function confirmTransactionByReference(paymentReference) {
     message:
       savingsValue > 0
         ? `Payment confirmed. ${savingsValue} KES auto-saved from your purchase.`
-        : "Payment confirmed. No round-up was needed for this purchase.",
+        : "Payment confirmed.",
     type: "saving",
   });
 
@@ -129,13 +158,13 @@ export const initiatePayment = async (req, res) => {
       return res.status(400).json({ message: "Amount required" });
     }
 
+    const requestedTransactionType = ["purchase", "bill", "send", "save"].includes(transactionType)
+      ? transactionType
+      : "purchase";
+
     const user = await User.findById(req.user._id).select("phone roundUpRule preferences");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
-    }
-
-    if (user.preferences?.autoSaveEnabled === false) {
-      return res.status(400).json({ message: "Auto-save is disabled. Enable it in Settings to continue." });
     }
 
     const rule = Number(user.roundUpRule || 50);
@@ -152,7 +181,12 @@ export const initiatePayment = async (req, res) => {
       return res.status(400).json({ message: "Selected wallet not found." });
     }
 
-    if (phone && normalizePhone(phone) !== normalizePhone(user.phone)) {
+    const transactionPhone = normalizePhone(phone || user.phone);
+    if (!transactionPhone) {
+      return res.status(400).json({ message: "A valid Kenyan phone number is required." });
+    }
+
+    if (requestedTransactionType !== "send" && phone && transactionPhone !== normalizePhone(user.phone)) {
       return res.status(400).json({ message: "Payments must use the account phone number." });
     }
 
@@ -167,20 +201,31 @@ export const initiatePayment = async (req, res) => {
       goal = await Goal.findOne({ user: req.user._id, status: "active" }).sort({ updatedAt: -1, createdAt: -1 });
     }
 
-    const rounding = roundAmount(numericAmount, rule);
+    const autoSaveApplies = shouldAutoSave(requestedTransactionType);
+
+    if (autoSaveApplies && user.preferences?.autoSaveEnabled === false) {
+      return res.status(400).json({ message: "Auto-save is disabled. Enable it in Settings to continue." });
+    }
+
+    const rounding = autoSaveApplies
+      ? roundAmount(numericAmount, rule)
+      : { original: numericAmount, rounded: numericAmount, savings: 0 };
     const savingsValue = Number(rounding.savings.toFixed(2));
     const roundedAmount = Number(rounding.rounded.toFixed(2));
+    const walletBalance = await calculateWalletBalance(wallet._id);
+
+    if (roundedAmount > walletBalance) {
+      return res.status(400).json({ message: "Insufficient wallet balance. Deposit funds before continuing." });
+    }
+
     const paymentReference = buildReference("PAY");
     const callbackReference = buildReference("CALLBACK");
     const cleanMerchant = String(merchant || description || "Purchase").trim().slice(0, 140);
     const cleanDescription = String(description || merchant || "AirSave wallet purchase").trim().slice(0, 240);
-    const safeTransactionType = ["purchase", "bill", "send", "save"].includes(transactionType)
-      ? transactionType
-      : "purchase";
 
     const transaction = await Transaction.create({
       user: req.user._id,
-      phone: normalizePhone(phone || user.phone),
+      phone: transactionPhone,
       originalAmount: numericAmount,
       roundedAmount,
       savingsAmount: savingsValue,
@@ -189,7 +234,7 @@ export const initiatePayment = async (req, res) => {
       roundingType: String(rule),
       merchant: cleanMerchant,
       description: cleanDescription,
-      transactionType: safeTransactionType,
+      transactionType: requestedTransactionType,
       status: "processing",
       wallet: wallet._id,
       goal: goal?._id || null,
@@ -200,7 +245,9 @@ export const initiatePayment = async (req, res) => {
     scheduleAutoConfirmation(paymentReference);
 
     res.status(201).json({
-      message: "Payment initiated. Round-up savings will post after callback confirmation.",
+      message: autoSaveApplies
+        ? "Payment initiated. Round-up savings will post after confirmation."
+        : "Payment initiated. Wallet debit will post after confirmation.",
       paymentId: transaction._id,
       paymentReference,
       callbackReference,
@@ -221,7 +268,9 @@ export const initiatePayment = async (req, res) => {
       },
       checkout: {
         provider: "mock-mobile-money",
-        prompt: `Approve the mobile money debit on ${transaction.phone} for ${roundedAmount} KES. AirSave will save ${savingsValue} KES automatically.`,
+        prompt: savingsValue > 0
+          ? `Approve the wallet debit for ${roundedAmount} KES. AirSave will save ${savingsValue} KES automatically.`
+          : `Approve the wallet debit for ${roundedAmount} KES.`,
         callbackReference,
       },
     });
@@ -292,31 +341,45 @@ export const getSavingsActivity = async (req, res) => {
       .select("originalAmount roundedAmount savingsAmount amount savings merchant description transactionType createdAt status paymentReference reference goal phone roundingType");
 
     const withdrawals = wallet
-      ? await Ledger.find({ wallet: wallet._id, type: "DEBIT" })
+      ? await Ledger.find({
+          wallet: wallet._id,
+          type: "DEBIT",
+          description: /^Withdrawal from/i,
+        })
           .sort({ createdAt: -1 })
           .select("_id amount reference description status createdAt")
       : [];
 
-    const activity = transactions.map((transaction) => ({
-      _id: transaction._id,
-      amount: getSavingsValue(transaction),
-      savings: getSavingsValue(transaction),
-      purchaseAmount: Number(transaction.originalAmount || 0),
-      chargedAmount: Number(transaction.roundedAmount || 0),
-      roundUpRule: Number(transaction.roundingType || 0),
-      date: transaction.createdAt,
-      status: transaction.status,
-      reference: transaction.paymentReference || transaction.reference,
-      goalName: transaction.goal?.name || "Savings wallet",
-      goalId: transaction.goal?._id || null,
-      from: transaction.phone,
-      phone: transaction.phone,
-      channel: "M-Pesa",
-      merchant: transaction.merchant || transaction.description || "Purchase",
-      description: transaction.description,
-      transactionType: transaction.transactionType || "purchase",
-      type: "deposit",
-    }));
+    const activity = transactions.map((transaction) => {
+      const transactionType = transaction.transactionType || "purchase";
+      const isWalletDebit = transactionType === "send";
+      const activityAmount = isWalletDebit
+        ? Number(transaction.originalAmount || transaction.amount || 0)
+        : getSavingsValue(transaction);
+
+      return {
+        _id: transaction._id,
+        amount: activityAmount,
+        savings: isWalletDebit ? -Math.abs(activityAmount) : activityAmount,
+        purchaseAmount: Number(transaction.originalAmount || 0),
+        chargedAmount: Number(transaction.roundedAmount || 0),
+        roundUpRule: Number(transaction.roundingType || 0),
+        date: transaction.createdAt,
+        status: transaction.status,
+        reference: transaction.paymentReference || transaction.reference,
+        goalName: isWalletDebit
+          ? "Mobile transfer"
+          : transaction.goal?.name || "Savings wallet",
+        goalId: transaction.goal?._id || null,
+        from: transaction.phone,
+        phone: transaction.phone,
+        channel: "M-Pesa",
+        merchant: transaction.merchant || transaction.description || "Purchase",
+        description: transaction.description,
+        transactionType,
+        type: isWalletDebit ? "withdraw" : "deposit",
+      };
+    });
 
     const withdrawalActivity = withdrawals.map((entry) => ({
       _id: entry._id,

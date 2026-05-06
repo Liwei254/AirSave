@@ -48,7 +48,7 @@ const transactionSchema = new mongoose.Schema(
     },
     transactionType: {
       type: String,
-      enum: ["purchase", "bill", "send", "withdraw", "save"],
+      enum: ["purchase", "bill", "send", "withdraw", "save", "deposit"],
       default: "purchase",
       index: true,
     },

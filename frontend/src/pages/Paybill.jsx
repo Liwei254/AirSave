@@ -7,9 +7,15 @@ import {
   ServicePageShell,
   TransactionPreview,
 } from "../components/ServicePageComponents.jsx";
-import { getCurrentUser, getPaymentStatus, getSavingsActivity, getWallet, initiatePayment } from "../services/api";
+import {
+  getCurrentUser,
+  getPaymentStatus,
+  getSavingsActivity,
+  getWallet,
+  initiatePayment,
+} from "../services/api";
 import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
-import { formatServiceDate, getRoundUp, toAmount } from "../utils/servicePage";
+import { formatKsh, formatServiceDate, getRoundUp, toAmount } from "../utils/servicePage";
 import { isConfirmedSavingsStatus, sortActivityByNewest } from "../utils/savings";
 
 const paymentPollDelayMs = 1000;
@@ -26,29 +32,21 @@ function getStatusText(status) {
   return String(status || "pending").toLowerCase();
 }
 
-function buildRoundUpRows(activity) {
+function buildPaybillRows(activity) {
   return (activity || [])
-    .filter((item) => {
-      const transactionType = String(item.transactionType || "purchase").toLowerCase();
-      return transactionType === "purchase";
-    })
+    .filter((item) => String(item.transactionType || "").toLowerCase() === "bill")
     .slice(0, 5)
-    .map((item) => {
-      const title = item.goalName || item.merchant || "Savings wallet";
-      const status = getStatusText(item.status);
-
-      return {
-        id: item._id || item.reference,
-        title,
-        meta: `${formatServiceDate(item.date || item.createdAt)} - ${status}`,
-        amount: item.savings ?? item.savingsAmount ?? 0,
-        helper: "Auto-save",
-        tone: String(title).toLowerCase().includes("vacation") ? "gold" : "green",
-      };
-    });
+    .map((item) => ({
+      id: item._id || item.reference,
+      title: item.merchant || "Paybill",
+      meta: `${formatServiceDate(item.date || item.createdAt)} - ${getStatusText(item.status)}`,
+      amount: item.savings ?? item.savingsAmount ?? 0,
+      helper: "Auto-save",
+      tone: "green",
+    }));
 }
 
-export default function LipaNaAirSave() {
+export default function Paybill() {
   const navigate = useNavigate();
   const [activity, setActivity] = useState([]);
   const [user, setUser] = useState(null);
@@ -57,7 +55,8 @@ export default function LipaNaAirSave() {
   const [loadError, setLoadError] = useState("");
   const [feedback, setFeedback] = useState(null);
   const [submitted, setSubmitted] = useState(false);
-  const [tillNumber, setTillNumber] = useState("");
+  const [businessNumber, setBusinessNumber] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
 
@@ -74,10 +73,10 @@ export default function LipaNaAirSave() {
       setLoadError("");
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 403) {
-        navigate("/");
+        navigate("/login", { replace: true });
         return;
       }
-      setLoadError(err.response?.data?.message || err.message || "We could not load this payment flow.");
+      setLoadError(err.response?.data?.message || err.message || "We could not load this paybill flow.");
     } finally {
       setIsLoading(false);
     }
@@ -87,7 +86,7 @@ export default function LipaNaAirSave() {
     loadPage();
   }, [loadPage]);
 
-  async function submitPurchase(payload) {
+  async function submitPaybill(payload) {
     setIsSubmitting(true);
     try {
       const payment = await initiatePayment(payload);
@@ -117,80 +116,96 @@ export default function LipaNaAirSave() {
   const numericAmount = toAmount(amount);
   const roundUpRule = Number(user?.roundUpRule || 50);
   const roundUp = useMemo(() => getRoundUp(numericAmount, roundUpRule), [numericAmount, roundUpRule]);
-  const canConfirm = numericAmount > 0 && Boolean(tillNumber.trim()) && !isSubmitting;
-  const recentRows = useMemo(() => buildRoundUpRows(activity), [activity]);
+  const cleanBusinessNumber = businessNumber.trim();
+  const cleanAccountNumber = accountNumber.trim();
+  const canConfirm = numericAmount > 0 && cleanBusinessNumber && cleanAccountNumber && !isSubmitting;
+  const recentRows = useMemo(() => buildPaybillRows(activity), [activity]);
   const pageFeedback = feedback || (loadError ? { type: "error", message: loadError } : null);
 
   async function handleConfirm(event) {
     event.preventDefault();
     setSubmitted(true);
 
-    if (!numericAmount || !tillNumber.trim()) {
-      setFeedback({ type: "error", message: "Enter a valid till number and amount before confirming." });
+    if (!numericAmount || !cleanBusinessNumber || !cleanAccountNumber) {
+      setFeedback({ type: "error", message: "Enter a business number, account number, and amount before confirming." });
       return;
     }
 
     setFeedback(null);
 
     try {
-      const result = await submitPurchase({
+      const result = await submitPaybill({
         amount: numericAmount,
-        merchant: `Till ${tillNumber.trim()}`,
-        description: note.trim() || `Till ${tillNumber.trim()}`,
-        transactionType: "purchase",
-        mode: "wallet-purchase",
+        merchant: `Paybill ${cleanBusinessNumber}`,
+        description: note.trim() || `Paybill ${cleanBusinessNumber} account ${cleanAccountNumber}`,
+        transactionType: "bill",
+        businessNumber: cleanBusinessNumber,
+        accountNumber: cleanAccountNumber,
+        mode: "paybill",
       });
 
       setAmount("");
-      setTillNumber("");
+      setBusinessNumber("");
+      setAccountNumber("");
       setNote("");
       setSubmitted(false);
       setFeedback({
         type: "success",
         message: isConfirmedSavingsStatus(result?.status)
-          ? "Purchase confirmed and round-up saved."
-          : "Purchase request sent. Savings will update after confirmation.",
+          ? "Paybill confirmed and round-up saved."
+          : "Paybill request sent. Savings will update after confirmation.",
       });
     } catch (error) {
       setFeedback({
         type: "error",
-        message: error.response?.data?.message || error.message || "We could not complete this purchase.",
+        message: error.response?.data?.message || error.message || "We could not complete this paybill payment.",
       });
     }
   }
 
   return (
     <ServicePageShell
-      current="Buy Goods"
+      current="Paybill"
       feedback={pageFeedback}
       trail={[
         { label: "Payments", path: "/payments" },
         { label: "Lipa na M-Pesa" },
-        { label: "Buy Goods" },
+        { label: "Paybill" },
       ]}
     >
       {isLoading ? (
         <section className="service-loading-card">
           <span className="spinner spinner-dark" aria-hidden="true" />
-          <span>Loading payment flow...</span>
+          <span>Loading paybill flow...</span>
         </section>
       ) : (
         <>
           <form className="service-layout-grid" onSubmit={handleConfirm}>
             <ServiceFormCard
               label="Wallet service"
-              title={["Buy", "Goods"]}
+              title={["Paybill", "Payment"]}
               badge="Auto round-up on"
-              subtitle="Pay till numbers and let AirSave save the round-up automatically."
+              subtitle="Pay a business number and let AirSave save the round-up automatically."
             >
               <label className="service-field">
-                <span>Till Number</span>
+                <span>Business Number</span>
                 <input
-                  className={submitted && !tillNumber.trim() ? "service-dark-input service-input-error" : "service-dark-input"}
-                  value={tillNumber}
-                  onChange={(event) => setTillNumber(event.target.value.replace(/[^\d]/g, ""))}
-                  placeholder="Enter till number"
+                  className={submitted && !cleanBusinessNumber ? "service-dark-input service-input-error" : "service-dark-input"}
+                  value={businessNumber}
+                  onChange={(event) => setBusinessNumber(event.target.value.replace(/[^\d]/g, ""))}
+                  placeholder="Enter business number"
                   inputMode="numeric"
+                />
+              </label>
+
+              <label className="service-field">
+                <span>Account Number</span>
+                <input
+                  className={submitted && !cleanAccountNumber ? "service-dark-input service-input-error" : "service-dark-input"}
+                  value={accountNumber}
+                  onChange={(event) => setAccountNumber(event.target.value.replace(/[^\w-]/g, "").slice(0, 32))}
+                  placeholder="Enter account number"
+                  inputMode="text"
                 />
               </label>
 
@@ -216,28 +231,26 @@ export default function LipaNaAirSave() {
               totalLabel="Wallet Charged"
               totalAmount={roundUp.rounded}
               rows={[
-                { label: "Till number", value: tillNumber || "Not set" },
-                { label: "Amount", value: numericAmount ? `Ksh ${numericAmount.toLocaleString("en-KE")}` : "Ksh 0" },
+                { label: "Business number", value: cleanBusinessNumber || "Not set" },
+                { label: "Account number", value: cleanAccountNumber || "Not set" },
+                { label: "Amount", value: formatKsh(numericAmount) },
                 { label: "Round-up rule", value: `Nearest ${roundUpRule}` },
-                { label: "Auto-saved", value: `Ksh ${roundUp.savings.toLocaleString("en-KE")}`, tone: "success" },
+                { label: "Auto-saved", value: formatKsh(roundUp.savings), tone: "success" },
               ]}
             >
               <button className="service-primary-action" type="submit" disabled={!canConfirm}>
-                {isSubmitting ? "Confirming..." : "Confirm Purchase"}
+                {isSubmitting ? "Confirming..." : "Confirm Payment"}
               </button>
-              <button className="service-secondary-action" type="button" onClick={() => navigate("/settings")}>
-                Edit round-up rule
-              </button>
-              <button className="service-secondary-action" type="button" onClick={() => navigate("/dashboard")}>
+              <button className="service-secondary-action" type="button" onClick={() => navigate("/payments")}>
                 Cancel
               </button>
             </TransactionPreview>
           </form>
 
           <RecentServiceActivity
-            title="Round-up savings"
+            title="Paybill savings"
             items={recentRows}
-            emptyMessage="No round-up savings yet."
+            emptyMessage="No paybill savings yet."
           />
         </>
       )}

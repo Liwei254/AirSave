@@ -18092,7 +18092,7 @@ html[data-airsave-theme="dark"] .landing-final-cta .landing-primary-cta {
 
 .premium-actions-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 26px;
   margin-top: 52px;
 }
@@ -18131,6 +18131,11 @@ html[data-airsave-theme="dark"] .landing-final-cta .landing-primary-cta {
 .premium-action-green .premium-action-icon {
   background: rgba(22, 163, 112, 0.09);
   color: #139b6a;
+}
+
+.premium-action-blue .premium-action-icon {
+  background: rgba(37, 99, 235, 0.09);
+  color: #2563eb;
 }
 
 .premium-action-red .premium-action-icon {
@@ -18459,6 +18464,10 @@ html[data-airsave-theme="dark"] .premium-activity-list article {
     grid-template-columns: 1fr;
   }
 
+  .premium-actions-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .premium-goal-card,
   .premium-activity-card {
     min-height: auto;
@@ -18702,10 +18711,17 @@ html[data-airsave-theme="dark"] .premium-activity-list article {
 .service-premium-breadcrumb {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   color: #8190a8;
   font-size: 1.08rem;
   font-weight: 500;
+}
+
+.service-breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .service-premium-breadcrumb button {
@@ -21901,9 +21917,41 @@ html[data-airsave-theme="dark"] .save-roundup-panel p {
 
 .payments-service-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+}
+
+.payments-group-stack {
+  display: grid;
   gap: 24px;
   margin-top: 24px;
+}
+
+.payments-service-group {
+  display: grid;
+  gap: 18px;
+}
+
+.payments-group-heading {
+  display: grid;
+  gap: 8px;
+}
+
+.payments-group-heading h2 {
+  margin: 0;
+  color: #06142e;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.65rem, 3vw, 2.35rem);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.payments-group-heading p {
+  max-width: 560px;
+  margin: 0;
+  color: #66758f;
+  font-size: 0.98rem;
+  line-height: 1.55;
 }
 
 .payments-service-card {
@@ -21939,6 +21987,11 @@ html[data-airsave-theme="dark"] .save-roundup-panel p {
   color: #0f9f6e;
 }
 
+.payments-service-blue .payments-service-icon {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+
 .payments-service-icon svg {
   width: 25px;
   height: 25px;
@@ -21957,11 +22010,13 @@ html[data-airsave-theme="dark"] .save-roundup-panel p {
   text-transform: uppercase;
 }
 
-.payments-service-card h2 {
+.payments-service-card h2,
+.payments-service-card h3 {
   margin: 8px 0 0;
   color: #06142e;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(2rem, 4vw, 3.4rem);
+  font-size: clamp(1.8rem, 3.4vw, 2.7rem);
+  font-weight: 500;
   line-height: 1;
   letter-spacing: 0;
 }
@@ -22007,11 +22062,14 @@ html[data-airsave-theme="dark"] .payments-service-card {
 }
 
 html[data-airsave-theme="dark"] .payments-hero h1,
-html[data-airsave-theme="dark"] .payments-service-card h2 {
+html[data-airsave-theme="dark"] .payments-group-heading h2,
+html[data-airsave-theme="dark"] .payments-service-card h2,
+html[data-airsave-theme="dark"] .payments-service-card h3 {
   color: #f8fafc;
 }
 
 html[data-airsave-theme="dark"] .payments-hero p,
+html[data-airsave-theme="dark"] .payments-group-heading p,
 html[data-airsave-theme="dark"] .payments-service-card p {
   color: #94a3b8;
 }

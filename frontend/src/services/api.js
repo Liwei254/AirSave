@@ -195,6 +195,10 @@ export async function getTransactions() {
   return requestData(API.get("/wallet/transactions", { withCredentials: true }), (data) => data.transactions || []);
 }
 
+export async function depositWallet(payload) {
+  return requestData(API.post("/wallet/deposit", payload, { withCredentials: true }));
+}
+
 export async function getSavingsActivity() {
   return requestData(API.get("/transactions/activity", { withCredentials: true }));
 }
