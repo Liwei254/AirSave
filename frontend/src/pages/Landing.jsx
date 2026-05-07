@@ -7,17 +7,17 @@ const howItWorks = [
   {
     icon: "01",
     title: "Buy goods",
-    description: "Pay normally from your wallet.",
+    description: "Pay normally from your wallet. No extra steps or friction.",
   },
   {
     icon: "02",
     title: "Round-up automatically",
-    description: "AirSave rounds each payment to your rule.",
+    description: "AirSave rounds each payment to your rule, silently and instantly.",
   },
   {
     icon: "03",
     title: "Save toward one goal",
-    description: "Spare change moves into your active goal.",
+    description: "Spare change moves into your active goal with every transaction.",
   },
 ];
 
@@ -30,10 +30,10 @@ const coreFeatures = [
 ];
 
 const whyAirSave = [
-  { icon: "+", title: "Simple", description: "Designed for daily use." },
-  { icon: "%", title: "Automatic", description: "Savings happen in the background." },
-  { icon: "#", title: "Secure", description: "Protected wallet and auth flows." },
-  { icon: "*", title: "Daily spending", description: "Built around real purchases." },
+  { icon: "+", title: "Simple", description: "Designed for daily use with no complexity or learning curve." },
+  { icon: "^", title: "Automatic", description: "Savings happen silently in the background as you spend." },
+  { icon: "◇", title: "Secure", description: "Protected wallet and verified auth flows at every step." },
+  { icon: "□", title: "Daily spending", description: "Built entirely around real purchases and real habits." },
 ];
 
 export default function Landing() {

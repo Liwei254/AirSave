@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import logo from "../assets/circle.png";
 
 const transactions = [
   { label: "Groceries", amount: "KES 460", save: "+40 saved" },
@@ -13,7 +12,11 @@ export default function LandingHero() {
       <div className="landing-hero-shell">
         <div className="landing-hero-copy">
           <p className="landing-kicker">AirSave Personal</p>
-          <h1>Spend. Save. Grow.</h1>
+          <h1>
+            <span>Spend.</span>
+            <span>Save.</span>
+            <span className="landing-hero-gold">Grow.</span>
+          </h1>
           <p className="landing-hero-subtitle">
             AirSave turns everyday payments into automatic savings &mdash; so every purchase moves you closer to your
             goal.
@@ -30,10 +33,9 @@ export default function LandingHero() {
 
         <div className="landing-hero-visual" aria-label="AirSave wallet preview">
           <div className="landing-phone">
+            <span className="landing-phone-notch" aria-hidden="true" />
             <div className="landing-phone-top">
-              <span className="landing-phone-logo">
-                <img src={logo} alt="" />
-              </span>
+              <span className="landing-phone-logo" aria-hidden="true">A</span>
               <span>AirSave</span>
             </div>
 
@@ -50,25 +52,25 @@ export default function LandingHero() {
                 <span />
               </div>
             </div>
+
+            <div className="landing-phone-transactions">
+              {transactions.map((transaction, index) => (
+                <div
+                  className="landing-transaction-card"
+                  key={transaction.label}
+                  style={{ "--landing-float-delay": `${index * 0.14}s` }}
+                >
+                  <span>{transaction.label}</span>
+                  <strong>{transaction.amount}</strong>
+                  <small>{transaction.save}</small>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="landing-float-card landing-float-card-balance">
             <span>Savings balance</span>
             <strong>KES 6,240</strong>
-          </div>
-
-          <div className="landing-transaction-stack">
-            {transactions.map((transaction, index) => (
-              <div
-                className="landing-transaction-card"
-                key={transaction.label}
-                style={{ "--landing-float-delay": `${index * 0.14}s` }}
-              >
-                <span>{transaction.label}</span>
-                <strong>{transaction.amount}</strong>
-                <small>{transaction.save}</small>
-              </div>
-            ))}
           </div>
         </div>
       </div>

@@ -1,13 +1,10 @@
 import { NavLink, useLocation } from "react-router-dom";
-import logo from "../assets/circle.png";
 
 const footerLinks = [
-  { label: "Personal", to: "/" },
-  { label: "Wallet", to: "/" },
-  { label: "Savings", to: "/" },
+  { label: "Privacy", to: "/" },
+  { label: "Terms", to: "/" },
+  { label: "Support", to: "/support" },
   { label: "Company", to: "/" },
-  { label: "Log in", to: "/login" },
-  { label: "Sign up", to: "/register" },
 ];
 
 export default function Footer() {
@@ -22,37 +19,19 @@ export default function Footer() {
     <footer className="app-footer">
       <div className="footer-shell">
         <div className="footer-copy">
-          <NavLink className="footer-brand" to="/">
-            <span className="footer-brand-mark">
-              <img src={logo} alt="" className="footer-brand-image" />
-            </span>
-            <span>
-              <strong className="footer-title">AirSave</strong>
-              <span className="footer-text">Save smarter daily.</span>
-            </span>
+          <NavLink className="footer-brand" to="/" aria-label="AirSave home">
+            <span className="footer-brand-mark" aria-hidden="true">A</span>
           </NavLink>
           <span className="footer-text footer-copyright">&copy; 2026 AirSave. All rights reserved.</span>
         </div>
 
         <nav className="footer-actions" aria-label="Footer">
           {footerLinks.map((item) => (
-            <NavLink key={item.to} className="footer-link" to={item.to}>
+            <NavLink key={item.label} className="footer-link" to={item.to}>
               {item.label}
             </NavLink>
           ))}
         </nav>
-
-        <div className="footer-contact">
-          <span className="footer-kicker">Contact</span>
-          <a className="footer-link footer-contact-link" href="mailto:support@airsave.app">
-            support@airsave.app
-          </a>
-          <div className="footer-legal-links">
-            <a href="#terms">Terms</a>
-            <span>|</span>
-            <a href="#privacy">Privacy</a>
-          </div>
-        </div>
       </div>
     </footer>
   );

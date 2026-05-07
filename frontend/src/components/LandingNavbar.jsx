@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import logo from "../assets/circle.png";
 
 const navItems = [
   { label: "Personal", href: "#personal" },
@@ -27,9 +26,7 @@ export default function LandingNavbar() {
     <header className={scrolled ? "landing-nav-wrap landing-nav-scrolled" : "landing-nav-wrap"}>
       <nav className="landing-nav" aria-label="AirSave public navigation">
         <a className="landing-nav-brand" href="#personal">
-          <span className="landing-nav-logo">
-            <img src={logo} alt="" />
-          </span>
+          <span className="landing-nav-logo" aria-hidden="true">A</span>
           <span>AirSave</span>
         </a>
 
@@ -68,6 +65,9 @@ export default function LandingNavbar() {
           ))}
           <Link className="landing-nav-mobile-login" to="/login" onClick={() => setMenuOpen(false)}>
             Log in
+          </Link>
+          <Link className="landing-nav-mobile-signup" to="/register" onClick={() => setMenuOpen(false)}>
+            Sign up
           </Link>
         </div>
       </nav>
