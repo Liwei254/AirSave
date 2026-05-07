@@ -474,8 +474,14 @@ export default function GoalNew() {
                   {targetError ? <small className="goal-field-error">{targetError}</small> : null}
                 </label>
 
+              </div>
+            </section>
+
+            <section className="goal-form-section goal-duration-section">
+              <h2>Duration</h2>
+              <div className="goal-duration-grid">
                 <label className="goal-field">
-                  <span>Duration</span>
+                  <span>Duration number</span>
                   <span className={["goal-input-shell", durationError ? "goal-input-shell-error" : ""].filter(Boolean).join(" ")}>
                     <span className="goal-field-icon"><FieldIcon type="duration" /></span>
                     <input
@@ -491,7 +497,7 @@ export default function GoalNew() {
                 </label>
 
                 <div className="goal-field">
-                  <span>Unit</span>
+                  <span>Unit selector</span>
                   <div className="goal-unit-row">
                     {unitOptions.map((unit) => (
                       <button
@@ -532,7 +538,6 @@ export default function GoalNew() {
             <div className="goal-summary-top">
               <span>GOAL SUMMARY</span>
               <h2>{form.name.trim() || "Custom Goal"}</h2>
-              <small>Target amount</small>
               <strong>{formatKsh(targetAmount)}</strong>
             </div>
             <SummaryIllustration />

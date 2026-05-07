@@ -85,6 +85,10 @@ function App() {
               }
             />
             <Route
+              path="/save/create-goal"
+              element={<Navigate to="/save/create" replace />}
+            />
+            <Route
               path="/send"
               element={
                 <ProtectedRoute>
