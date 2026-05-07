@@ -20,6 +20,7 @@ import {
   getCurrentUser,
   getPaymentStatus,
   getSavingsActivity,
+  getWallet,
   initiatePayment,
 } from "../services/api";
 import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
@@ -56,6 +57,7 @@ function buildTransferRows(activity) {
 export default function Send() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [wallet, setWallet] = useState(null);
   const [activity, setActivity] = useState([]);
   const [recipientMode, setRecipientMode] = useState("self");
   const [recipientPhone, setRecipientPhone] = useState("");
@@ -71,10 +73,11 @@ export default function Send() {
 
     async function loadPage() {
       try {
-        const [userData, activityData] = await Promise.all([getCurrentUser(), getSavingsActivity()]);
+        const [userData, walletData, activityData] = await Promise.all([getCurrentUser(), getWallet(), getSavingsActivity()]);
         if (!isMounted) return;
 
         setUser(userData);
+        setWallet(walletData);
         setActivity(sortActivityByNewest(activityData || []));
       } catch (error) {
         if (!isMounted) return;
@@ -116,13 +119,16 @@ export default function Send() {
   const recipientDisplay = getFullKenyaPhone(recipientPhone) || "Not set";
   const fee = 0;
   const totalCharged = numericAmount + fee;
-  const canConfirm = numericAmount > 0 && validPhone && !isSubmitting;
+  const walletBalance = Number(wallet?.balance || 0);
+  const exceedsBalance = numericAmount > 0 && totalCharged > walletBalance;
+  const canConfirm = numericAmount > 0 && validPhone && !exceedsBalance && !isSubmitting;
   const recentRows = useMemo(() => buildTransferRows(activity), [activity]);
   const previewRows = [
     { label: "Recipient", value: recipientDisplay },
     { label: "Amount", value: formatKsh(numericAmount) },
     { label: "Transfer type", value: recipientMode === "self" ? "Send to myself" : "Mobile transfer" },
     { label: "Fee", value: formatKsh(fee) },
+    { label: "Wallet balance", value: formatKsh(walletBalance) },
     { label: "Total charged", value: formatKsh(totalCharged) },
   ];
 
@@ -130,8 +136,13 @@ export default function Send() {
     event.preventDefault();
     setSubmitted(true);
 
-    if (!numericAmount || !validPhone) {
-      setFeedback({ type: "error", message: "Enter a valid recipient and amount before confirming." });
+    if (!numericAmount || !validPhone || exceedsBalance) {
+      setFeedback({
+        type: "error",
+        message: exceedsBalance
+          ? "Transfer amount exceeds your wallet balance."
+          : "Enter a valid recipient and amount before confirming.",
+      });
       return;
     }
 
@@ -229,8 +240,13 @@ export default function Send() {
               <AmountInput
                 value={amount}
                 onChange={setAmount}
-                error={submitted && !numericAmount}
+                error={(submitted && !numericAmount) || exceedsBalance}
               />
+              {exceedsBalance ? (
+                <p className="service-field-helper service-field-helper-error">
+                  Amount exceeds your wallet balance.
+                </p>
+              ) : null}
 
               <label className="service-field">
                 <span>Optional Note</span>

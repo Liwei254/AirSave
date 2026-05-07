@@ -135,6 +135,7 @@ export default function LipaNaAirSave() {
     try {
       const result = await submitPurchase({
         amount: numericAmount,
+        tillNumber: tillNumber.trim(),
         merchant: `Till ${tillNumber.trim()}`,
         description: note.trim() || `Till ${tillNumber.trim()}`,
         transactionType: "purchase",

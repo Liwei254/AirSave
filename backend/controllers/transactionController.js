@@ -43,6 +43,21 @@ function shouldAutoSave(transactionType) {
   return ["purchase", "bill", "save"].includes(String(transactionType || "").toLowerCase());
 }
 
+function normalizeDigits(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function getTransactionActivityType(transactionType) {
+  const normalizedType = String(transactionType || "").toLowerCase();
+
+  if (normalizedType === "send") return "send";
+  if (normalizedType === "purchase") return "buy-goods";
+  if (normalizedType === "bill") return "paybill";
+  if (normalizedType === "deposit") return "deposit";
+  if (normalizedType === "withdraw") return "withdraw";
+  return "deposit";
+}
+
 async function confirmTransactionByReference(paymentReference) {
   const transaction = await Transaction.findOne({ paymentReference });
 
@@ -190,6 +205,28 @@ export const initiatePayment = async (req, res) => {
       return res.status(400).json({ message: "Payments must use the account phone number." });
     }
 
+    let validatedTillNumber = "";
+    let validatedBusinessNumber = "";
+    let validatedAccountNumber = "";
+
+    if (requestedTransactionType === "purchase") {
+      validatedTillNumber = normalizeDigits(req.body.tillNumber || req.body.till || merchant || description);
+      if (!validatedTillNumber || validatedTillNumber.length < 5) {
+        return res.status(400).json({ message: "A valid till number is required." });
+      }
+    }
+
+    if (requestedTransactionType === "bill") {
+      validatedBusinessNumber = normalizeDigits(req.body.businessNumber || merchant || description);
+      validatedAccountNumber = String(req.body.accountNumber || "").trim();
+      if (!validatedBusinessNumber || validatedBusinessNumber.length < 5) {
+        return res.status(400).json({ message: "A valid business number is required." });
+      }
+      if (!validatedAccountNumber) {
+        return res.status(400).json({ message: "Account number is required." });
+      }
+    }
+
     let goal = null;
     if (goalId) {
       goal = await Goal.findOne({ _id: goalId, user: req.user._id, status: "active" });
@@ -220,8 +257,20 @@ export const initiatePayment = async (req, res) => {
 
     const paymentReference = buildReference("PAY");
     const callbackReference = buildReference("CALLBACK");
-    const cleanMerchant = String(merchant || description || "Purchase").trim().slice(0, 140);
-    const cleanDescription = String(description || merchant || "AirSave wallet purchase").trim().slice(0, 240);
+    const fallbackMerchant =
+      requestedTransactionType === "purchase"
+        ? `Till ${validatedTillNumber}`
+        : requestedTransactionType === "bill"
+          ? `Paybill ${validatedBusinessNumber}`
+          : requestedTransactionType === "send"
+            ? `Send to ${transactionPhone}`
+            : "Purchase";
+    const fallbackDescription =
+      requestedTransactionType === "bill"
+        ? `Paybill ${validatedBusinessNumber} account ${validatedAccountNumber}`
+        : fallbackMerchant;
+    const cleanMerchant = String(merchant || fallbackMerchant).trim().slice(0, 140);
+    const cleanDescription = String(description || fallbackDescription || merchant || "AirSave wallet purchase").trim().slice(0, 240);
 
     const transaction = await Transaction.create({
       user: req.user._id,
@@ -352,7 +401,8 @@ export const getSavingsActivity = async (req, res) => {
 
     const activity = transactions.map((transaction) => {
       const transactionType = transaction.transactionType || "purchase";
-      const isWalletDebit = transactionType === "send";
+      const activityType = getTransactionActivityType(transactionType);
+      const isWalletDebit = activityType === "send";
       const activityAmount = isWalletDebit
         ? Number(transaction.originalAmount || transaction.amount || 0)
         : getSavingsValue(transaction);
@@ -377,7 +427,7 @@ export const getSavingsActivity = async (req, res) => {
         merchant: transaction.merchant || transaction.description || "Purchase",
         description: transaction.description,
         transactionType,
-        type: isWalletDebit ? "withdraw" : "deposit",
+        type: activityType,
       };
     });
 

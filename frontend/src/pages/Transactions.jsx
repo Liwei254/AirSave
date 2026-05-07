@@ -10,6 +10,14 @@ const rangeOptions = [
 ];
 
 const rowsPerPageOptions = [10, 25, 50];
+const debitActivityTypes = ["withdraw", "send"];
+const typeLabels = {
+  deposit: "Deposit",
+  withdraw: "Withdraw",
+  send: "Send",
+  "buy-goods": "Buy Goods",
+  paybill: "Paybill",
+};
 
 const currencyFormatter = new Intl.NumberFormat("en-KE", {
   maximumFractionDigits: 0,
@@ -82,6 +90,9 @@ function getStatusLabel(status) {
 
 function getType(record) {
   const rawType = String(record?.type || record?.transactionType || "").toLowerCase();
+  if (rawType.includes("send")) return "send";
+  if (rawType.includes("buy-goods") || rawType.includes("purchase")) return "buy-goods";
+  if (rawType.includes("paybill") || rawType.includes("bill")) return "paybill";
   if (rawType.includes("withdraw") || rawType === "debit") return "withdraw";
   if (rawType.includes("deposit") || rawType.includes("save") || rawType === "credit") return "deposit";
   return toNumber(record?.savings ?? record?.amount) < 0 ? "withdraw" : "deposit";
@@ -90,7 +101,15 @@ function getType(record) {
 function getSignedAmount(record) {
   const type = getType(record);
   const value = toNumber(record?.savings ?? record?.amount ?? record?.savingsAmount ?? record?.originalAmount);
-  return type === "withdraw" ? -Math.abs(value) : Math.abs(value);
+  return debitActivityTypes.includes(type) ? -Math.abs(value) : Math.abs(value);
+}
+
+function getTypeLabel(type) {
+  return typeLabels[type] || "Deposit";
+}
+
+function isSavingsCreditRecord(record) {
+  return !debitActivityTypes.includes(record.type);
 }
 
 function normalizeRecord(record) {
@@ -100,7 +119,15 @@ function normalizeRecord(record) {
     record?.goalName ||
     record?.goal?.name ||
     record?.sourceName ||
-    (type === "deposit" ? "Purchase" : "Savings wallet");
+    (type === "send"
+      ? "Mobile transfer"
+      : type === "buy-goods"
+        ? "Buy Goods"
+        : type === "paybill"
+          ? "Paybill"
+          : type === "deposit"
+            ? "Savings wallet"
+            : "Savings wallet");
   const status = String(record?.status || "pending").toLowerCase();
 
   return {
@@ -144,6 +171,9 @@ function getGoalTone(goalName, type) {
   const name = String(goalName || "").toLowerCase();
 
   if (type === "withdraw") return "withdraw";
+  if (type === "send") return "send";
+  if (type === "buy-goods") return "shopping";
+  if (type === "paybill") return "paybill";
   if (name.includes("vacation") || name.includes("travel")) return "vacation";
   if (name.includes("emergency")) return "emergency";
   if (name.includes("rent") || name.includes("home")) return "rent";
@@ -197,7 +227,7 @@ function buildCsv(records) {
       parts.date,
       parts.time,
       record.goalName,
-      record.type === "withdraw" ? "Withdraw" : "Deposit",
+      getTypeLabel(record.type),
       record.channel,
       record.signedAmount,
       record.statusLabel,
@@ -246,9 +276,10 @@ function ChevronIcon({ direction = "down" }) {
 }
 
 function ArrowBadgeIcon({ type }) {
+  const isDebit = debitActivityTypes.includes(type);
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      {type === "withdraw" ? (
+      {isDebit ? (
         <>
           <path d="M12 5v13" />
           <path d="m7 10 5-5 5 5" />
@@ -272,7 +303,7 @@ function CheckIcon() {
 }
 
 function GoalIcon({ tone, type }) {
-  if (type === "withdraw") {
+  if (debitActivityTypes.includes(type)) {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M4 7h16v12H4z" />
@@ -488,13 +519,13 @@ export default function Transactions() {
     return activity
       .filter((record) => {
         const date = getRecordDate(record);
-        return date >= previousWeekStart && date < currentWeekStart && record.type === "deposit" && isConfirmedStatus(record.status);
+        return date >= previousWeekStart && date < currentWeekStart && isSavingsCreditRecord(record) && isConfirmedStatus(record.status);
       })
       .reduce((sum, record) => sum + Math.max(0, record.signedAmount), 0);
   }, [activity]);
 
   const weeklySavings = weeklyRecords
-    .filter((record) => record.type === "deposit" && isConfirmedStatus(record.status))
+    .filter((record) => isSavingsCreditRecord(record) && isConfirmedStatus(record.status))
     .reduce((sum, record) => sum + Math.max(0, record.signedAmount), 0);
 
   const filteredTotal = filteredRecords
@@ -502,7 +533,7 @@ export default function Transactions() {
     .reduce((sum, record) => sum + record.signedAmount, 0);
 
   const growth = previousWeekSavings > 0 ? ((weeklySavings - previousWeekSavings) / previousWeekSavings) * 100 : weeklySavings > 0 ? 100 : 0;
-  const weeklySpark = getSparklineSeries(weeklyRecords.filter((record) => record.type === "deposit" && isConfirmedStatus(record.status)), "amount");
+  const weeklySpark = getSparklineSeries(weeklyRecords.filter((record) => isSavingsCreditRecord(record) && isConfirmedStatus(record.status)), "amount");
   const currentViewSpark = getSparklineSeries(filteredRecords.filter((record) => isConfirmedStatus(record.status)), "amount");
   const entriesSpark = getSparklineSeries(filteredRecords, "entries");
 
@@ -606,6 +637,9 @@ export default function Transactions() {
               <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
                 <option value="all">All Types</option>
                 <option value="deposit">Deposit</option>
+                <option value="send">Send</option>
+                <option value="buy-goods">Buy Goods</option>
+                <option value="paybill">Paybill</option>
                 <option value="withdraw">Withdraw</option>
               </select>
               <ChevronIcon />
@@ -684,7 +718,7 @@ export default function Transactions() {
                           <td>
                             <span className={`activity-type-badge activity-type-${record.type}`}>
                               <ArrowBadgeIcon type={record.type} />
-                              {record.type === "withdraw" ? "Withdraw" : "Deposit"}
+                              {getTypeLabel(record.type)}
                             </span>
                           </td>
                           <td>{record.channel}</td>
@@ -772,7 +806,7 @@ export default function Transactions() {
         <div className="activity-modal-backdrop" role="presentation" onClick={() => setDetailRecord(null)}>
           <section className="activity-detail-modal" role="dialog" aria-modal="true" aria-label="Transaction details" onClick={(event) => event.stopPropagation()}>
             <div>
-              <span>{detailRecord.type === "withdraw" ? "Withdrawal" : "Deposit"}</span>
+              <span>{getTypeLabel(detailRecord.type)}</span>
               <h2>{detailRecord.goalName}</h2>
             </div>
             <dl>

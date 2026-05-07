@@ -11090,6 +11090,16 @@ h6,
   color: #f97316;
 }
 
+.activity-row-icon-send {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.activity-row-icon-paybill {
+  background: #fef3c7;
+  color: #a16207;
+}
+
 .activity-type-badge,
 .activity-status-badge {
   display: inline-flex;
@@ -11127,6 +11137,17 @@ h6,
 .activity-type-withdraw {
   background: #ffedd5;
   color: #f04f16;
+}
+
+.activity-type-send {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.activity-type-buy-goods,
+.activity-type-paybill {
+  background: #fef3c7;
+  color: #9f7718;
 }
 
 .activity-amount-positive {
@@ -18929,6 +18950,17 @@ html[data-airsave-theme="dark"] .premium-activity-list article {
   box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.1) !important;
 }
 
+.service-field-helper {
+  margin: -6px 0 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.service-field-helper-error {
+  color: #dc2626;
+}
+
 .service-mode-selector {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -22409,6 +22441,19 @@ html[data-airsave-theme="dark"] .payments-service-card p {
   border-color: rgba(220, 38, 38, 0.28) !important;
   background: rgba(220, 38, 38, 0.08) !important;
   color: #c2413a !important;
+}
+
+.activity-type-send {
+  border-color: rgba(14, 165, 233, 0.3) !important;
+  background: rgba(14, 165, 233, 0.1) !important;
+  color: #0369a1 !important;
+}
+
+.activity-type-buy-goods,
+.activity-type-paybill {
+  border-color: rgba(185, 146, 47, 0.38) !important;
+  background: rgba(185, 146, 47, 0.1) !important;
+  color: #9f7718 !important;
 }
 
 .activity-status-confirmed {

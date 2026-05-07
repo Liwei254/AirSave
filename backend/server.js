@@ -15,6 +15,8 @@ import goalRoutes from './routes/goal.js';
 import analyticsRoutes from './routes/analytics.js';
 import notificationRoutes from './routes/notification.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import { submitWithdrawal } from './controllers/transactionController.js';
+import { protect } from './middlewares/auth.js';
 
 dotenv.config();
 
@@ -85,6 +87,7 @@ app.use('/api/goals', goalRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/payments', paymentRoutes);
+app.post('/api/withdraw', protect, submitWithdrawal);
 
 app.get('/api', (req, res) => {
   res.json({

@@ -100,6 +100,7 @@ function buildWeeklyTrend(items) {
 
   (items || []).forEach((item) => {
     if (!isConfirmedSavingsStatus(item.status)) return;
+    if (["withdraw", "send"].includes(String(item.type || item.transactionType || "").toLowerCase())) return;
 
     const date = getActivityDate(item);
     if (Number.isNaN(date.getTime())) return;
@@ -109,7 +110,7 @@ function buildWeeklyTrend(items) {
     const targetDay = dayMap.get(key);
 
     if (targetDay) {
-      targetDay.total += Number(item.savings ?? item.amount ?? 0);
+      targetDay.total += Math.max(0, Number(item.savings ?? item.amount ?? 0));
     }
   });
 

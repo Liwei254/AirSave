@@ -70,7 +70,8 @@ export function isWithinActivityFilter(item, filter) {
 export function getSavingsSummary(items) {
   return (items || [])
     .filter((item) => isConfirmedSavingsStatus(item.status))
-    .reduce((sum, item) => sum + toAmount(item.savings), 0);
+    .filter((item) => !["withdraw", "send"].includes(String(item.type || item.transactionType || "").toLowerCase()))
+    .reduce((sum, item) => sum + Math.max(0, toAmount(item.savings ?? item.amount)), 0);
 }
 
 export function getGoalProgress(goal) {
