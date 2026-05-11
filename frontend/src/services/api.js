@@ -105,7 +105,11 @@ API.interceptors.response.use(
 async function requestData(request, transform = (data) => data) {
   try {
     const { data } = await request;
-    return transform(data);
+    const payload =
+      data && typeof data === "object" && Object.prototype.hasOwnProperty.call(data, "success")
+        ? data.data
+        : data;
+    return transform(payload, data);
   } catch (error) {
     const message = error?.response?.data?.message || error.message || "Request failed";
 
@@ -169,6 +173,10 @@ export async function resetPassword(payload) {
 
 export async function getWallet() {
   return requestData(API.get("/wallet", { withCredentials: true }));
+}
+
+export async function getDashboardSummary() {
+  return requestData(API.get("/dashboard/summary", { withCredentials: true }));
 }
 
 export async function getGoals() {

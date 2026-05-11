@@ -1,498 +1,155 @@
-import User from "../models/User.js";
-import Wallet from "../models/Wallet.js";
 import {
-  buildPasswordResetPayload,
+  changePassword as changePasswordService,
+  getCurrentUser,
+  loginUser as loginUserService,
+  logoutUser as logoutUserService,
+  refreshSession as refreshSessionService,
+  registerUser as registerUserService,
+  requestPasswordReset as requestPasswordResetService,
+  resetPassword as resetPasswordService,
+  updateCurrentUser as updateCurrentUserService,
+} from "../services/authService.js";
+import { sendSuccess } from "../utils/apiResponse.js";
+import {
   clearAuthCookies,
   getCookie,
-  getPhoneLookupCandidates,
-  hashToken,
-  isEmailIdentifier,
-  LOGIN_LOCKOUT_ATTEMPTS,
-  LOGIN_LOCKOUT_WINDOW_MS,
-  maskIdentifier,
-  normalizeEmail,
-  normalizePhone,
   REFRESH_COOKIE_NAME,
-  sanitizeFullName,
   setAuthCookies,
 } from "../utils/auth.js";
-import { signAccessToken, signRefreshToken, verifyToken } from "../utils/jwt.js";
 
-function sanitizeUser(user) {
-  return {
-    id: user._id,
-    _id: user._id,
-    fullName: user.fullName || "",
-    email: user.email || "",
-    phone: user.phone,
-    role: user.role,
-    wallet: user.wallet,
-    status: user.status,
-    createdAt: user.createdAt,
-    roundUpRule: user.roundUpRule || 50,
-    avatar: user.avatar || "",
-    walletBalance: Number(user.walletBalance || 0),
-    preferences: {
-      notifications: user.preferences?.notifications ?? true,
-      theme: user.preferences?.theme || "light",
-      privacyMode: user.preferences?.privacyMode ?? false,
-      securityAlerts: user.preferences?.securityAlerts ?? true,
-      linkedPaymentMethods: user.preferences?.linkedPaymentMethods ?? true,
-      autoSaveEnabled: user.preferences?.autoSaveEnabled ?? true,
-    },
-  };
-}
-
-function logAuthEvent(event, details = {}) {
-  console.info(
-    JSON.stringify({
-      scope: "auth",
-      event,
-      timestamp: new Date().toISOString(),
-      ...details,
-    })
-  );
-}
-
-async function findUserByIdentifier(identifier, options = {}) {
-  const rawIdentifier = String(identifier || "").trim();
-  if (!rawIdentifier) return null;
-
-  const selection = options.selection || "+failedLoginAttempts +lockUntil +refreshTokenHash +refreshTokenExpiresAt +passwordResetTokenHash +passwordResetExpiresAt +passwordResetChannel";
-
-  if (isEmailIdentifier(rawIdentifier)) {
-    return User.findOne({ email: normalizeEmail(rawIdentifier) }).select(selection);
-  }
-
-  const candidates = getPhoneLookupCandidates(rawIdentifier);
-  if (!candidates.length) return null;
-
-  return User.findOne({ phone: { $in: candidates } }).select(selection);
-}
-
-async function persistNormalizedPhone(user, inputIdentifier) {
-  if (!user || isEmailIdentifier(inputIdentifier)) return;
-
-  const normalizedPhone = normalizePhone(inputIdentifier);
-  if (normalizedPhone && user.phone !== normalizedPhone) {
-    user.phone = normalizedPhone;
-    await user.save();
-  }
-}
-
-async function issueSession(user, res) {
-  const accessToken = signAccessToken(user._id, user.role);
-  const refreshToken = signRefreshToken(user._id);
-
-  user.refreshTokenHash = hashToken(refreshToken);
-  user.refreshTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  await user.save();
-
-  setAuthCookies(res, { accessToken, refreshToken });
-
-  return { accessToken, refreshToken };
-}
-
-async function registerFailedAttempt(user) {
-  if (!user) return;
-
-  const nextAttempts = (user.failedLoginAttempts || 0) + 1;
-  user.failedLoginAttempts = nextAttempts;
-
-  if (nextAttempts >= LOGIN_LOCKOUT_ATTEMPTS) {
-    user.lockUntil = new Date(Date.now() + LOGIN_LOCKOUT_WINDOW_MS);
-    user.failedLoginAttempts = 0;
-  }
-
-  await user.save();
-}
-
-async function clearFailedAttempts(user) {
-  if (!user) return;
-  user.failedLoginAttempts = 0;
-  user.lockUntil = null;
-  await user.save();
-}
-
-export async function registerUser(req, res) {
+export async function registerUser(req, res, next) {
   try {
-    const payload = req.validatedData || req.body;
-    const fullName = sanitizeFullName(payload.fullName);
-    const email = normalizeEmail(payload.email);
-    const phone = normalizePhone(payload.phone);
-    const password = payload.password;
-
-    const existingUser = await User.findOne({
-      $or: [{ email }, { phone }],
-    }).select("_id");
-
-    if (existingUser) {
-      logAuthEvent("register_failed_duplicate", { identifier: maskIdentifier(email || phone), ip: req.ip });
-      return res.status(409).json({ message: "An account already exists with those details" });
-    }
-
-    const user = await User.create({
-      fullName,
-      email,
-      phone,
-      password,
-      wallet: "000000000000000000000000",
+    const result = await registerUserService({ ...(req.body || {}), ...(req.validatedData || {}) }, { ip: req.ip });
+    setAuthCookies(res, {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
     });
 
-    const wallet = await Wallet.create({
-      user: user._id,
-    });
-
-    user.wallet = wallet._id;
-    const { accessToken } = await issueSession(user, res);
-
-    logAuthEvent("register_success", {
-      userId: String(user._id),
-      identifier: maskIdentifier(email),
-      ip: req.ip,
-    });
-
-    const responseUser = sanitizeUser(user);
-
-    return res.status(201).json({
+    return sendSuccess(res, {
+      statusCode: 201,
       message: "Account created successfully",
-      user: responseUser,
-      token: accessToken,
-      _id: responseUser.id,
-      fullName: responseUser.fullName,
-      email: responseUser.email,
-      phone: responseUser.phone,
-      role: responseUser.role,
-      wallet: responseUser.wallet,
-      status: responseUser.status,
+      data: result,
     });
   } catch (error) {
-    return res.status(500).json({ message: "Registration failed" });
+    return next(error);
   }
 }
 
-export async function loginUser(req, res) {
-  const payload = req.validatedData || req.body;
-  const emailOrPhone = String(payload.emailOrPhone || req.body.emailOrPhone || "").trim();
-  const password = payload.password || req.body.password || "";
-
-  if (!emailOrPhone) {
-    return res.status(400).json({ message: "Email or phone number is required" });
-  }
-
-  if (!password) {
-    return res.status(400).json({ message: "Password is required" });
-  }
-
+export async function loginUser(req, res, next) {
   try {
-    const user = await findUserByIdentifier(emailOrPhone);
-
-    if (!user) {
-      logAuthEvent("login_failed_unknown_identifier", { identifier: maskIdentifier(emailOrPhone), ip: req.ip });
-      return res.status(401).json({ message: "Invalid email/phone or password" });
-    }
-
-    if (user.lockUntil && user.lockUntil > new Date()) {
-      logAuthEvent("login_locked", { userId: String(user._id), identifier: maskIdentifier(emailOrPhone), ip: req.ip });
-      return res.status(401).json({ message: "Invalid email/phone or password" });
-    }
-
-    const isMatch = await user.matchPassword(password);
-
-    if (!isMatch || user.status === "suspended") {
-      await registerFailedAttempt(user);
-      logAuthEvent("login_failed_invalid_credentials", {
-        userId: String(user._id),
-        identifier: maskIdentifier(emailOrPhone),
-        ip: req.ip,
-      });
-      return res.status(401).json({ message: "Invalid email/phone or password" });
-    }
-
-    await persistNormalizedPhone(user, emailOrPhone);
-    await clearFailedAttempts(user);
-    const { accessToken } = await issueSession(user, res);
-
-    logAuthEvent("login_success", {
-      userId: String(user._id),
-      identifier: maskIdentifier(emailOrPhone),
-      ip: req.ip,
+    const result = await loginUserService({ ...(req.body || {}), ...(req.validatedData || {}) }, { ip: req.ip });
+    setAuthCookies(res, {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
     });
 
-    const responseUser = sanitizeUser(user);
-
-    return res.status(200).json({
+    return sendSuccess(res, {
       message: "Login successful",
-      user: responseUser,
-      token: accessToken,
-      _id: responseUser.id,
-      fullName: responseUser.fullName,
-      email: responseUser.email,
-      phone: responseUser.phone,
-      role: responseUser.role,
-      wallet: responseUser.wallet,
-      status: responseUser.status,
+      data: result,
     });
   } catch (error) {
-    return res.status(500).json({ message: "Login failed" });
+    return next(error);
   }
 }
 
-export async function refreshSession(req, res) {
+export async function refreshSession(req, res, next) {
   try {
     const refreshToken = getCookie(req, REFRESH_COOKIE_NAME);
-    if (!refreshToken) {
-      return res.status(401).json({ message: "Not authorized" });
-    }
+    const result = await refreshSessionService(refreshToken);
+    setAuthCookies(res, {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    });
 
-    const decoded = verifyToken(refreshToken);
-    if (!decoded || decoded.type !== "refresh") {
-      clearAuthCookies(res);
-      return res.status(401).json({ message: "Not authorized" });
-    }
-
-    const user = await User.findById(decoded.id).select("+refreshTokenHash +refreshTokenExpiresAt");
-    if (!user || !user.refreshTokenHash || user.refreshTokenHash !== hashToken(refreshToken)) {
-      clearAuthCookies(res);
-      return res.status(401).json({ message: "Not authorized" });
-    }
-
-    if (user.refreshTokenExpiresAt && user.refreshTokenExpiresAt < new Date()) {
-      user.refreshTokenHash = null;
-      user.refreshTokenExpiresAt = null;
-      await user.save();
-      clearAuthCookies(res);
-      return res.status(401).json({ message: "Not authorized" });
-    }
-
-    const { accessToken } = await issueSession(user, res);
-
-    return res.status(200).json({
+    return sendSuccess(res, {
       message: "Session refreshed",
-      user: sanitizeUser(user),
-      token: accessToken,
+      data: result,
     });
   } catch (error) {
     clearAuthCookies(res);
-    return res.status(401).json({ message: "Not authorized" });
+    return next(error);
   }
 }
 
-export async function logoutUser(req, res) {
+export async function logoutUser(req, res, next) {
   try {
     const refreshToken = getCookie(req, REFRESH_COOKIE_NAME);
-
-    if (refreshToken) {
-      const decoded = verifyToken(refreshToken);
-      if (decoded?.id) {
-        const user = await User.findById(decoded.id).select("+refreshTokenHash +refreshTokenExpiresAt");
-        if (user) {
-          user.refreshTokenHash = null;
-          user.refreshTokenExpiresAt = null;
-          await user.save();
-        }
-      }
-    }
-
+    await logoutUserService(refreshToken);
     clearAuthCookies(res);
-    return res.status(200).json({ message: "Logged out" });
-  } catch {
-    clearAuthCookies(res);
-    return res.status(200).json({ message: "Logged out" });
-  }
-}
 
-export async function getCurrentSession(req, res) {
-  return res.status(200).json({ user: sanitizeUser(req.user) });
-}
-
-export async function updateCurrentUser(req, res) {
-  try {
-    const user = await User.findById(req.user._id);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const fullName = sanitizeFullName(req.body.fullName);
-    if (fullName) {
-      user.fullName = fullName;
-    }
-
-    const email = normalizeEmail(req.body.email);
-    if (email && email !== user.email) {
-      const existingEmailUser = await User.findOne({ email, _id: { $ne: user._id } }).select("_id");
-      if (existingEmailUser) {
-        return res.status(409).json({ message: "Email is already in use" });
-      }
-      user.email = email;
-    }
-
-    if (typeof req.body.avatar === "string") {
-      user.avatar = req.body.avatar.trim().slice(0, 500);
-    }
-
-    if (typeof req.body.roundUpRule !== "undefined") {
-      const roundUpRule = Number(req.body.roundUpRule);
-      if (![10, 50, 100].includes(roundUpRule)) {
-        return res.status(400).json({ message: "Invalid round-up rule" });
-      }
-      user.roundUpRule = roundUpRule;
-    }
-
-    if (req.body.preferences && typeof req.body.preferences === "object") {
-      const currentPreferences = user.preferences || {};
-      const currentPreferencesObject =
-        typeof currentPreferences.toObject === "function"
-          ? currentPreferences.toObject()
-          : currentPreferences;
-      const nextPreferences = { ...currentPreferencesObject };
-      const booleanFields = [
-        "notifications",
-        "privacyMode",
-        "securityAlerts",
-        "linkedPaymentMethods",
-        "autoSaveEnabled",
-      ];
-
-      booleanFields.forEach((field) => {
-        if (typeof req.body.preferences[field] === "boolean") {
-          nextPreferences[field] = req.body.preferences[field];
-        }
-      });
-
-      if (["light", "dark", "system"].includes(req.body.preferences.theme)) {
-        nextPreferences.theme = req.body.preferences.theme;
-      }
-
-      user.preferences = nextPreferences;
-    }
-
-    await user.save();
-
-    return res.status(200).json({
-      message: "Profile updated successfully",
-      user: sanitizeUser(user),
+    return sendSuccess(res, {
+      message: "Logged out",
+      data: {},
     });
   } catch (error) {
-    return res.status(500).json({ message: "Unable to update profile" });
+    clearAuthCookies(res);
+    return next(error);
   }
 }
 
-export async function changePassword(req, res) {
+export async function getCurrentSession(req, res, next) {
   try {
-    const currentPassword = String(req.body.currentPassword || "");
-    const newPassword = String(req.body.newPassword || "");
+    const user = await getCurrentUser(req.user._id);
 
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ message: "Current password and new password are required" });
-    }
+    return sendSuccess(res, {
+      message: "Current user fetched successfully",
+      data: { user },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
 
-    if (newPassword.length < 8) {
-      return res.status(400).json({ message: "New password must be at least 8 characters" });
-    }
+export async function updateCurrentUser(req, res, next) {
+  try {
+    const user = await updateCurrentUserService(req.user._id, { ...(req.body || {}), ...(req.validatedData || {}) });
 
-    const user = await User.findById(req.user._id);
+    return sendSuccess(res, {
+      message: "Profile updated successfully",
+      data: { user },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const isMatch = await user.matchPassword(currentPassword);
-
-    if (!isMatch) {
-      return res.status(400).json({ message: "Current password is incorrect" });
-    }
-
-    user.password = newPassword;
-    user.refreshTokenHash = null;
-    user.refreshTokenExpiresAt = null;
-    await user.save();
-
+export async function changePassword(req, res, next) {
+  try {
+    await changePasswordService(req.user._id, { ...(req.body || {}), ...(req.validatedData || {}) });
     clearAuthCookies(res);
 
-    return res.status(200).json({ message: "Password changed successfully. Please log in again." });
-  } catch {
-    return res.status(500).json({ message: "Unable to change password" });
-  }
-}
-
-export async function requestPasswordReset(req, res) {
-  const payload = req.validatedData || req.body;
-  const identifier = String(payload.identifier || "").trim();
-
-  try {
-    const user = await findUserByIdentifier(identifier);
-    if (!user) {
-      logAuthEvent("password_reset_requested_unknown", { identifier: maskIdentifier(identifier), ip: req.ip });
-      return res.status(200).json({ message: "If the account exists, reset instructions have been sent." });
-    }
-
-    const resolvedChannel = payload.channel || (isEmailIdentifier(identifier) ? "email" : "phone");
-    const resetPayload = buildPasswordResetPayload(resolvedChannel);
-
-    user.passwordResetTokenHash = resetPayload.hashedToken;
-    user.passwordResetExpiresAt = resetPayload.expiresAt;
-    user.passwordResetChannel = resolvedChannel;
-    await user.save();
-
-    logAuthEvent("password_reset_requested", {
-      userId: String(user._id),
-      identifier: maskIdentifier(identifier),
-      channel: resolvedChannel,
-      ip: req.ip,
-      ...(process.env.NODE_ENV !== "production" ? { devResetToken: resetPayload.rawToken } : {}),
+    return sendSuccess(res, {
+      message: "Password changed successfully. Please log in again.",
+      data: {},
     });
-
-    return res.status(200).json({ message: "If the account exists, reset instructions have been sent." });
-  } catch {
-    return res.status(500).json({ message: "Unable to process password reset" });
+  } catch (error) {
+    return next(error);
   }
 }
 
-export async function resetPassword(req, res) {
-  const payload = req.validatedData || req.body;
-  const identifier = String(payload.identifier || "").trim();
-
+export async function requestPasswordReset(req, res, next) {
   try {
-    const user = await findUserByIdentifier(identifier);
-    if (!user || !user.passwordResetTokenHash || !user.passwordResetExpiresAt) {
-      return res.status(400).json({ message: "Reset token is invalid or expired" });
-    }
+    await requestPasswordResetService({ ...(req.body || {}), ...(req.validatedData || {}) }, { ip: req.ip });
 
-    if (user.passwordResetExpiresAt < new Date()) {
-      user.passwordResetTokenHash = null;
-      user.passwordResetExpiresAt = null;
-      user.passwordResetChannel = null;
-      await user.save();
-      return res.status(400).json({ message: "Reset token is invalid or expired" });
-    }
+    return sendSuccess(res, {
+      message: "If the account exists, reset instructions have been sent.",
+      data: {},
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
 
-    const providedTokenHash = hashToken(payload.token);
-    if (providedTokenHash !== user.passwordResetTokenHash) {
-      return res.status(400).json({ message: "Reset token is invalid or expired" });
-    }
-
-    user.password = payload.password;
-    user.passwordResetTokenHash = null;
-    user.passwordResetExpiresAt = null;
-    user.passwordResetChannel = null;
-    user.refreshTokenHash = null;
-    user.refreshTokenExpiresAt = null;
-    user.failedLoginAttempts = 0;
-    user.lockUntil = null;
-    await user.save();
-
+export async function resetPassword(req, res, next) {
+  try {
+    await resetPasswordService({ ...(req.body || {}), ...(req.validatedData || {}) }, { ip: req.ip });
     clearAuthCookies(res);
 
-    logAuthEvent("password_reset_completed", {
-      userId: String(user._id),
-      identifier: maskIdentifier(identifier),
-      ip: req.ip,
+    return sendSuccess(res, {
+      message: "Password reset successful",
+      data: {},
     });
-
-    return res.status(200).json({ message: "Password reset successful" });
-  } catch {
-    return res.status(500).json({ message: "Unable to reset password" });
+  } catch (error) {
+    return next(error);
   }
 }

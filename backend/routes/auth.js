@@ -14,20 +14,23 @@ import { protect } from "../middlewares/auth.js";
 import { loginRateLimiter, passwordResetRateLimiter } from "../middlewares/authRateLimit.js";
 import { validateRequest } from "../middlewares/validation.js";
 import {
+  changePasswordValidator,
+  loginValidator,
   passwordResetConfirmValidator,
   passwordResetRequestValidator,
   registerValidator,
+  updateProfileValidator,
 } from "../validators/authValidators.js";
 
 const router = express.Router();
 
 router.post("/register", registerValidator, validateRequest, registerUser);
-router.post("/login", loginRateLimiter, loginUser);
+router.post("/login", loginRateLimiter, loginValidator, validateRequest, loginUser);
 router.post("/refresh", refreshSession);
 router.post("/logout", logoutUser);
 router.get("/me", protect, getCurrentSession);
-router.patch("/me", protect, updateCurrentUser);
-router.post("/change-password", protect, changePassword);
+router.patch("/me", protect, updateProfileValidator, validateRequest, updateCurrentUser);
+router.post("/change-password", protect, changePasswordValidator, validateRequest, changePassword);
 router.post(
   "/password-reset/request",
   passwordResetRateLimiter,

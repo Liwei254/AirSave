@@ -15,8 +15,13 @@ import goalRoutes from './routes/goal.js';
 import analyticsRoutes from './routes/analytics.js';
 import notificationRoutes from './routes/notification.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import dashboardRoutes from './routes/dashboard.js';
+import settingsRoutes from './routes/settings.js';
 import { submitWithdrawal } from './controllers/transactionController.js';
 import { protect } from './middlewares/auth.js';
+import { validateRequest } from './middlewares/validation.js';
+import { withdrawalValidator } from './validators/transactionValidators.js';
+import { sendError, sendSuccess } from './utils/apiResponse.js';
 
 dotenv.config();
 
@@ -87,19 +92,23 @@ app.use('/api/goals', goalRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/payments', paymentRoutes);
-app.post('/api/withdraw', protect, submitWithdrawal);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/settings', settingsRoutes);
+app.post('/api/withdraw', protect, withdrawalValidator, validateRequest, submitWithdrawal);
 
 app.get('/api', (req, res) => {
-  res.json({
+  return sendSuccess(res, {
     message: 'AirSave API - Micro-Savings Platform',
-    version: '1.0.0',
-    status: 'running',
-    mode: isProduction ? 'production' : 'development',
+    data: {
+      version: '1.0.0',
+      status: 'running',
+      mode: isProduction ? 'production' : 'development',
+    },
   });
 });
 
 app.use('/api', (req, res) => {
-  res.status(404).json({ message: 'API route not found' });
+  return sendError(res, { statusCode: 404, message: 'API route not found' });
 });
 
 if (isProduction) {
@@ -118,10 +127,25 @@ if (isProduction) {
 }
 
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({
-    message: err.message || 'Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  const statusCode = err.statusCode || err.status || (err.code === 11000 ? 409 : 500);
+  const message =
+    err.code === 11000
+      ? 'A record with those details already exists'
+      : err.message || 'Server Error';
+  const errors = Array.isArray(err.errors) ? err.errors : [];
+
+  if (statusCode >= 500) {
+    console.error(err.stack || err);
+  }
+
+  return sendError(res, {
+    statusCode,
+    message,
+    errors,
   });
 });
 

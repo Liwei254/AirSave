@@ -1,4 +1,5 @@
-﻿import rateLimit from "express-rate-limit";
+import rateLimit from "express-rate-limit";
+import { sendError } from "../utils/apiResponse.js";
 
 function buildIdentifierKey(req) {
   const rawIdentifier = String(
@@ -17,8 +18,11 @@ export const loginRateLimiter = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: true,
   keyGenerator: buildIdentifierKey,
-  message: {
-    message: "Too many login attempts. Try again later.",
+  handler: (req, res) => {
+    return sendError(res, {
+      statusCode: 429,
+      message: "Too many login attempts. Try again later.",
+    });
   },
 });
 
@@ -28,7 +32,10 @@ export const passwordResetRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: buildIdentifierKey,
-  message: {
-    message: "Too many reset attempts. Try again later.",
+  handler: (req, res) => {
+    return sendError(res, {
+      statusCode: 429,
+      message: "Too many reset attempts. Try again later.",
+    });
   },
 });

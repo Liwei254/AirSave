@@ -1,18 +1,25 @@
-﻿import { matchedData, validationResult } from "express-validator";
+import { matchedData, validationResult } from "express-validator";
+import { sendError } from "../utils/apiResponse.js";
 
 export function validateRequest(req, res, next) {
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
-    return res.status(400).json({
-      message: errors.array()[0]?.msg || "Invalid request",
-      errors: errors.array().map(({ path, msg }) => ({ field: path, message: msg })),
+    const readableErrors = errors.array().map(({ path, msg }) => ({
+      field: path,
+      message: msg,
+    }));
+
+    return sendError(res, {
+      statusCode: 400,
+      message: readableErrors[0]?.message || "Invalid request",
+      errors: readableErrors,
     });
   }
 
   req.validatedData = matchedData(req, {
     locations: ["body", "params", "query"],
-    includeOptionals: true,
+    includeOptionals: false,
   });
 
   return next();

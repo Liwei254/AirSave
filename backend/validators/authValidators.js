@@ -85,6 +85,93 @@ export const registerValidator = checkSchema({
   },
 });
 
+export const loginValidator = checkSchema({
+  emailOrPhone: {
+    in: ["body"],
+    trim: true,
+    notEmpty: { errorMessage: "Email or phone number is required" },
+    custom: {
+      options: validateIdentifier,
+    },
+  },
+  password: {
+    in: ["body"],
+    trim: false,
+    notEmpty: { errorMessage: "Password is required" },
+  },
+});
+
+export const updateProfileValidator = checkSchema({
+  fullName: {
+    in: ["body"],
+    optional: true,
+    trim: true,
+    isLength: {
+      options: { min: 2, max: 120 },
+      errorMessage: "Full name must be between 2 and 120 characters",
+    },
+    customSanitizer: {
+      options: (value) => sanitizeFullName(value),
+    },
+  },
+  email: {
+    in: ["body"],
+    optional: true,
+    trim: true,
+    isEmail: { errorMessage: "Enter a valid email address" },
+    customSanitizer: {
+      options: (value) => normalizeEmail(value),
+    },
+  },
+  avatar: {
+    in: ["body"],
+    optional: true,
+    isString: { errorMessage: "Avatar must be a valid string" },
+    isLength: {
+      options: { max: 500 },
+      errorMessage: "Avatar URL is too long",
+    },
+  },
+  roundUpRule: {
+    in: ["body"],
+    optional: true,
+    isInt: {
+      options: { min: 10, max: 100 },
+      errorMessage: "Round-up rule must be 10, 50, or 100",
+    },
+    custom: {
+      options: (value) => {
+        if (![10, 50, 100].includes(Number(value))) {
+          throw new Error("Round-up rule must be 10, 50, or 100");
+        }
+        return true;
+      },
+    },
+    toInt: true,
+  },
+  preferences: {
+    in: ["body"],
+    optional: true,
+    isObject: { errorMessage: "Preferences must be an object" },
+  },
+});
+
+export const changePasswordValidator = checkSchema({
+  currentPassword: {
+    in: ["body"],
+    trim: false,
+    notEmpty: { errorMessage: "Current password is required" },
+  },
+  newPassword: {
+    in: ["body"],
+    trim: false,
+    notEmpty: { errorMessage: "New password is required" },
+    custom: {
+      options: validatePassword,
+    },
+  },
+});
+
 export const passwordResetRequestValidator = checkSchema({
   identifier: {
     in: ["body"],

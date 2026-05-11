@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import { sendError } from "../utils/apiResponse.js";
 import { ACCESS_COOKIE_NAME, getCookie } from "../utils/auth.js";
 import { verifyToken } from "../utils/jwt.js";
 
@@ -8,6 +9,8 @@ function getBearerToken(header = "") {
   return header.slice(7).trim();
 }
 
+const protectedUserFields = "_id fullName phone email role roundUpRule wallet status";
+
 const protect = async (req, res, next) => {
   try {
     const bearerToken = getBearerToken(req.headers.authorization || "");
@@ -15,31 +18,34 @@ const protect = async (req, res, next) => {
     const token = bearerToken || cookieToken;
 
     if (!token) {
-      return res.status(401).json({ message: "Not authorized" });
+      return sendError(res, { statusCode: 401, message: "Not authorized" });
     }
 
     const decoded = verifyToken(token);
 
     if (!decoded || decoded.type !== "access") {
-      return res.status(401).json({ message: "Not authorized" });
+      return sendError(res, { statusCode: 401, message: "Invalid or expired token" });
     }
 
-    const user = await User.findById(decoded.id).select("-password");
+    const user = await User.findById(decoded.id).select(protectedUserFields);
     if (!user) {
-      return res.status(401).json({ message: "Not authorized" });
+      return sendError(res, { statusCode: 401, message: "Not authorized" });
     }
 
     req.user = user;
     return next();
   } catch {
-    return res.status(401).json({ message: "Not authorized" });
+    return sendError(res, { statusCode: 401, message: "Not authorized" });
   }
 };
 
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ message: `Role ${req.user?.role || "unknown"} is not authorized` });
+      return sendError(res, {
+        statusCode: 403,
+        message: `Role ${req.user?.role || "unknown"} is not authorized`,
+      });
     }
     return next();
   };

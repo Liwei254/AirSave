@@ -1,6 +1,12 @@
 import mongoose from 'mongoose';
 
 const ledgerSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+    index: true
+  },
   wallet: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Wallet',
@@ -35,6 +41,7 @@ const ledgerSchema = new mongoose.Schema({
 
 // Index for efficient balance queries
 ledgerSchema.index({ wallet: 1, createdAt: -1 });
+ledgerSchema.index({ user: 1, createdAt: -1 });
 
 const Ledger = mongoose.model('Ledger', ledgerSchema);
 

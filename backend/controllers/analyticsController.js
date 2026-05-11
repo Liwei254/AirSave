@@ -1,49 +1,36 @@
-import Ledger from "../models/Ledger.js";
-import Wallet from "../models/Wallet.js";
+import { getSavingsActivity } from "../services/transactionService.js";
+import { sendSuccess } from "../utils/apiResponse.js";
 
-// GET ANALYTICS
-export const getAnalytics = async (req, res) => {
+function isConfirmed(status) {
+  return ["confirmed", "completed", "success", "successful"].includes(String(status || "").toLowerCase());
+}
+
+export async function getAnalytics(req, res, next) {
   try {
-    const wallet = await Wallet.findOne({ user: req.user._id });
-
-    if (!wallet) {
-      return res.status(404).json({ message: "Wallet not found" });
-    }
-
-    const transactions = await Ledger.find({
-      wallet: wallet._id,
-      type: "CREDIT"
+    const activity = await getSavingsActivity(req.user._id);
+    const savingsActivity = activity.filter((item) => {
+      const type = String(item.type || item.transactionType || "").toLowerCase();
+      return isConfirmed(item.status) && !["withdraw", "send"].includes(type);
     });
-
-    // 🔢 Total Saved
-    const totalSaved = transactions.reduce((sum, tx) => sum + tx.amount, 0);
-
-    // 📊 Number of transactions
-    const transactionsCount = transactions.length;
-
-    // 📅 This Month Savings
+    const totalSaved = savingsActivity.reduce((sum, tx) => sum + Math.max(0, Number(tx.savings ?? tx.amount ?? 0)), 0);
+    const transactions = savingsActivity.length;
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thisMonth = savingsActivity
+      .filter((tx) => new Date(tx.date || tx.createdAt || 0) >= startOfMonth)
+      .reduce((sum, tx) => sum + Math.max(0, Number(tx.savings ?? tx.amount ?? 0)), 0);
+    const avgSavings = transactions > 0 ? Math.round(totalSaved / transactions) : 0;
 
-    const thisMonthTx = transactions.filter(
-      tx => tx.createdAt >= startOfMonth
-    );
-
-    const thisMonth = thisMonthTx.reduce((sum, tx) => sum + tx.amount, 0);
-
-    // 📈 Average Savings
-    const avgSavings = transactionsCount > 0
-      ? Math.round(totalSaved / transactionsCount)
-      : 0;
-
-    res.status(200).json({
-      totalSaved,
-      transactions: transactionsCount,
-      thisMonth,
-      avgSavings
+    return sendSuccess(res, {
+      message: "Analytics fetched successfully",
+      data: {
+        totalSaved,
+        transactions,
+        thisMonth,
+        avgSavings,
+      },
     });
-
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return next(error);
   }
-};
+}

@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  getActiveGoal,
-  getSavingsActivity,
-  getWallet,
+  getDashboardSummary,
 } from "../services/api";
 import { getGoalProgress } from "../utils/formatters";
 import {
@@ -346,6 +344,7 @@ export default function Dashboard() {
   const [wallet, setWallet] = useState(null);
   const [activeGoal, setActiveGoal] = useState(null);
   const [activity, setActivity] = useState([]);
+  const [summary, setSummary] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [balanceVisible, setBalanceVisible] = useState(false);
@@ -354,15 +353,12 @@ export default function Dashboard() {
     setIsLoading(true);
 
     try {
-      const [walletData, goalData, activityData] = await Promise.all([
-        getWallet(),
-        getActiveGoal(),
-        getSavingsActivity(),
-      ]);
+      const summaryData = await getDashboardSummary();
 
-      setWallet(walletData);
-      setActiveGoal(goalData);
-      setActivity(sortActivityByNewest(normalizeArray(activityData)));
+      setSummary(summaryData);
+      setWallet({ balance: summaryData?.walletBalance || 0 });
+      setActiveGoal(summaryData?.activeGoal || null);
+      setActivity(sortActivityByNewest(normalizeArray(summaryData?.recentTransactions)));
       setError("");
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 403) {
@@ -379,11 +375,14 @@ export default function Dashboard() {
     loadDashboard();
   }, [loadDashboard]);
 
-  const totalSaved = useMemo(() => getSavingsSummary(activity), [activity]);
+  const totalSaved = useMemo(
+    () => Number(summary?.totalSaved ?? getSavingsSummary(activity)),
+    [activity, summary?.totalSaved]
+  );
   const weeklyTrend = useMemo(() => buildWeeklyTrend(activity), [activity]);
   const weeklySavings = useMemo(
-    () => weeklyTrend.reduce((sum, item) => sum + Number(item.total || 0), 0),
-    [weeklyTrend]
+    () => Number(summary?.weeklySavings ?? weeklyTrend.reduce((sum, item) => sum + Number(item.total || 0), 0)),
+    [summary?.weeklySavings, weeklyTrend]
   );
   const trendPath = useMemo(() => {
     const weeklyValues = weeklyTrend.map((item) => item.total);

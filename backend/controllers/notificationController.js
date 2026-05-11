@@ -1,34 +1,31 @@
-import Notification from "../models/Notification.js";
+import {
+  getNotifications as getNotificationsService,
+  markNotificationRead,
+} from "../services/notificationService.js";
+import { sendSuccess } from "../utils/apiResponse.js";
 
-// Get all notifications
-export const getNotifications = async (req, res) => {
+export async function getNotifications(req, res, next) {
   try {
-    const notifications = await Notification.find({
-      user: req.user._id
-    }).sort({ createdAt: -1 });
+    const notifications = await getNotificationsService(req.user._id);
 
-    res.status(200).json(notifications);
-
+    return sendSuccess(res, {
+      message: "Notifications fetched successfully",
+      data: notifications,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return next(error);
   }
-};
+}
 
-// Mark as read
-export const markAsRead = async (req, res) => {
+export async function markAsRead(req, res, next) {
   try {
-    const notification = await Notification.findById(req.params.id);
+    const notification = await markNotificationRead(req.user._id, req.params.id);
 
-    if (!notification) {
-      return res.status(404).json({ message: "Notification not found" });
-    }
-
-    notification.read = true;
-    await notification.save();
-
-    res.status(200).json({ message: "Notification marked as read" });
-
+    return sendSuccess(res, {
+      message: "Notification marked as read",
+      data: { notification },
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return next(error);
   }
-};
+}
