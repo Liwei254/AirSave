@@ -9,13 +9,33 @@ import {
   resetPassword as resetPasswordService,
   updateCurrentUser as updateCurrentUserService,
 } from "../services/authService.js";
+import { denyToken } from "../services/cacheService.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 import {
+  ACCESS_COOKIE_NAME,
   clearAuthCookies,
   getCookie,
+  hashToken,
   REFRESH_COOKIE_NAME,
   setAuthCookies,
 } from "../utils/auth.js";
+import { verifyToken } from "../utils/jwt.js";
+
+function getBearerToken(header = "") {
+  if (typeof header !== "string") return "";
+  if (!header.startsWith("Bearer ")) return "";
+  return header.slice(7).trim();
+}
+
+async function denyCurrentAccessToken(req) {
+  const accessToken = getBearerToken(req.headers.authorization || "") || getCookie(req, ACCESS_COOKIE_NAME);
+  const decoded = verifyToken(accessToken);
+
+  if (!decoded?.exp || decoded.type !== "access") return;
+
+  const ttlSeconds = decoded.exp - Math.floor(Date.now() / 1000);
+  await denyToken(hashToken(accessToken), ttlSeconds);
+}
 
 export async function registerUser(req, res, next) {
   try {
@@ -75,6 +95,7 @@ export async function logoutUser(req, res, next) {
   try {
     const refreshToken = getCookie(req, REFRESH_COOKIE_NAME);
     await logoutUserService(refreshToken);
+    await denyCurrentAccessToken(req);
     clearAuthCookies(res);
 
     return sendSuccess(res, {
@@ -116,6 +137,7 @@ export async function updateCurrentUser(req, res, next) {
 export async function changePassword(req, res, next) {
   try {
     await changePasswordService(req.user._id, { ...(req.body || {}), ...(req.validatedData || {}) });
+    await denyCurrentAccessToken(req);
     clearAuthCookies(res);
 
     return sendSuccess(res, {

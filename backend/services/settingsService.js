@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import AppError from "../utils/AppError.js";
+import { invalidateDashboardCache } from "./cacheService.js";
 
 const validRoundUpRules = [10, 50, 100];
 const validThemes = ["light", "dark", "system"];
@@ -53,6 +54,7 @@ export async function updateRoundUpRule(userId, roundUpRule) {
     throw new AppError("User not found", 404);
   }
 
+  await invalidateDashboardCache(userId);
   return user;
 }
 
@@ -66,5 +68,8 @@ export async function updateUserSettings(user, payload = {}) {
   }
 
   await user.save();
+  if (typeof payload.roundUpRule !== "undefined") {
+    await invalidateDashboardCache(user._id);
+  }
   return user;
 }

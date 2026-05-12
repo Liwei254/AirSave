@@ -2,6 +2,10 @@ import { getActiveGoal } from "./goalService.js";
 import { countUnreadNotifications } from "./notificationService.js";
 import { getSavingsActivity } from "./transactionService.js";
 import { getWallet } from "./walletService.js";
+import {
+  getCachedDashboardSummary,
+  setCachedDashboardSummary,
+} from "./cacheService.js";
 
 function isConfirmed(status) {
   return ["confirmed", "completed", "success", "successful"].includes(String(status || "").toLowerCase());
@@ -25,6 +29,11 @@ function startOfWeek() {
 }
 
 export async function getDashboardSummary(userId) {
+  const cachedSummary = await getCachedDashboardSummary(userId);
+  if (cachedSummary) {
+    return cachedSummary;
+  }
+
   const [wallet, activeGoal, activity, unreadNotifications] = await Promise.all([
     getWallet(userId),
     getActiveGoal(userId),
@@ -38,7 +47,7 @@ export async function getDashboardSummary(userId) {
     .filter((item) => new Date(item.date || item.createdAt || 0) >= weekStart)
     .reduce((sum, item) => sum + Math.max(0, getItemAmount(item)), 0);
 
-  return {
+  const summary = {
     walletBalance: Number(wallet.balance || 0),
     totalSaved,
     weeklySavings,
@@ -46,4 +55,8 @@ export async function getDashboardSummary(userId) {
     recentTransactions: activity.slice(0, 5),
     unreadNotifications,
   };
+
+  await setCachedDashboardSummary(userId, summary);
+
+  return summary;
 }

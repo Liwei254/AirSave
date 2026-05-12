@@ -1,5 +1,6 @@
 import app from "./app.js";
 import connectDB from "./config/db.js";
+import { closeRedis } from "./config/redis.js";
 
 connectDB();
 
@@ -20,3 +21,14 @@ server.on("error", (error) => {
   console.error("Server failed to start:", error);
   process.exit(1);
 });
+
+async function shutdown(signal) {
+  console.log(`${signal} received. Shutting down AirSave server...`);
+  server.close(async () => {
+    await closeRedis();
+    process.exit(0);
+  });
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));

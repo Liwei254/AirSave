@@ -1,6 +1,7 @@
 import Goal from "../models/Goal.js";
 import AppError from "../utils/AppError.js";
 import { updateRoundUpRule } from "./settingsService.js";
+import { invalidateDashboardCache } from "./cacheService.js";
 
 const oneActiveGoalMessage = "You can only have one active goal at a time.";
 const validStatuses = ["active", "completed", "closed"];
@@ -124,6 +125,7 @@ export async function createGoal(userId, body = {}) {
       expectedCompletionDate: payload.deadline,
     });
 
+    await invalidateDashboardCache(userId);
     return serializeGoal(goal);
   } catch (error) {
     if (error?.code === 11000) {
@@ -184,6 +186,7 @@ export async function updateGoal(userId, goalId, body = {}) {
 
   try {
     await goal.save();
+    await invalidateDashboardCache(userId);
     return serializeGoal(goal);
   } catch (error) {
     if (error?.code === 11000) {
@@ -202,6 +205,7 @@ export async function closeGoal(userId, goalId) {
 
   goal.status = "closed";
   await goal.save();
+  await invalidateDashboardCache(userId);
 
   return serializeGoal(goal);
 }
@@ -225,5 +229,6 @@ export async function creditActiveGoal(userId, amount, goalId = null) {
   }
 
   await goal.save();
+  await invalidateDashboardCache(userId);
   return serializeGoal(goal);
 }

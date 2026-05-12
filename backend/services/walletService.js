@@ -11,6 +11,7 @@ import {
 } from "./ledgerService.js";
 import { createNotification } from "./notificationService.js";
 import { createTransactionRecord } from "./transactionService.js";
+import { invalidateDashboardCache } from "./cacheService.js";
 
 function buildReference(prefix) {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -92,6 +93,7 @@ export async function depositWallet(userId, payload = {}, user = {}) {
     message: `Deposit confirmed. ${numericAmount} KES added to your AirSave wallet.`,
     type: "system",
   });
+  await invalidateDashboardCache(userId);
 
   return {
     message: "Deposit confirmed successfully.",

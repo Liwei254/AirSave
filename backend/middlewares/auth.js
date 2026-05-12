@@ -1,6 +1,7 @@
 import User from "../models/User.js";
+import { isTokenDenied } from "../services/cacheService.js";
 import { sendError } from "../utils/apiResponse.js";
-import { ACCESS_COOKIE_NAME, getCookie } from "../utils/auth.js";
+import { ACCESS_COOKIE_NAME, getCookie, hashToken } from "../utils/auth.js";
 import { verifyToken } from "../utils/jwt.js";
 
 function getBearerToken(header = "") {
@@ -24,6 +25,10 @@ const protect = async (req, res, next) => {
     const decoded = verifyToken(token);
 
     if (!decoded || decoded.type !== "access") {
+      return sendError(res, { statusCode: 401, message: "Invalid or expired token" });
+    }
+
+    if (await isTokenDenied(hashToken(token))) {
       return sendError(res, { statusCode: 401, message: "Invalid or expired token" });
     }
 

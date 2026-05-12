@@ -14,6 +14,10 @@ import { createNotification } from "./notificationService.js";
 import { creditActiveGoal, findActiveGoal } from "./goalService.js";
 import User from "../models/User.js";
 import Ledger from "../models/Ledger.js";
+import {
+  invalidateDashboardCache,
+  setTemporaryState,
+} from "./cacheService.js";
 
 function buildReference(prefix) {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -271,6 +275,13 @@ export async function processWalletPayment(userId, payload = {}) {
     message,
     type: savingsValue > 0 ? "saving" : "system",
   });
+  await setTemporaryState("payment", paymentReference, {
+    userId: String(userId),
+    status: transaction.status,
+    transactionId: String(transaction._id),
+    transactionType: requestedTransactionType,
+  });
+  await invalidateDashboardCache(userId);
 
   return {
     message,
@@ -321,6 +332,13 @@ export async function handlePaymentCallback({ paymentReference, status }) {
     transaction.status = "failed";
     await transaction.save();
   }
+  await setTemporaryState("payment", paymentReference, {
+    userId: String(transaction.user),
+    status: transaction.status,
+    transactionId: String(transaction._id),
+    transactionType: transaction.transactionType,
+  });
+  await invalidateDashboardCache(transaction.user);
 
   return {
     status: transaction.status,
@@ -522,6 +540,13 @@ export async function submitWithdrawal(userId, payload = {}) {
   });
 
   const balance = await syncUserWalletBalance(userId, wallet._id);
+  await setTemporaryState("payment", reference, {
+    userId: String(userId),
+    status: transaction.status,
+    transactionId: String(transaction._id),
+    transactionType: "withdraw",
+  });
+  await invalidateDashboardCache(userId);
 
   return {
     message: "Withdrawal submitted successfully.",
