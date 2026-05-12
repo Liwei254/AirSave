@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  useActivityQuery,
+  useDepositMutation,
+  useProfileQuery,
+  useWalletQuery,
+} from "../api/hooks";
 import {
   AmountInput,
   PhoneInput,
@@ -8,12 +14,6 @@ import {
   ServicePageShell,
   TransactionPreview,
 } from "../components/ServicePageComponents.jsx";
-import {
-  depositWallet,
-  getCurrentUser,
-  getSavingsActivity,
-  getWallet,
-} from "../services/api";
 import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
 import {
   extractKenyaPhoneDigits,
@@ -49,53 +49,39 @@ function buildDepositRows(activity) {
 
 export default function Deposit() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [wallet, setWallet] = useState(null);
-  const [activity, setActivity] = useState([]);
   const [amount, setAmount] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [submitted, setSubmitted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const loadPage = useCallback(async () => {
-    try {
-      const [userData, walletData, activityData] = await Promise.all([
-        getCurrentUser(),
-        getWallet(),
-        getSavingsActivity(),
-      ]);
-
-      setUser(userData);
-      setWallet(walletData);
-      setActivity(sortActivityByNewest(activityData || []));
-      setFeedback(null);
-    } catch (error) {
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        navigate("/login", { replace: true });
-        return;
-      }
-
-      setFeedback({ type: "error", message: error.message || "We could not load deposit details." });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [navigate]);
+  const profileQuery = useProfileQuery();
+  const walletQuery = useWalletQuery();
+  const activityQuery = useActivityQuery();
+  const depositMutation = useDepositMutation();
+  const loadError = profileQuery.error || walletQuery.error || activityQuery.error;
 
   useEffect(() => {
-    loadPage();
-  }, [loadPage]);
+    if (!loadError) return;
 
-  useEffect(() => {
-    if (user?.phone) {
-      setPhone(extractKenyaPhoneDigits(user.phone));
+    if (loadError.response?.status === 401 || loadError.response?.status === 403) {
+      navigate("/login", { replace: true });
     }
-  }, [user?.phone]);
+  }, [loadError, navigate]);
+
+  const user = profileQuery.data;
+  const wallet = walletQuery.data;
+  const activity = useMemo(() => sortActivityByNewest(activityQuery.data || []), [activityQuery.data]);
+  const isLoading = profileQuery.isLoading || walletQuery.isLoading || activityQuery.isLoading;
+  const isSubmitting = depositMutation.isPending;
+  const loadFeedback =
+    loadError && loadError.response?.status !== 401 && loadError.response?.status !== 403
+      ? { type: "error", message: loadError.message || "We could not load deposit details." }
+      : null;
 
   const numericAmount = toAmount(amount);
-  const validPhone = isValidKenyaPhoneDigits(phone);
-  const phoneDisplay = getFullKenyaPhone(phone) || "Not set";
+  const effectivePhone = phoneTouched ? phone : extractKenyaPhoneDigits(user?.phone || "");
+  const validPhone = isValidKenyaPhoneDigits(effectivePhone);
+  const phoneDisplay = getFullKenyaPhone(effectivePhone) || "Not set";
   const walletBalance = Number(wallet?.balance || 0);
   const newBalance = walletBalance + numericAmount;
   const canConfirm = numericAmount > 0 && validPhone && !isSubmitting;
@@ -110,20 +96,17 @@ export default function Deposit() {
       return;
     }
 
-    setIsSubmitting(true);
     setFeedback(null);
 
     try {
-      const result = await depositWallet({
+      const result = await depositMutation.mutateAsync({
         amount: numericAmount,
         phoneNumber: phoneDisplay,
         sourceMethod: "M-Pesa",
       });
 
-      setWallet((current) => ({ ...(current || {}), balance: result.balance ?? newBalance }));
       setAmount("");
       setSubmitted(false);
-      await loadPage();
       triggerDashboardRefresh();
       setFeedback({ type: "success", message: result.message || "Deposit confirmed successfully." });
     } catch (error) {
@@ -131,13 +114,11 @@ export default function Deposit() {
         type: "error",
         message: error.response?.data?.message || error.message || "We could not complete this deposit.",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
   return (
-    <ServicePageShell current="Deposit" feedback={feedback}>
+    <ServicePageShell current="Deposit" feedback={feedback || loadFeedback}>
       {isLoading ? (
         <section className="service-loading-card">
           <span className="spinner spinner-dark" aria-hidden="true" />
@@ -159,8 +140,11 @@ export default function Deposit() {
 
               <PhoneInput
                 label="Phone Number"
-                value={phone}
-                onChange={setPhone}
+                value={effectivePhone}
+                onChange={(value) => {
+                  setPhone(value);
+                  setPhoneTouched(true);
+                }}
                 error={submitted && !validPhone}
               />
 

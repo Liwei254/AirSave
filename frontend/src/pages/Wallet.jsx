@@ -1,41 +1,42 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useActivityQuery, useProfileQuery, useWalletQuery } from "../api/hooks";
 import Button from "../components/Button.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import Layout from "../components/Layout.jsx";
-import { getCurrentUser, getSavingsActivity, getWallet } from "../services/api";
 import { formatCurrency, formatDate } from "../utils/formatters";
 import { sortActivityByNewest } from "../utils/savings";
 
 export default function Wallet() {
   const navigate = useNavigate();
-  const [wallet, setWallet] = useState(null);
-  const [user, setUser] = useState(null);
-  const [activity, setActivity] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const loadWallet = useCallback(async () => {
-    try {
-      const [walletData, userData, activityData] = await Promise.all([getWallet(), getCurrentUser(), getSavingsActivity()]);
-      setWallet(walletData);
-      setUser(userData);
-      setActivity(sortActivityByNewest(activityData));
-      setError("");
-    } catch (err) {
-      if (err.response?.status === 401 || err.response?.status === 403) {
-        navigate("/");
-        return;
-      }
-      setError(err.response?.data?.message || err.message || "We could not load your wallet.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [navigate]);
+  const walletQuery = useWalletQuery();
+  const profileQuery = useProfileQuery();
+  const activityQuery = useActivityQuery();
 
   useEffect(() => {
-    loadWallet();
-  }, [loadWallet]);
+    const authError = [walletQuery.error, profileQuery.error, activityQuery.error].find(
+      (err) => err?.response?.status === 401 || err?.response?.status === 403
+    );
+
+    if (authError) {
+      navigate("/");
+    }
+  }, [activityQuery.error, navigate, profileQuery.error, walletQuery.error]);
+
+  const wallet = walletQuery.data;
+  const user = profileQuery.data;
+  const activity = useMemo(() => sortActivityByNewest(activityQuery.data || []), [activityQuery.data]);
+  const isLoading = walletQuery.isLoading || profileQuery.isLoading || activityQuery.isLoading;
+  const loadError = walletQuery.error || profileQuery.error || activityQuery.error;
+  const error = loadError
+    ? loadError.response?.data?.message || loadError.message || "We could not load your wallet."
+    : "";
+
+  function retryWallet() {
+    walletQuery.refetch();
+    profileQuery.refetch();
+    activityQuery.refetch();
+  }
 
   const accountId = useMemo(() => {
     const id = String(wallet?.walletId || user?.wallet || "");
@@ -51,6 +52,7 @@ export default function Wallet() {
           <div className="premium-toast premium-toast-error">
             <strong>Unable to load wallet</strong>
             <span>{error}</span>
+            <button type="button" onClick={retryWallet}>Retry</button>
           </div>
         ) : null}
 

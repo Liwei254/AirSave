@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  useActivityQuery,
+  useProfileQuery,
+  useSendMoneyMutation,
+  useWalletQuery,
+} from "../api/hooks";
+import {
   AmountInput,
   PhoneInput,
   RecentServiceActivity,
@@ -16,13 +22,7 @@ import {
   isValidKenyaPhoneDigits,
   toAmount,
 } from "../utils/servicePage";
-import {
-  getCurrentUser,
-  getPaymentStatus,
-  getSavingsActivity,
-  getWallet,
-  initiatePayment,
-} from "../services/api";
+import { fetchPaymentStatus } from "../api/paymentsApi";
 import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
 import { sortActivityByNewest } from "../utils/savings";
 
@@ -56,46 +56,34 @@ function buildTransferRows(activity) {
 
 export default function Send() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [wallet, setWallet] = useState(null);
-  const [activity, setActivity] = useState([]);
   const [recipientMode, setRecipientMode] = useState("self");
   const [recipientPhone, setRecipientPhone] = useState("");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [feedback, setFeedback] = useState(null);
   const [submitted, setSubmitted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const profileQuery = useProfileQuery();
+  const walletQuery = useWalletQuery();
+  const activityQuery = useActivityQuery();
+  const sendMoneyMutation = useSendMoneyMutation();
 
   useEffect(() => {
-    let isMounted = true;
+    const loadError = profileQuery.error || walletQuery.error || activityQuery.error;
+    if (!loadError) return;
 
-    async function loadPage() {
-      try {
-        const [userData, walletData, activityData] = await Promise.all([getCurrentUser(), getWallet(), getSavingsActivity()]);
-        if (!isMounted) return;
-
-        setUser(userData);
-        setWallet(walletData);
-        setActivity(sortActivityByNewest(activityData || []));
-      } catch (error) {
-        if (!isMounted) return;
-        if (error.response?.status === 401 || error.response?.status === 403) {
-          navigate("/");
-        } else {
-          setFeedback({ type: "error", message: error.message || "We could not load your account." });
-        }
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
+    if (loadError.response?.status === 401 || loadError.response?.status === 403) {
+      navigate("/");
+      return;
     }
 
-    loadPage();
-    return () => {
-      isMounted = false;
-    };
-  }, [navigate]);
+    setFeedback({ type: "error", message: loadError.message || "We could not load your account." });
+  }, [activityQuery.error, navigate, profileQuery.error, walletQuery.error]);
+
+  const user = profileQuery.data;
+  const wallet = walletQuery.data;
+  const activity = useMemo(() => sortActivityByNewest(activityQuery.data || []), [activityQuery.data]);
+  const isLoading = profileQuery.isLoading || walletQuery.isLoading || activityQuery.isLoading;
 
   useEffect(() => {
     if (recipientMode === "self") {
@@ -107,8 +95,7 @@ export default function Send() {
 
   async function refreshActivity() {
     try {
-      const activityData = await getSavingsActivity();
-      setActivity(sortActivityByNewest(activityData || []));
+      await activityQuery.refetch();
     } catch {
       // The transfer result is already shown; keep the current activity list if refresh fails.
     }
@@ -150,7 +137,7 @@ export default function Send() {
     setFeedback(null);
 
     try {
-      const payment = await initiatePayment({
+      const payment = await sendMoneyMutation.mutateAsync({
         amount: numericAmount,
         phone: recipientDisplay,
         merchant: recipientMode === "self" ? "Send to myself" : `Send to ${recipientDisplay}`,
@@ -164,7 +151,7 @@ export default function Send() {
       if (paymentReference) {
         for (let attempt = 0; attempt < paymentPollAttempts; attempt += 1) {
           await wait(paymentPollDelayMs);
-          const statusResult = await getPaymentStatus(paymentReference);
+          const statusResult = await fetchPaymentStatus(paymentReference);
           const normalizedStatus = String(statusResult.status || "").toLowerCase();
 
           if (terminalPaymentStatuses.includes(normalizedStatus)) {

@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  useActivityQuery,
+  usePaybillMutation,
+  useProfileQuery,
+  useWalletQuery,
+} from "../api/hooks";
 import {
   AmountInput,
   RecentServiceActivity,
@@ -7,13 +13,7 @@ import {
   ServicePageShell,
   TransactionPreview,
 } from "../components/ServicePageComponents.jsx";
-import {
-  getCurrentUser,
-  getPaymentStatus,
-  getSavingsActivity,
-  getWallet,
-  initiatePayment,
-} from "../services/api";
+import { fetchPaymentStatus } from "../api/paymentsApi";
 import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
 import { formatKsh, formatServiceDate, getRoundUp, toAmount } from "../utils/servicePage";
 import { isConfirmedSavingsStatus, sortActivityByNewest } from "../utils/savings";
@@ -48,54 +48,47 @@ function buildPaybillRows(activity) {
 
 export default function Paybill() {
   const navigate = useNavigate();
-  const [activity, setActivity] = useState([]);
-  const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loadError, setLoadError] = useState("");
   const [feedback, setFeedback] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [businessNumber, setBusinessNumber] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-
-  const loadPage = useCallback(async () => {
-    try {
-      const [activityData, , userData] = await Promise.all([
-        getSavingsActivity(),
-        getWallet(),
-        getCurrentUser(),
-      ]);
-
-      setActivity(sortActivityByNewest(activityData || []));
-      setUser(userData);
-      setLoadError("");
-    } catch (err) {
-      if (err.response?.status === 401 || err.response?.status === 403) {
-        navigate("/login", { replace: true });
-        return;
-      }
-      setLoadError(err.response?.data?.message || err.message || "We could not load this paybill flow.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [navigate]);
+  const activityQuery = useActivityQuery();
+  const profileQuery = useProfileQuery();
+  const walletQuery = useWalletQuery();
+  const paybillMutation = usePaybillMutation();
 
   useEffect(() => {
-    loadPage();
-  }, [loadPage]);
+    const queryError = activityQuery.error || profileQuery.error || walletQuery.error;
+    if (!queryError) return;
+
+    if (queryError.response?.status === 401 || queryError.response?.status === 403) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    setFeedback({
+      type: "error",
+      message: queryError.response?.data?.message || queryError.message || "We could not load this paybill flow.",
+    });
+  }, [activityQuery.error, navigate, profileQuery.error, walletQuery.error]);
+
+  const activity = useMemo(() => sortActivityByNewest(activityQuery.data || []), [activityQuery.data]);
+  const user = profileQuery.data;
+  const isLoading = activityQuery.isLoading || profileQuery.isLoading || walletQuery.isLoading;
 
   async function submitPaybill(payload) {
     setIsSubmitting(true);
     try {
-      const payment = await initiatePayment(payload);
+      const payment = await paybillMutation.mutateAsync(payload);
       const paymentReference = payment.paymentReference || payment.reference;
 
       if (paymentReference) {
         for (let attempt = 0; attempt < paymentPollAttempts; attempt += 1) {
           await wait(paymentPollDelayMs);
-          const statusResult = await getPaymentStatus(paymentReference);
+          const statusResult = await fetchPaymentStatus(paymentReference);
           const normalizedStatus = String(statusResult.status || "").toLowerCase();
 
           if (terminalPaymentStatuses.includes(normalizedStatus)) {
@@ -105,7 +98,7 @@ export default function Paybill() {
         }
       }
 
-      await loadPage();
+      await Promise.all([activityQuery.refetch(), profileQuery.refetch(), walletQuery.refetch()]);
       triggerDashboardRefresh();
       return payment;
     } finally {
@@ -120,7 +113,7 @@ export default function Paybill() {
   const cleanAccountNumber = accountNumber.trim();
   const canConfirm = numericAmount > 0 && cleanBusinessNumber && cleanAccountNumber && !isSubmitting;
   const recentRows = useMemo(() => buildPaybillRows(activity), [activity]);
-  const pageFeedback = feedback || (loadError ? { type: "error", message: loadError } : null);
+  const pageFeedback = feedback;
 
   async function handleConfirm(event) {
     event.preventDefault();

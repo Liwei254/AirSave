@@ -1,46 +1,31 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { authEventName, getCurrentUser, hasStoredToken } from "../services/api";
+import { useProfileQuery } from "../api/hooks";
+import { authEventName, hasStoredToken } from "../services/api";
 
 export default function ProtectedRoute({ children }) {
   const location = useLocation();
-  const [status, setStatus] = useState(() => (hasStoredToken() ? "loading" : "unauthenticated"));
-
-  useEffect(() => {
-    let active = true;
-
-    async function verifySession() {
-      if (!hasStoredToken()) {
-        if (active) setStatus("unauthenticated");
-        return;
-      }
-
-      try {
-        const user = await getCurrentUser();
-        if (active) {
-          setStatus(user ? "authenticated" : "unauthenticated");
-        }
-      } catch {
-        if (active) setStatus("unauthenticated");
-      }
-    }
-
-    verifySession();
-    return () => {
-      active = false;
-    };
-  }, [location.pathname]);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const hasToken = hasStoredToken();
+  const {
+    data: user,
+    isError,
+    isLoading,
+  } = useProfileQuery({
+    enabled: hasToken && !sessionExpired,
+    retry: false,
+  });
 
   useEffect(() => {
     function handleAuthExpired() {
-      setStatus("unauthenticated");
+      setSessionExpired(true);
     }
 
     window.addEventListener(authEventName, handleAuthExpired);
     return () => window.removeEventListener(authEventName, handleAuthExpired);
   }, []);
 
-  if (status === "loading") {
+  if (hasToken && !sessionExpired && isLoading) {
     return (
       <div className="loading-panel">
         <span className="spinner spinner-dark" aria-hidden="true" />
@@ -49,7 +34,7 @@ export default function ProtectedRoute({ children }) {
     );
   }
 
-  if (status === "unauthenticated") {
+  if (!hasToken || sessionExpired || isError || !user) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 

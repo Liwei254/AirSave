@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { login, register } from "../api/authApi";
+import { queryKeys } from "../api/queryKeys";
 import Button from "./Button.jsx";
-import { loginUser, registerUser } from "../services/api";
 import logo from "../assets/circle.png";
 
 const authDraftStorageKey = "airsave-auth-draft";
@@ -201,6 +203,7 @@ export default function AuthPage({ defaultTab = "login" }) {
   const mode = defaultTab === "register" ? "register" : "login";
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const draft = useMemo(() => readDraft(), []);
   const firstInputRef = useRef(null);
   const [loginIdentifier, setLoginIdentifier] = useState(draft?.loginIdentifier || readRememberedIdentifier());
@@ -218,6 +221,15 @@ export default function AuthPage({ defaultTab = "login" }) {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [touched, setTouched] = useState({});
   const [authState, setAuthState] = useState({ loading: false, error: "", success: "" });
+  const loginMutation = useMutation({
+    mutationFn: ({ payload, options }) => login(payload, options),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.profile }),
+  });
+  const registerMutation = useMutation({
+    mutationFn: ({ payload, options }) => register(payload, options),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.profile }),
+  });
+  const authPending = authState.loading || loginMutation.isPending || registerMutation.isPending;
   const isLogin = mode === "login";
 
   useEffect(() => {
@@ -256,14 +268,14 @@ export default function AuthPage({ defaultTab = "login" }) {
   const registerPasswordError = validateRegisterPassword(registerPassword);
   const registerConfirmError = validateConfirmPassword(registerPassword, registerConfirmPassword);
 
-  const loginDisabled = Boolean(loginIdentifierError || loginPasswordError || authState.loading);
+  const loginDisabled = Boolean(loginIdentifierError || loginPasswordError || authPending);
   const registerDisabled = Boolean(
     registerNameError ||
       registerEmailError ||
       registerPhoneError ||
       registerPasswordError ||
       registerConfirmError ||
-      authState.loading
+      authPending
   );
 
   function markTouched(field) {
@@ -289,13 +301,13 @@ export default function AuthPage({ defaultTab = "login" }) {
     try {
       const trimmedIdentifier =
         loginMethod === "phone" ? `+254${getKenyanPhoneDigits(loginIdentifier)}` : loginIdentifier.trim();
-      await loginUser(
-        {
+      await loginMutation.mutateAsync({
+        payload: {
           emailOrPhone: trimmedIdentifier,
           password: loginPassword,
         },
-        { rememberMe }
-      );
+        options: { rememberMe },
+      });
 
       if (rememberMe) {
         localStorage.setItem(rememberedIdentifierKey, trimmedIdentifier);
@@ -335,15 +347,15 @@ export default function AuthPage({ defaultTab = "login" }) {
     setAuthState({ loading: true, error: "", success: "" });
 
     try {
-      await registerUser(
-        {
+      await registerMutation.mutateAsync({
+        payload: {
           fullName: registerFullName.trim(),
           email: registerEmail.trim().toLowerCase(),
           phone: `+254${getKenyanPhoneDigits(registerPhone)}`,
           password: registerPassword,
         },
-        { rememberMe: false }
-      );
+        options: { rememberMe: false },
+      });
 
       clearDraft();
       setAuthState({ loading: false, error: "", success: "Account created successfully." });
@@ -472,8 +484,8 @@ export default function AuthPage({ defaultTab = "login" }) {
                 className="login-revolut-submit"
                 disabled={loginDisabled}
               >
-                {authState.loading ? <span className="spinner" aria-hidden="true" /> : null}
-                <span>{authState.loading ? "Signing in..." : loginMethod === "phone" ? "Continue" : "Login"}</span>
+                {authPending ? <span className="spinner" aria-hidden="true" /> : null}
+                <span>{authPending ? "Signing in..." : loginMethod === "phone" ? "Continue" : "Login"}</span>
               </Button>
             </form>
 
@@ -674,8 +686,8 @@ export default function AuthPage({ defaultTab = "login" }) {
             className="register-premium-submit"
             disabled={registerDisabled}
           >
-            {authState.loading ? <span className="spinner" aria-hidden="true" /> : null}
-            <span>{authState.loading ? "Creating account..." : "Create account"}</span>
+            {authPending ? <span className="spinner" aria-hidden="true" /> : null}
+            <span>{authPending ? "Creating account..." : "Create account"}</span>
           </Button>
         </form>
 

@@ -1,8 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  useActiveGoalQuery,
+  useCloseGoalMutation,
+  useProfileQuery,
+  useUpdateGoalMutation,
+} from "../api/hooks";
 import Button from "../components/Button.jsx";
 import Layout from "../components/Layout.jsx";
-import { deleteGoal, getActiveGoal, getCurrentUser, updateGoal } from "../services/api";
 import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
 import { formatCurrency, formatDate, getGoalProgress } from "../utils/formatters";
 
@@ -49,6 +54,8 @@ function RoundUpRulePanel({ user }) {
 
 function MyGoalCard({ goal, onChanged }) {
   const navigate = useNavigate();
+  const updateGoalMutation = useUpdateGoalMutation();
+  const closeGoalMutation = useCloseGoalMutation();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -84,12 +91,15 @@ function MyGoalCard({ goal, onChanged }) {
     setFeedback(null);
 
     try {
-      await updateGoal(goal._id, {
-        name: form.name.trim(),
-        targetAmount: Number(form.targetAmount),
-        deadline: form.deadline,
-        expectedCompletionDate: form.deadline,
-        status: "active",
+      await updateGoalMutation.mutateAsync({
+        goalId: goal._id,
+        payload: {
+          name: form.name.trim(),
+          targetAmount: Number(form.targetAmount),
+          deadline: form.deadline,
+          expectedCompletionDate: form.deadline,
+          status: "active",
+        },
       });
       setIsEditing(false);
       setFeedback({ type: "success", message: "Goal updated." });
@@ -110,7 +120,7 @@ function MyGoalCard({ goal, onChanged }) {
     setFeedback(null);
 
     try {
-      await updateGoal(goal._id, { status: "completed" });
+      await updateGoalMutation.mutateAsync({ goalId: goal._id, payload: { status: "completed" } });
       setFeedback({ type: "success", message: "Goal completed." });
       triggerDashboardRefresh();
       await onChanged();
@@ -129,7 +139,7 @@ function MyGoalCard({ goal, onChanged }) {
     setFeedback(null);
 
     try {
-      await deleteGoal(goal._id);
+      await closeGoalMutation.mutateAsync(goal._id);
       setFeedback({ type: "success", message: "Goal closed." });
       triggerDashboardRefresh();
       await onChanged();
@@ -248,33 +258,30 @@ function MyGoalCard({ goal, onChanged }) {
 
 export default function Goals() {
   const navigate = useNavigate();
-  const [activeGoal, setActiveGoal] = useState(null);
-  const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const loadGoalPage = useCallback(async () => {
-    setIsLoading(true);
-
-    try {
-      const [goal, userData] = await Promise.all([getActiveGoal(), getCurrentUser()]);
-      setActiveGoal(goal);
-      setUser(userData);
-      setError("");
-    } catch (err) {
-      if (err.response?.status === 401 || err.response?.status === 403) {
-        navigate("/");
-        return;
-      }
-      setError(err.response?.data?.message || err.message || "We could not load your goal.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [navigate]);
+  const activeGoalQuery = useActiveGoalQuery();
+  const profileQuery = useProfileQuery();
 
   useEffect(() => {
-    loadGoalPage();
-  }, [loadGoalPage]);
+    const authError = [activeGoalQuery.error, profileQuery.error].find(
+      (err) => err?.response?.status === 401 || err?.response?.status === 403
+    );
+
+    if (authError) {
+      navigate("/");
+    }
+  }, [activeGoalQuery.error, navigate, profileQuery.error]);
+
+  const activeGoal = activeGoalQuery.data;
+  const user = profileQuery.data;
+  const isLoading = activeGoalQuery.isLoading || profileQuery.isLoading;
+  const loadError = activeGoalQuery.error || profileQuery.error;
+  const error = loadError
+    ? loadError.response?.data?.message || loadError.message || "We could not load your goal."
+    : "";
+
+  function refetchGoalPage() {
+    return Promise.all([activeGoalQuery.refetch(), profileQuery.refetch()]);
+  }
 
   const actions = useMemo(() => {
     if (activeGoal) return null;
@@ -287,6 +294,7 @@ export default function Goals() {
         <div className="feedback feedback-error">
           <strong>Error:</strong>
           <span>{error}</span>
+          <button type="button" onClick={refetchGoalPage}>Retry</button>
         </div>
       ) : null}
 
@@ -297,7 +305,7 @@ export default function Goals() {
         </section>
       ) : activeGoal ? (
         <>
-          <MyGoalCard goal={activeGoal} onChanged={loadGoalPage} />
+          <MyGoalCard goal={activeGoal} onChanged={refetchGoalPage} />
           <RoundUpRulePanel user={user} />
         </>
       ) : (

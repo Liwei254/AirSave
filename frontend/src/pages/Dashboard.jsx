@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  getDashboardSummary,
-} from "../services/api";
+import { useDashboardSummaryQuery } from "../api/hooks";
 import { getGoalProgress } from "../utils/formatters";
 import {
   getActivityDate,
@@ -341,39 +339,30 @@ function ActivityList({ items, isLoading }) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [wallet, setWallet] = useState(null);
-  const [activeGoal, setActiveGoal] = useState(null);
-  const [activity, setActivity] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
   const [balanceVisible, setBalanceVisible] = useState(false);
-
-  const loadDashboard = useCallback(async () => {
-    setIsLoading(true);
-
-    try {
-      const summaryData = await getDashboardSummary();
-
-      setSummary(summaryData);
-      setWallet({ balance: summaryData?.walletBalance || 0 });
-      setActiveGoal(summaryData?.activeGoal || null);
-      setActivity(sortActivityByNewest(normalizeArray(summaryData?.recentTransactions)));
-      setError("");
-    } catch (err) {
-      if (err.response?.status === 401 || err.response?.status === 403) {
-        navigate("/");
-        return;
-      }
-      setError(err.response?.data?.message || err.message || "We could not load your dashboard.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [navigate]);
+  const {
+    data: summary,
+    error,
+    isError,
+    isLoading,
+    refetch,
+  } = useDashboardSummaryQuery();
 
   useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
+    if (error?.response?.status === 401 || error?.response?.status === 403) {
+      navigate("/");
+    }
+  }, [error, navigate]);
+
+  const wallet = useMemo(() => ({ balance: summary?.walletBalance || 0 }), [summary?.walletBalance]);
+  const activeGoal = summary?.activeGoal || null;
+  const activity = useMemo(
+    () => sortActivityByNewest(normalizeArray(summary?.recentTransactions)),
+    [summary?.recentTransactions]
+  );
+  const errorMessage = isError
+    ? error?.response?.data?.message || error?.message || "We could not load your dashboard."
+    : "";
 
   const totalSaved = useMemo(
     () => Number(summary?.totalSaved ?? getSavingsSummary(activity)),
@@ -398,10 +387,11 @@ export default function Dashboard() {
   return (
     <main className="premium-dashboard-shell">
       <div className="premium-dashboard-page">
-        {error ? (
+        {errorMessage ? (
           <div className="premium-dashboard-alert" role="alert">
             <strong>Error</strong>
-            <span>{error}</span>
+            <span>{errorMessage}</span>
+            <button type="button" onClick={() => refetch()}>Retry</button>
           </div>
         ) : null}
 

@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useActiveGoalQuery, useActivityQuery } from "../api/hooks";
 import Layout from "../components/Layout.jsx";
-import { getActiveGoal, getSavingsActivity } from "../services/api";
 
 const rangeOptions = [
   { value: "today", label: "Today" },
@@ -420,8 +420,8 @@ function Toast({ toast, onClose }) {
 
 export default function Transactions() {
   const navigate = useNavigate();
-  const [activity, setActivity] = useState([]);
-  const [activeGoal, setActiveGoal] = useState(null);
+  const activityQuery = useActivityQuery();
+  const activeGoalQuery = useActiveGoalQuery();
   const [range, setRange] = useState("week");
   const [goalFilter, setGoalFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -429,37 +429,34 @@ export default function Transactions() {
   const [searchTerm, setSearchTerm] = useState("");
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [page, setPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
   const [detailRecord, setDetailRecord] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const loadActivityPage = useCallback(async () => {
-    setIsLoading(true);
+  useEffect(() => {
+    const authError = [activityQuery.error, activeGoalQuery.error].find(
+      (err) => err?.response?.status === 401 || err?.response?.status === 403
+    );
 
-    try {
-      const [activityData, goalData] = await Promise.all([getSavingsActivity(), getActiveGoal()]);
-      setActivity((activityData || []).map(normalizeRecord).sort((left, right) => getRecordDate(right) - getRecordDate(left)));
-      setActiveGoal(goalData);
-      setError("");
-    } catch (err) {
-      if (err.response?.status === 401 || err.response?.status === 403) {
-        navigate("/");
-        return;
-      }
-      setError(err.response?.data?.message || err.message || "We could not load your transaction history.");
-    } finally {
-      setIsLoading(false);
+    if (authError) {
+      navigate("/");
     }
-  }, [navigate]);
+  }, [activeGoalQuery.error, activityQuery.error, navigate]);
 
-  useEffect(() => {
-    loadActivityPage();
-  }, [loadActivityPage]);
+  const activity = useMemo(
+    () => (activityQuery.data || []).map(normalizeRecord).sort((left, right) => getRecordDate(right) - getRecordDate(left)),
+    [activityQuery.data]
+  );
+  const activeGoal = activeGoalQuery.data;
+  const isLoading = activityQuery.isLoading || activeGoalQuery.isLoading;
+  const loadError = activityQuery.error || activeGoalQuery.error;
+  const error = loadError
+    ? loadError.response?.data?.message || loadError.message || "We could not load your transaction history."
+    : "";
 
-  useEffect(() => {
-    setPage(1);
-  }, [range, goalFilter, typeFilter, statusFilter, searchTerm, rowsPerPage]);
+  function retryActivityPage() {
+    activityQuery.refetch();
+    activeGoalQuery.refetch();
+  }
 
   const goalOptions = useMemo(() => {
     const options = [{ value: "wallet", label: "Savings wallet" }];
@@ -570,7 +567,7 @@ export default function Transactions() {
           <div className="activity-feedback activity-feedback-error">
             <strong>Unable to load activity</strong>
             <span>{error}</span>
-            <button type="button" onClick={loadActivityPage}>Try again</button>
+            <button type="button" onClick={retryActivityPage}>Try again</button>
           </div>
         ) : null}
 
@@ -612,7 +609,10 @@ export default function Transactions() {
                   key={option.value}
                   type="button"
                   className={range === option.value ? "activity-range-active" : ""}
-                  onClick={() => setRange(option.value)}
+                  onClick={() => {
+                    setRange(option.value);
+                    setPage(1);
+                  }}
                 >
                   {option.label}
                 </button>
@@ -623,7 +623,13 @@ export default function Transactions() {
           <div className="activity-filter-stack">
             <label className="activity-select-wrap">
               <span className="sr-only">Filter by source</span>
-              <select value={goalFilter} onChange={(event) => setGoalFilter(event.target.value)}>
+              <select
+                value={goalFilter}
+                onChange={(event) => {
+                  setGoalFilter(event.target.value);
+                  setPage(1);
+                }}
+              >
                 <option value="all">All Sources</option>
                 {goalOptions.map((goal) => (
                   <option key={goal.value} value={goal.value}>{goal.label}</option>
@@ -634,7 +640,13 @@ export default function Transactions() {
 
             <label className="activity-select-wrap">
               <span className="sr-only">Filter by transaction type</span>
-              <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+              <select
+                value={typeFilter}
+                onChange={(event) => {
+                  setTypeFilter(event.target.value);
+                  setPage(1);
+                }}
+              >
                 <option value="all">All Types</option>
                 <option value="deposit">Deposit</option>
                 <option value="send">Send</option>
@@ -647,7 +659,13 @@ export default function Transactions() {
 
             <label className="activity-select-wrap">
               <span className="sr-only">Filter by status</span>
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <select
+                value={statusFilter}
+                onChange={(event) => {
+                  setStatusFilter(event.target.value);
+                  setPage(1);
+                }}
+              >
                 <option value="all">All Status</option>
                 <option value="confirmed">Confirmed</option>
                 <option value="completed">Completed</option>
@@ -664,7 +682,10 @@ export default function Transactions() {
                 <input
                   type="search"
                   value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
+                  onChange={(event) => {
+                    setSearchTerm(event.target.value);
+                    setPage(1);
+                  }}
                   placeholder="Search transactions..."
                 />
               </label>
@@ -789,7 +810,13 @@ export default function Transactions() {
 
                 <label className="activity-rows-select">
                   <span className="sr-only">Rows per page</span>
-                  <select value={rowsPerPage} onChange={(event) => setRowsPerPage(Number(event.target.value))}>
+                  <select
+                    value={rowsPerPage}
+                    onChange={(event) => {
+                      setRowsPerPage(Number(event.target.value));
+                      setPage(1);
+                    }}
+                  >
                     {rowsPerPageOptions.map((option) => (
                       <option key={option} value={option}>{option} per page</option>
                     ))}

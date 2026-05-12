@@ -1,7 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  useActiveGoalQuery,
+  useActivityQuery,
+  useProfileQuery,
+  useWalletQuery,
+  useWithdrawMutation,
+} from "../api/hooks";
 import Layout from "../components/Layout.jsx";
-import { getActiveGoal, getCurrentUser, getSavingsActivity, getWallet, submitWithdrawal } from "../services/api";
 import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
 import { phonePattern, toAmount } from "../utils/savings";
 
@@ -243,46 +249,46 @@ function WithdrawSummary({
 
 export default function Withdraw() {
   const navigate = useNavigate();
-  const [wallet, setWallet] = useState(null);
-  const [activeGoal, setActiveGoal] = useState(null);
-  const [user, setUser] = useState(null);
   const [amount, setAmount] = useState("");
   const [sourceValue, setSourceValue] = useState("wallet");
   const [phone, setPhone] = useState("");
   const [phoneTouched, setPhoneTouched] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
-  const [error, setError] = useState("");
-
-  const loadWithdrawPage = useCallback(async (isMounted = true) => {
-    try {
-      const [walletData, goalData, userData] = await Promise.all([getWallet(), getActiveGoal(), getCurrentUser()]);
-      if (!isMounted) return;
-      setWallet(walletData);
-      setActiveGoal(goalData);
-      setUser(userData);
-      setError("");
-    } catch (err) {
-      if (!isMounted) return;
-      if (err.response?.status === 401 || err.response?.status === 403) {
-        navigate("/");
-        return;
-      }
-      setError(err.response?.data?.message || err.message || "We could not load your withdrawal options.");
-    } finally {
-      if (isMounted) setIsLoading(false);
-    }
-  }, [navigate]);
+  const walletQuery = useWalletQuery();
+  const activeGoalQuery = useActiveGoalQuery();
+  const profileQuery = useProfileQuery();
+  const activityQuery = useActivityQuery();
+  const withdrawMutation = useWithdrawMutation();
 
   useEffect(() => {
-    let isMounted = true;
-    loadWithdrawPage(isMounted);
-    return () => {
-      isMounted = false;
-    };
-  }, [loadWithdrawPage]);
+    const loadError = walletQuery.error || activeGoalQuery.error || profileQuery.error || activityQuery.error;
+    if (!loadError) return;
+
+    if (loadError.response?.status === 401 || loadError.response?.status === 403) {
+      navigate("/");
+      return;
+    }
+
+    setToast({
+      type: "error",
+      message: loadError.response?.data?.message || loadError.message || "We could not load your withdrawal options.",
+    });
+  }, [activeGoalQuery.error, activityQuery.error, navigate, profileQuery.error, walletQuery.error]);
+
+  const wallet = walletQuery.data;
+  const activeGoal = activeGoalQuery.data;
+  const user = profileQuery.data;
+  const isLoading = walletQuery.isLoading || activeGoalQuery.isLoading || profileQuery.isLoading || activityQuery.isLoading;
+  const loadError = walletQuery.error || activeGoalQuery.error || profileQuery.error || activityQuery.error;
+  const error = loadError
+    ? loadError.response?.data?.message || loadError.message || "We could not load your withdrawal options."
+    : "";
+
+  function refetchWithdrawPage() {
+    return Promise.all([walletQuery.refetch(), activeGoalQuery.refetch(), profileQuery.refetch(), activityQuery.refetch()]);
+  }
 
   const sources = useMemo(() => {
     const walletSource = {
@@ -375,7 +381,7 @@ export default function Withdraw() {
     setToast(null);
 
     try {
-      const response = await submitWithdrawal({
+      const response = await withdrawMutation.mutateAsync({
         amount: numericAmount,
         fee,
         sourceType: selectedSource.type,
@@ -388,7 +394,7 @@ export default function Withdraw() {
       setAmount("");
       setSubmitted(false);
       setToast({ type: "success", message: response.message || "Withdrawal submitted successfully." });
-      await Promise.all([loadWithdrawPage(true), getSavingsActivity().catch(() => [])]);
+      await refetchWithdrawPage();
       triggerDashboardRefresh();
     } catch (err) {
       setToast({ type: "error", message: err.response?.data?.message || err.message || "Withdrawal request failed." });

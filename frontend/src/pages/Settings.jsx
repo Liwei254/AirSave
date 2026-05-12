@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSettingsQuery, useSettingsUpdateMutation } from "../api/hooks";
 import Layout from "../components/Layout.jsx";
-import { getCurrentUser, updateCurrentUser } from "../services/api";
 import { roundingOptions } from "../utils/savings";
 import { getStoredThemePreference, setThemePreference, themeChangeEventName } from "../utils/theme";
 
@@ -92,49 +92,44 @@ function ThemeGlyph({ theme }) {
 
 export default function Settings() {
   const navigate = useNavigate();
-  const [settings, setSettings] = useState(() => normalizeSettings());
-  const [savedSettings, setSavedSettings] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState(null);
   const [toast, setToast] = useState(null);
-
-  const loadSettings = useCallback(async () => {
-    try {
-      const user = await getCurrentUser();
-      const nextSettings = normalizeSettings({
-        roundUpRule: user?.roundUpRule || 50,
-        preferences: {
-          ...(user?.preferences || {}),
-          theme: getStoredThemePreference(),
-        },
-      });
-
-      setSettings(nextSettings);
-      setSavedSettings(nextSettings);
-      setToast(null);
-    } catch (error) {
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        navigate("/login", { replace: true });
-        return;
-      }
-
-      setToast({ type: "error", message: error.message || "We could not load settings." });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [navigate]);
+  const settingsQuery = useSettingsQuery();
+  const settingsUpdateMutation = useSettingsUpdateMutation();
+  const isLoading = settingsQuery.isLoading;
+  const isSaving = settingsUpdateMutation.isPending;
+  const savedSettings = useMemo(() => {
+    const user = settingsQuery.data;
+    return normalizeSettings({
+      roundUpRule: user?.roundUpRule || 50,
+      preferences: {
+        ...(user?.preferences || {}),
+        theme: getStoredThemePreference(),
+      },
+    });
+  }, [settingsQuery.data]);
+  const settings = settingsDraft || savedSettings;
+  const loadFeedback =
+    settingsQuery.error && settingsQuery.error.response?.status !== 401 && settingsQuery.error.response?.status !== 403
+      ? { type: "error", message: settingsQuery.error.message || "We could not load settings." }
+      : null;
+  const pageToast = toast || loadFeedback;
 
   useEffect(() => {
-    loadSettings();
-  }, [loadSettings]);
+    if (!settingsQuery.error) return;
+
+    if (settingsQuery.error.response?.status === 401 || settingsQuery.error.response?.status === 403) {
+      navigate("/login", { replace: true });
+    }
+  }, [navigate, settingsQuery.error]);
 
   useEffect(() => {
     function handleThemeChange(event) {
       const preference = event.detail?.preference || getStoredThemePreference();
-      setSettings((current) => ({
-        ...current,
+      setSettingsDraft((current) => ({
+        ...(current || savedSettings),
         preferences: {
-          ...current.preferences,
+          ...(current || savedSettings).preferences,
           theme: preference,
         },
       }));
@@ -142,7 +137,7 @@ export default function Settings() {
 
     window.addEventListener(themeChangeEventName, handleThemeChange);
     return () => window.removeEventListener(themeChangeEventName, handleThemeChange);
-  }, []);
+  }, [savedSettings]);
 
   const isDirty = useMemo(() => !areSettingsEqual(settings, savedSettings), [settings, savedSettings]);
   const isThemeDirty = savedSettings
@@ -150,17 +145,17 @@ export default function Settings() {
     : false;
 
   function setPreference(key, value) {
-    setSettings((current) => ({
-      ...current,
+    setSettingsDraft((current) => ({
+      ...(current || settings),
       preferences: {
-        ...current.preferences,
+        ...(current || settings).preferences,
         [key]: value,
       },
     }));
   }
 
   function chooseRoundUpRule(rule) {
-    setSettings((current) => ({ ...current, roundUpRule: rule }));
+    setSettingsDraft((current) => ({ ...(current || settings), roundUpRule: rule }));
   }
 
   function chooseTheme(theme) {
@@ -175,31 +170,18 @@ export default function Settings() {
   }
 
   async function persistSettings(nextSettings, successMessage) {
-    setIsSaving(true);
     setToast(null);
 
     try {
       setThemePreference(nextSettings.preferences.theme || "light");
-      const updatedUser = await updateCurrentUser(nextSettings);
-      const persistedSettings = normalizeSettings({
-        roundUpRule: updatedUser?.roundUpRule || nextSettings.roundUpRule,
-        preferences: {
-          ...nextSettings.preferences,
-          ...(updatedUser?.preferences || {}),
-          theme: nextSettings.preferences.theme,
-        },
-      });
-
-      setSettings(persistedSettings);
-      setSavedSettings(persistedSettings);
+      await settingsUpdateMutation.mutateAsync(nextSettings);
+      setSettingsDraft(null);
       setToast({ type: "success", message: successMessage });
     } catch (error) {
       setToast({
         type: "error",
         message: error.response?.data?.message || error.message || "Settings update failed.",
       });
-    } finally {
-      setIsSaving(false);
     }
   }
 
@@ -214,10 +196,10 @@ export default function Settings() {
   return (
     <Layout shellClassName="settings-control-shell">
       <div className="settings-control-page">
-        {toast ? (
-          <div className={`settings-feedback settings-feedback-${toast.type}`} role="status">
-            <strong>{toast.type === "success" ? "Saved" : "Action needed"}</strong>
-            <span>{toast.message}</span>
+        {pageToast ? (
+          <div className={`settings-feedback settings-feedback-${pageToast.type}`} role="status">
+            <strong>{pageToast.type === "success" ? "Saved" : "Action needed"}</strong>
+            <span>{pageToast.message}</span>
           </div>
         ) : null}
 

@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  useLogoutMutation,
+  usePasswordUpdateMutation,
+  useProfileQuery,
+  useProfileUpdateMutation,
+  useWalletQuery,
+} from "../api/hooks";
 import Layout from "../components/Layout.jsx";
-import { changePassword, getCurrentUser, getWallet, logoutUser, updateCurrentUser } from "../services/api";
 import { formatDate } from "../utils/formatters";
-
-const emptyProfileForm = {
-  fullName: "",
-  email: "",
-  avatar: "",
-};
 
 const emptyPasswordForm = {
   currentPassword: "",
@@ -52,41 +52,36 @@ function getDisplayName(user) {
 
 export default function Profile() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [wallet, setWallet] = useState(null);
-  const [form, setForm] = useState(emptyProfileForm);
-  const [savedForm, setSavedForm] = useState(emptyProfileForm);
+  const [profileDraft, setProfileDraft] = useState(null);
   const [passwordForm, setPasswordForm] = useState(emptyPasswordForm);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [toast, setToast] = useState(null);
+  const profileQuery = useProfileQuery();
+  const walletQuery = useWalletQuery();
+  const profileUpdateMutation = useProfileUpdateMutation();
+  const passwordUpdateMutation = usePasswordUpdateMutation();
+  const logoutMutation = useLogoutMutation();
 
-  const loadProfile = useCallback(async () => {
-    try {
-      const [userData, walletData] = await Promise.all([getCurrentUser(), getWallet()]);
-      const nextForm = normalizeProfileForm(userData);
-
-      setUser(userData);
-      setWallet(walletData);
-      setForm(nextForm);
-      setSavedForm(nextForm);
-      setToast(null);
-    } catch (error) {
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        navigate("/login", { replace: true });
-        return;
-      }
-
-      setToast({ type: "error", message: error.message || "We could not load your profile." });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [navigate]);
+  const user = profileQuery.data;
+  const wallet = walletQuery.data;
+  const isLoading = profileQuery.isLoading || walletQuery.isLoading;
+  const isSaving = profileUpdateMutation.isPending;
+  const isChangingPassword = passwordUpdateMutation.isPending || logoutMutation.isPending;
+  const loadError = profileQuery.error || walletQuery.error;
+  const savedForm = useMemo(() => normalizeProfileForm(user), [user]);
+  const form = profileDraft || savedForm;
+  const loadFeedback =
+    loadError && loadError.response?.status !== 401 && loadError.response?.status !== 403
+      ? { type: "error", message: loadError.message || "We could not load your profile." }
+      : null;
+  const pageToast = toast || loadFeedback;
 
   useEffect(() => {
-    loadProfile();
-  }, [loadProfile]);
+    if (!loadError) return;
+
+    if (loadError.response?.status === 401 || loadError.response?.status === 403) {
+      navigate("/login", { replace: true });
+    }
+  }, [loadError, navigate]);
 
   const profileDirty = useMemo(
     () =>
@@ -121,7 +116,7 @@ export default function Profile() {
   );
 
   function updateForm(key, value) {
-    setForm((current) => ({ ...current, [key]: value }));
+    setProfileDraft((current) => ({ ...(current || savedForm), [key]: value }));
   }
 
   function updatePasswordForm(key, value) {
@@ -133,7 +128,6 @@ export default function Profile() {
 
     if (!profileDirty || !profileValid) return;
 
-    setIsSaving(true);
     setToast(null);
 
     try {
@@ -142,18 +136,11 @@ export default function Profile() {
         email: form.email.trim(),
         avatar: form.avatar.trim(),
       };
-      const updatedUser = await updateCurrentUser(payload);
-      const nextUser = updatedUser || { ...user, ...payload };
-      const nextForm = normalizeProfileForm(nextUser);
-
-      setUser(nextUser);
-      setForm(nextForm);
-      setSavedForm(nextForm);
+      await profileUpdateMutation.mutateAsync(payload);
+      setProfileDraft(null);
       setToast({ type: "success", message: "Profile updated." });
     } catch (error) {
       setToast({ type: "error", message: error.response?.data?.message || error.message || "Profile update failed." });
-    } finally {
-      setIsSaving(false);
     }
   }
 
@@ -162,32 +149,29 @@ export default function Profile() {
 
     if (!passwordValid) return;
 
-    setIsChangingPassword(true);
     setToast(null);
 
     try {
-      await changePassword({
+      await passwordUpdateMutation.mutateAsync({
         currentPassword: passwordForm.currentPassword,
         newPassword: passwordForm.newPassword,
       });
       setPasswordForm(emptyPasswordForm);
       setToast({ type: "success", message: "Password changed. Please log in again." });
-      await logoutUser();
+      await logoutMutation.mutateAsync();
       navigate("/login", { replace: true });
     } catch (error) {
       setToast({ type: "error", message: error.response?.data?.message || error.message || "Password change failed." });
-    } finally {
-      setIsChangingPassword(false);
     }
   }
 
   return (
     <Layout shellClassName="profile-member-shell">
       <div className="profile-member-page">
-        {toast ? (
-          <div className={`profile-member-toast profile-member-toast-${toast.type}`} role="status">
-            <strong>{toast.type === "success" ? "Saved" : "Action needed"}</strong>
-            <span>{toast.message}</span>
+        {pageToast ? (
+          <div className={`profile-member-toast profile-member-toast-${pageToast.type}`} role="status">
+            <strong>{pageToast.type === "success" ? "Saved" : "Action needed"}</strong>
+            <span>{pageToast.message}</span>
           </div>
         ) : null}
 

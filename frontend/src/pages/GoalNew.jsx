@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useActiveGoalQuery, useCreateGoalMutation, useProfileQuery } from "../api/hooks";
 import Layout from "../components/Layout.jsx";
-import { createGoal, getActiveGoal, getCurrentUser } from "../services/api";
 import { triggerDashboardRefresh } from "../utils/dashboardRefresh";
 import { toAmount } from "../utils/savings";
 
@@ -221,9 +221,7 @@ function BenefitsBar() {
 
 export default function GoalNew() {
   const navigate = useNavigate();
-  const [activeGoal, setActiveGoal] = useState(null);
-  const [isLoadingSetup, setIsLoadingSetup] = useState(true);
-  const [roundUpSetupComplete, setRoundUpSetupComplete] = useState(true);
+  const [roundUpSetupComplete, setRoundUpSetupComplete] = useState(false);
   const [selectedRoundUpRule, setSelectedRoundUpRule] = useState(50);
   const [selectedTemplateId, setSelectedTemplateId] = useState("emergency");
   const selectedTemplate = templates.find((template) => template.id === selectedTemplateId) || templates[0];
@@ -235,35 +233,30 @@ export default function GoalNew() {
   });
   const [submitted, setSubmitted] = useState(false);
   const [toast, setToast] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const activeGoalQuery = useActiveGoalQuery();
+  const profileQuery = useProfileQuery();
+  const createGoalMutation = useCreateGoalMutation();
+  const activeGoal = activeGoalQuery.data;
+  const user = profileQuery.data;
+  const isLoadingSetup = activeGoalQuery.isLoading || profileQuery.isLoading;
+  const isSubmitting = createGoalMutation.isPending;
+  const userRoundUpRule = Number(user?.roundUpRule || 0);
+  const effectiveRoundUpRule = userRoundUpRule || selectedRoundUpRule || 50;
+  const setupError = activeGoalQuery.error || profileQuery.error;
+  const setupFeedback =
+    setupError && setupError.response?.status !== 401 && setupError.response?.status !== 403
+      ? { type: "error", message: setupError.message || "We could not load goal setup." }
+      : null;
+  const setupComplete = Boolean(userRoundUpRule) || roundUpSetupComplete || Boolean(setupFeedback);
+  const pageToast = toast || setupFeedback;
 
   useEffect(() => {
-    let isMounted = true;
+    if (!setupError) return;
 
-    async function loadSetupState() {
-      try {
-        const [goalData, userData] = await Promise.all([getActiveGoal(), getCurrentUser()]);
-        if (!isMounted) return;
-
-        setActiveGoal(goalData);
-        setSelectedRoundUpRule(userData?.roundUpRule || 50);
-        setRoundUpSetupComplete(Boolean(userData?.roundUpRule));
-      } catch {
-        if (isMounted) {
-          setRoundUpSetupComplete(true);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingSetup(false);
-        }
-      }
+    if (setupError.response?.status === 401 || setupError.response?.status === 403) {
+      navigate("/login", { replace: true });
     }
-
-    loadSetupState();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  }, [navigate, setupError]);
 
   const targetAmount = toAmount(form.targetAmount);
   const durationValue = toAmount(form.durationValue);
@@ -286,7 +279,7 @@ export default function GoalNew() {
     targetAmount > 0 &&
     durationValue > 0 &&
     form.durationUnit &&
-    roundUpSetupComplete &&
+    setupComplete &&
     !hasActiveGoal &&
     !isLoadingSetup &&
     !isSubmitting;
@@ -326,11 +319,10 @@ export default function GoalNew() {
       return;
     }
 
-    setIsSubmitting(true);
     setToast(null);
 
     try {
-      await createGoal({
+      await createGoalMutation.mutateAsync({
         name: form.name.trim(),
         targetAmount,
         duration: `${durationValue} ${form.durationUnit}`,
@@ -340,7 +332,7 @@ export default function GoalNew() {
         status: "active",
         startDate: startDate.toISOString(),
         expectedCompletionDate: expectedCompletionDate.toISOString(),
-        roundUpRule: selectedRoundUpRule,
+        roundUpRule: effectiveRoundUpRule,
       });
       triggerDashboardRefresh();
       setToast({ type: "success", message: "Goal created successfully." });
@@ -350,21 +342,19 @@ export default function GoalNew() {
         type: "error",
         message: error.response?.data?.message || error.message || "We could not create the goal.",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
   return (
     <Layout shellClassName="goal-new-shell">
-      {toast ? (
-        <div className={["goal-toast", toast.type === "success" ? "goal-toast-success" : "goal-toast-error"].join(" ")}>
-          <strong>{toast.type === "success" ? "Success" : "Error"}</strong>
-          <span>{toast.message}</span>
+      {pageToast ? (
+        <div className={["goal-toast", pageToast.type === "success" ? "goal-toast-success" : "goal-toast-error"].join(" ")}>
+          <strong>{pageToast.type === "success" ? "Success" : "Error"}</strong>
+          <span>{pageToast.message}</span>
         </div>
       ) : null}
 
-      {!isLoadingSetup && !roundUpSetupComplete ? (
+      {!isLoadingSetup && !setupComplete ? (
         <div className="roundup-modal-backdrop" role="presentation">
           <section className="roundup-modal" role="dialog" aria-modal="true" aria-labelledby="roundupSetupTitle">
             <span className="premium-kicker">FIRST GOAL SETUP</span>
