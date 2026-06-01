@@ -1,3 +1,4 @@
+import { isPostgresDataStoreEnabled } from "../config/dataStore.js";
 import Wallet from "../models/Wallet.js";
 import Transaction from "../models/Transaction.js";
 import AppError from "../utils/AppError.js";
@@ -18,6 +19,7 @@ import {
   invalidateDashboardCache,
   setTemporaryState,
 } from "./cacheService.js";
+import * as prismaTransactionService from "./postgres/prismaTransactionService.js";
 
 function buildReference(prefix) {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -127,6 +129,10 @@ export async function createTransactionRecord({
 }
 
 export async function processWalletPayment(userId, payload = {}) {
+  if (isPostgresDataStoreEnabled()) {
+    return prismaTransactionService.processWalletPayment(userId, payload);
+  }
+
   const numericAmount = normalizeMoney(payload.amount, "Amount required");
   const requestedTransactionType = ["purchase", "bill", "send", "save"].includes(payload.transactionType)
     ? payload.transactionType
@@ -317,7 +323,13 @@ export async function processWalletPayment(userId, payload = {}) {
   };
 }
 
-export async function handlePaymentCallback({ paymentReference, status }) {
+export async function handlePaymentCallback(payload = {}) {
+  if (isPostgresDataStoreEnabled()) {
+    return prismaTransactionService.handlePaymentCallback(payload);
+  }
+
+  const { paymentReference, status } = payload;
+
   if (!paymentReference) {
     throw new AppError("paymentReference is required", 400);
   }
@@ -347,6 +359,10 @@ export async function handlePaymentCallback({ paymentReference, status }) {
 }
 
 export async function getPaymentStatus(userId, reference) {
+  if (isPostgresDataStoreEnabled()) {
+    return prismaTransactionService.getPaymentStatus(userId, reference);
+  }
+
   const transaction = await Transaction.findOne({
     paymentReference: reference,
     user: userId,
@@ -360,6 +376,10 @@ export async function getPaymentStatus(userId, reference) {
 }
 
 export async function getSavingsActivity(userId) {
+  if (isPostgresDataStoreEnabled()) {
+    return prismaTransactionService.getSavingsActivity(userId);
+  }
+
   const wallet = await Wallet.findOne({ user: userId });
   const transactions = await Transaction.find({ user: userId })
     .populate("goal", "name")
@@ -444,6 +464,10 @@ export async function getSavingsActivity(userId) {
 }
 
 export async function submitWithdrawal(userId, payload = {}) {
+  if (isPostgresDataStoreEnabled()) {
+    return prismaTransactionService.submitWithdrawal(userId, payload);
+  }
+
   const numericAmount = normalizeMoney(payload.amount, "A valid withdrawal amount is required.");
   const numericFee = Number(payload.fee || 0);
   const requestedTotal = Number(payload.totalDeducted ?? numericAmount + numericFee);
@@ -564,5 +588,9 @@ export async function submitWithdrawal(userId, payload = {}) {
 }
 
 export async function getRecentTransactions(userId, limit = 5) {
+  if (isPostgresDataStoreEnabled()) {
+    return prismaTransactionService.getRecentTransactions(userId, limit);
+  }
+
   return getSavingsActivity(userId).then((activity) => activity.slice(0, limit));
 }

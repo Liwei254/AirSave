@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { isPostgresDataStoreEnabled } from "../config/dataStore.js";
 import User from "../models/User.js";
 import Wallet from "../models/Wallet.js";
 import AppError from "../utils/AppError.js";
@@ -16,6 +17,7 @@ import {
 } from "../utils/auth.js";
 import { signAccessToken, signRefreshToken, verifyToken } from "../utils/jwt.js";
 import { updateUserSettings } from "./settingsService.js";
+import * as postgresAuthService from "./postgres/authService.js";
 
 function logAuthEvent(event, details = {}) {
   console.info(
@@ -118,6 +120,10 @@ async function clearFailedAttempts(user) {
 }
 
 export async function registerUser(payload = {}, context = {}) {
+  if (isPostgresDataStoreEnabled()) {
+    return postgresAuthService.registerUser(payload, context);
+  }
+
   const fullName = sanitizeFullName(payload.fullName);
   const email = normalizeEmail(payload.email);
   const phone = normalizePhone(payload.phone);
@@ -176,6 +182,10 @@ export async function registerUser(payload = {}, context = {}) {
 }
 
 export async function loginUser(payload = {}, context = {}) {
+  if (isPostgresDataStoreEnabled()) {
+    return postgresAuthService.loginUser(payload, context);
+  }
+
   const emailOrPhone = String(payload.emailOrPhone || "").trim();
   const password = payload.password || "";
 
@@ -238,6 +248,10 @@ export async function loginUser(payload = {}, context = {}) {
 }
 
 export async function refreshSession(refreshToken) {
+  if (isPostgresDataStoreEnabled()) {
+    return postgresAuthService.refreshSession(refreshToken);
+  }
+
   if (!refreshToken) {
     throw new AppError("Not authorized", 401);
   }
@@ -270,6 +284,10 @@ export async function refreshSession(refreshToken) {
 }
 
 export async function logoutUser(refreshToken) {
+  if (isPostgresDataStoreEnabled()) {
+    return postgresAuthService.logoutUser(refreshToken);
+  }
+
   if (!refreshToken) return;
 
   const decoded = verifyToken(refreshToken);
@@ -284,6 +302,10 @@ export async function logoutUser(refreshToken) {
 }
 
 export async function getCurrentUser(userId) {
+  if (isPostgresDataStoreEnabled()) {
+    return postgresAuthService.getCurrentUser(userId);
+  }
+
   const user = await User.findById(userId).select("-password");
 
   if (!user) {
@@ -294,6 +316,10 @@ export async function getCurrentUser(userId) {
 }
 
 export async function updateCurrentUser(userId, payload = {}) {
+  if (isPostgresDataStoreEnabled()) {
+    return postgresAuthService.updateCurrentUser(userId, payload);
+  }
+
   const user = await User.findById(userId);
 
   if (!user) {
@@ -324,6 +350,10 @@ export async function updateCurrentUser(userId, payload = {}) {
 }
 
 export async function changePassword(userId, payload = {}) {
+  if (isPostgresDataStoreEnabled()) {
+    return postgresAuthService.changePassword(userId, payload);
+  }
+
   const currentPassword = String(payload.currentPassword || "");
   const newPassword = String(payload.newPassword || "");
 
@@ -350,6 +380,10 @@ export async function changePassword(userId, payload = {}) {
 }
 
 export async function requestPasswordReset(payload = {}, context = {}) {
+  if (isPostgresDataStoreEnabled()) {
+    return postgresAuthService.requestPasswordReset(payload, context);
+  }
+
   const identifier = String(payload.identifier || "").trim();
   const user = await findUserByIdentifier(identifier);
 
@@ -379,6 +413,10 @@ export async function requestPasswordReset(payload = {}, context = {}) {
 }
 
 export async function resetPassword(payload = {}, context = {}) {
+  if (isPostgresDataStoreEnabled()) {
+    return postgresAuthService.resetPassword(payload, context);
+  }
+
   const identifier = String(payload.identifier || "").trim();
   const user = await findUserByIdentifier(identifier);
 

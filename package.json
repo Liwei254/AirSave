@@ -8,7 +8,10 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "cd backend && npm test"
+    "test": "cd backend && npm test",
+    "migrate:mongo:dry-run": "node scripts/migrateMongoToPostgres.js --dry-run",
+    "migrate:mongo:execute": "node scripts/migrateMongoToPostgres.js --execute",
+    "verify:postgres": "node scripts/verifyPostgresLedger.js"
   },
   "repository": {
     "type": "git",
@@ -26,5 +29,8 @@
     "dotenv": "^17.4.2",
     "fs": "^0.0.1-security",
     "path": "^0.12.7"
+  },
+  "devDependencies": {
+    "prisma": "^7.8.0"
   }
 }

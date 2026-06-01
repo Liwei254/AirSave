@@ -1,0 +1,336 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum LedgerSide {
+  DEBIT
+  CREDIT
+}
+
+enum LedgerEntryStatus {
+  PENDING
+  POSTED
+  FAILED
+}
+
+enum PaymentIntentStatus {
+  CREATED
+  PENDING_PROVIDER
+  PROVIDER_CONFIRMED
+  CONFIRMED
+  FAILED
+  REVERSED
+  EXPIRED
+}
+
+enum ProviderTransactionStatus {
+  INITIATED
+  PENDING
+  SUCCESSFUL
+  FAILED
+}
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  CLOSED
+}
+
+model User {
+  id           String     @id @default(uuid())
+  fullName     String
+  email        String     @unique
+  phone        String     @unique
+  passwordHash String
+  role         UserRole   @default(USER)
+  status       UserStatus @default(ACTIVE)
+  roundUpRule  Int?
+  avatarUrl    String?
+  preferences  Json       @default("{}")
+
+  failedLoginAttempts     Int       @default(0)
+  lockUntil               DateTime?
+  refreshTokenHash        String?
+  refreshTokenExpiresAt   DateTime?
+  passwordResetTokenHash  String?
+  passwordResetExpiresAt  DateTime?
+  passwordResetChannel    String?
+
+  wallet         Wallet?
+  notifications  Notification[]
+  paymentIntents PaymentIntent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Wallet {
+  id     String @id @default(uuid())
+  userId String @unique
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts       LedgerAccount[]
+  goals          Goal[]
+  paymentIntents PaymentIntent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("wallets")
+}
+
+model LedgerAccount {
+  id           String @id @default(uuid())
+  walletId     String
+  accountType  String
+  currencyCode String @default("KES")
+
+  wallet  Wallet        @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  entries LedgerEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([walletId, accountType, currencyCode])
+  @@map("ledger_accounts")
+}
+
+model LedgerTransaction {
+  id              String  @id @default(uuid())
+  paymentIntentId String?
+  description     String?
+
+  paymentIntent PaymentIntent? @relation(fields: [paymentIntentId], references: [id])
+  entries       LedgerEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("ledger_transactions")
+}
+
+model LedgerEntry {
+  id                  String @id @default(uuid())
+  ledgerTransactionId String
+  ledgerAccountId     String
+
+  amount    Decimal           @db.Decimal(18, 2)
+  side      LedgerSide
+  status    LedgerEntryStatus @default(POSTED)
+  reference String?
+  postedAt  DateTime?
+
+  ledgerTransaction LedgerTransaction @relation(fields: [ledgerTransactionId], references: [id], onDelete: Cascade)
+  ledgerAccount     LedgerAccount     @relation(fields: [ledgerAccountId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ledgerTransactionId])
+  @@index([ledgerAccountId])
+  @@map("ledger_entries")
+}
+
+model PaymentIntent {
+  id       String  @id @default(uuid())
+  userId   String
+  walletId String
+  goalId   String?
+
+  type           String
+  originalAmount Decimal             @db.Decimal(18, 2)
+  roundedAmount  Decimal?            @db.Decimal(18, 2)
+  savingsAmount  Decimal?            @db.Decimal(18, 2)
+  status         PaymentIntentStatus @default(CREATED)
+  roundingRule   Int?
+  idempotencyKey String              @unique
+
+  providerId            String?
+  providerTransactionId String? @unique
+
+  user                User                 @relation(fields: [userId], references: [id])
+  wallet              Wallet               @relation(fields: [walletId], references: [id])
+  goal                Goal?                @relation(fields: [goalId], references: [id])
+  provider            Provider?            @relation(fields: [providerId], references: [id])
+  providerTransaction ProviderTransaction? @relation("IntentProviderTransaction", fields: [providerTransactionId], references: [id])
+
+  ledgerTransactions   LedgerTransaction[]
+  providerTransactions ProviderTransaction[] @relation("PaymentIntentProviderTransactions")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([walletId])
+  @@index([status])
+  @@map("payment_intents")
+}
+
+model Provider {
+  id       String  @id @default(uuid())
+  name     String  @unique
+  baseUrl  String?
+  isActive Boolean @default(true)
+
+  paymentIntents PaymentIntent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("providers")
+}
+
+model ProviderTransaction {
+  id              String @id @default(uuid())
+  paymentIntentId String
+
+  providerName      String
+  providerReference String?
+  checkoutRequestId String?
+  status            ProviderTransactionStatus @default(INITIATED)
+  amount            Decimal                   @db.Decimal(18, 2)
+
+  rawRequestData  Json?
+  rawResponseData Json?
+  confirmedAt     DateTime?
+
+  paymentIntent PaymentIntent  @relation("PaymentIntentProviderTransactions", fields: [paymentIntentId], references: [id], onDelete: Cascade)
+  linkedIntent  PaymentIntent? @relation("IntentProviderTransaction")
+  webhookEvents WebhookEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([paymentIntentId])
+  @@index([providerReference])
+  @@index([checkoutRequestId])
+  @@map("provider_transactions")
+}
+
+model WebhookEvent {
+  id                    String @id @default(uuid())
+  providerTransactionId String
+
+  eventType   String
+  rawPayload  Json
+  dedupeKey   String    @unique
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  providerTransaction ProviderTransaction @relation(fields: [providerTransactionId], references: [id], onDelete: Cascade)
+
+  @@map("webhook_events")
+}
+
+model OutboxEvent {
+  id        String  @id @default(uuid())
+  relatedId String
+  eventType String
+  payload   Json
+  published Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([published])
+  @@index([relatedId])
+  @@map("outbox_events")
+}
+
+model Goal {
+  id       String @id @default(uuid())
+  walletId String
+
+  name                   String
+  targetAmount           Decimal    @db.Decimal(18, 2)
+  savedAmount            Decimal    @default(0) @db.Decimal(18, 2)
+  status                 GoalStatus @default(ACTIVE)
+  startDate              DateTime?
+  deadline               DateTime?
+  expectedCompletionDate DateTime?
+  template               String?
+
+  wallet         Wallet          @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  paymentIntents PaymentIntent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([walletId])
+  @@map("goals")
+}
+
+model Notification {
+  id     String @id @default(uuid())
+  userId String
+
+  type    String
+  message String
+  read    Boolean @default(false)
+  sourceEventId String? @unique
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("notifications")
+}
+
+model ReconciliationRun {
+  id           String    @id @default(uuid())
+  providerName String
+  runDate      DateTime
+  startedAt    DateTime  @default(now())
+  endedAt      DateTime?
+  status       String
+
+  items ReconciliationItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("reconciliation_runs")
+}
+
+model ReconciliationItem {
+  id    String @id @default(uuid())
+  runId String
+
+  providerReference String?
+  internalReference String?
+  expectedAmount    Decimal? @db.Decimal(18, 2)
+  providerAmount    Decimal? @db.Decimal(18, 2)
+  difference        Decimal? @db.Decimal(18, 2)
+  status            String
+
+  run ReconciliationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([runId])
+  @@map("reconciliation_items")
+}

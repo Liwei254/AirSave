@@ -1,3 +1,4 @@
+import { isPostgresDataStoreEnabled } from "../config/dataStore.js";
 import Wallet from "../models/Wallet.js";
 import Ledger from "../models/Ledger.js";
 import User from "../models/User.js";
@@ -12,6 +13,7 @@ import {
 import { createNotification } from "./notificationService.js";
 import { createTransactionRecord } from "./transactionService.js";
 import { invalidateDashboardCache } from "./cacheService.js";
+import * as postgresWalletService from "./postgres/walletService.js";
 
 function buildReference(prefix) {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -28,6 +30,10 @@ async function getUserWallet(userId) {
 }
 
 export async function getWallet(userId) {
+  if (isPostgresDataStoreEnabled()) {
+    return postgresWalletService.getWallet(userId);
+  }
+
   const wallet = await getUserWallet(userId);
   const balance = await calculateWalletBalance(wallet._id);
   const transactionsCount = await Ledger.countDocuments({
@@ -45,6 +51,10 @@ export async function getWallet(userId) {
 }
 
 export async function depositWallet(userId, payload = {}, user = {}) {
+  if (isPostgresDataStoreEnabled()) {
+    return postgresWalletService.depositWallet(userId, payload, user);
+  }
+
   const numericAmount = normalizeMoney(payload.amount, "Enter a valid deposit amount.");
   const sourceMethod = String(payload.sourceMethod || "M-Pesa").trim();
   const phoneNumber = normalizePhone(payload.phoneNumber || payload.phone || user.phone);
@@ -108,6 +118,10 @@ export async function depositWallet(userId, payload = {}, user = {}) {
 }
 
 export async function getTransactionHistory(userId) {
+  if (isPostgresDataStoreEnabled()) {
+    return postgresWalletService.getTransactionHistory(userId);
+  }
+
   const wallet = await getUserWallet(userId);
   const transactions = await Ledger.find({ wallet: wallet._id })
     .select("_id amount type reference description status createdAt")

@@ -1,8 +1,11 @@
 import app from "./app.js";
 import connectDB from "./config/db.js";
+import { disconnectPrisma } from "./config/prisma.js";
 import { closeRedis } from "./config/redis.js";
+import { startOutboxWorker } from "./workers/outboxWorker.js";
 
 connectDB();
+const outboxWorker = process.env.ENABLE_OUTBOX_WORKER === "true" ? startOutboxWorker() : null;
 
 const PORT = process.env.PORT || 5000;
 
@@ -24,8 +27,10 @@ server.on("error", (error) => {
 
 async function shutdown(signal) {
   console.log(`${signal} received. Shutting down AirSave server...`);
+  outboxWorker?.stop();
   server.close(async () => {
     await closeRedis();
+    await disconnectPrisma();
     process.exit(0);
   });
 }

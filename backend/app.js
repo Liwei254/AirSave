@@ -16,6 +16,7 @@ import notificationRoutes from "./routes/notification.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import settingsRoutes from "./routes/settings.js";
+import healthRoutes from "./routes/health.js";
 import { submitWithdrawal } from "./controllers/transactionController.js";
 import { protect } from "./middlewares/auth.js";
 import { validateRequest } from "./middlewares/validation.js";
@@ -96,6 +97,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/health", healthRoutes);
 app.post("/api/withdraw", protect, withdrawalValidator, validateRequest, submitWithdrawal);
 
 app.get("/api", (req, res) => {

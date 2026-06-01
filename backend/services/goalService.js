@@ -1,7 +1,9 @@
+import { isPostgresDataStoreEnabled } from "../config/dataStore.js";
 import Goal from "../models/Goal.js";
 import AppError from "../utils/AppError.js";
 import { updateRoundUpRule } from "./settingsService.js";
 import { invalidateDashboardCache } from "./cacheService.js";
+import * as prismaGoalService from "./postgres/prismaGoalService.js";
 
 const oneActiveGoalMessage = "You can only have one active goal at a time.";
 const validStatuses = ["active", "completed", "closed"];
@@ -29,6 +31,15 @@ export function serializeGoal(goal) {
 }
 
 export async function findActiveGoal(userId, excludeGoalId = null) {
+  if (isPostgresDataStoreEnabled()) {
+    if (excludeGoalId) {
+      const goal = await prismaGoalService.getActiveGoal(userId);
+      return goal && String(goal._id) !== String(excludeGoalId) ? goal : null;
+    }
+
+    return prismaGoalService.getActiveGoal(userId);
+  }
+
   const query = {
     user: userId,
     status: "active",
@@ -90,6 +101,10 @@ function validateGoalPayload(payload, { partial = false } = {}) {
 }
 
 export async function createGoal(userId, body = {}) {
+  if (isPostgresDataStoreEnabled()) {
+    return prismaGoalService.createGoal(userId, body);
+  }
+
   const payload = cleanGoalPayload(body);
   validateGoalPayload(payload);
 
@@ -136,16 +151,28 @@ export async function createGoal(userId, body = {}) {
 }
 
 export async function getGoals(userId) {
+  if (isPostgresDataStoreEnabled()) {
+    return prismaGoalService.getGoals(userId);
+  }
+
   const goals = await Goal.find({ user: userId }).sort({ status: 1, updatedAt: -1 });
   return goals.map(serializeGoal);
 }
 
 export async function getActiveGoal(userId) {
+  if (isPostgresDataStoreEnabled()) {
+    return prismaGoalService.getActiveGoal(userId);
+  }
+
   const goal = await findActiveGoal(userId);
   return serializeGoal(goal);
 }
 
 export async function updateGoal(userId, goalId, body = {}) {
+  if (isPostgresDataStoreEnabled()) {
+    return prismaGoalService.updateGoal(userId, goalId, body);
+  }
+
   const goal = await Goal.findOne({ _id: goalId, user: userId });
 
   if (!goal) {
@@ -197,6 +224,10 @@ export async function updateGoal(userId, goalId, body = {}) {
 }
 
 export async function closeGoal(userId, goalId) {
+  if (isPostgresDataStoreEnabled()) {
+    return prismaGoalService.closeGoal(userId, goalId);
+  }
+
   const goal = await Goal.findOne({ _id: goalId, user: userId });
 
   if (!goal) {
@@ -211,6 +242,10 @@ export async function closeGoal(userId, goalId) {
 }
 
 export async function creditActiveGoal(userId, amount, goalId = null) {
+  if (isPostgresDataStoreEnabled()) {
+    return prismaGoalService.creditActiveGoal(userId, amount, goalId);
+  }
+
   const numericAmount = Number(amount || 0);
   if (numericAmount <= 0) return null;
 
@@ -231,4 +266,39 @@ export async function creditActiveGoal(userId, amount, goalId = null) {
   await goal.save();
   await invalidateDashboardCache(userId);
   return serializeGoal(goal);
+}
+
+export async function allocateSavingsToGoal(userId, goalId, amount, metadata = {}) {
+  if (isPostgresDataStoreEnabled()) {
+    return prismaGoalService.allocateSavingsToGoal(userId, goalId, amount, metadata);
+  }
+
+  const goal = await creditActiveGoal(userId, amount, goalId);
+  return {
+    message: goal ? "Savings allocated successfully." : "Active goal not found.",
+    status: goal ? "confirmed" : "skipped",
+    amount: Number(amount || 0),
+    goal,
+    idempotencyKey: metadata.idempotencyKey || null,
+    replayed: false,
+  };
+}
+
+export async function roundUpSavings(userId, originalAmount, roundedAmount, goalId = null, metadata = {}) {
+  if (isPostgresDataStoreEnabled()) {
+    return prismaGoalService.roundUpSavings(userId, originalAmount, roundedAmount, goalId, metadata);
+  }
+
+  const savingsAmount = Number((Number(roundedAmount || 0) - Number(originalAmount || 0)).toFixed(2));
+  if (savingsAmount <= 0) {
+    return {
+      message: "No round-up savings were generated.",
+      status: "skipped",
+      amount: 0,
+      goal: null,
+      replayed: false,
+    };
+  }
+
+  return allocateSavingsToGoal(userId, goalId, savingsAmount, metadata);
 }
