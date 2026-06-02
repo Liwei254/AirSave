@@ -89,11 +89,7 @@ function requireIdempotencyKey(payload = {}) {
     payload.idempotencyKey || payload.paymentReference || payload.reference || ""
   ).trim();
 
-  if (!idempotencyKey) {
-    throw new AppError("Idempotency key is required.", 400);
-  }
-
-  return idempotencyKey;
+  return idempotencyKey || buildReference("PAY");
 }
 
 function requireAccount(wallet, accountType) {

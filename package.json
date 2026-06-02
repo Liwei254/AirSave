@@ -11,7 +11,10 @@
     "test": "cd backend && npm test",
     "migrate:mongo:dry-run": "node scripts/migrateMongoToPostgres.js --dry-run",
     "migrate:mongo:execute": "node scripts/migrateMongoToPostgres.js --execute",
-    "verify:postgres": "node scripts/verifyPostgresLedger.js"
+    "verify:postgres": "node scripts/verifyPostgresLedger.js",
+    "db:migrate:deploy": "cd backend && npm run db:migrate:deploy",
+    "db:generate": "cd backend && npm run db:generate",
+    "postdeploy:postgres": "npm run db:migrate:deploy && npm run verify:postgres"
   },
   "repository": {
     "type": "git",

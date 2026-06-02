@@ -2,10 +2,14 @@ import app from "./app.js";
 import connectDB from "./config/db.js";
 import { disconnectPrisma } from "./config/prisma.js";
 import { closeRedis } from "./config/redis.js";
+import { logStartupChecklist, validateStartupEnvironment } from "./config/startupValidation.js";
 import { startOutboxWorker } from "./workers/outboxWorker.js";
 
-connectDB();
-const outboxWorker = process.env.ENABLE_OUTBOX_WORKER === "true" ? startOutboxWorker() : null;
+const startup = validateStartupEnvironment();
+logStartupChecklist(startup);
+
+await connectDB();
+const outboxWorker = startup.outboxWorkerEnabled ? startOutboxWorker() : null;
 
 const PORT = process.env.PORT || 5000;
 
@@ -25,13 +29,24 @@ server.on("error", (error) => {
   process.exit(1);
 });
 
+let shutdownInProgress = false;
+
 async function shutdown(signal) {
+  if (shutdownInProgress) return;
+  shutdownInProgress = true;
+
   console.log(`${signal} received. Shutting down AirSave server...`);
   outboxWorker?.stop();
+
   server.close(async () => {
-    await closeRedis();
-    await disconnectPrisma();
-    process.exit(0);
+    try {
+      await closeRedis();
+      await disconnectPrisma();
+      process.exit(0);
+    } catch (error) {
+      console.error("Shutdown cleanup failed:", error);
+      process.exit(1);
+    }
   });
 }
 
