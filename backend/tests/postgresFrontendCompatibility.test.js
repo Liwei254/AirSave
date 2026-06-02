@@ -9,9 +9,6 @@ import {
   expectWalletTransactionShape,
 } from "./compatibilityShape.js";
 
-process.env.DATA_STORE = "postgres";
-process.env.DATABASE_PROVIDER = "postgres";
-
 const defaultAccountTypes = ["available_funds", "savings", "pending_outbound", "fees", "clearing"];
 const defaultPreferences = {
   notifications: true,
@@ -473,8 +470,6 @@ function seedNotification(userId) {
 }
 
 beforeEach(() => {
-  process.env.DATA_STORE = "postgres";
-  process.env.DATABASE_PROVIDER = "postgres";
   resetState();
 });
 

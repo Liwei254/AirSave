@@ -22,7 +22,7 @@ function logRedisIssue(message, error) {
 function createRedisClient() {
   if (redisDisabled || !redisUrl) {
     if (!isTest && !redisDisabled) {
-      console.info("[redis] REDIS_URL not configured; Redis-backed features will use MongoDB/fallback behavior.");
+      console.info("[redis] REDIS_URL not configured; Redis-backed features will use in-memory fallback behavior.");
     }
     return null;
   }

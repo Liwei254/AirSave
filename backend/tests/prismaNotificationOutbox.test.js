@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 
-process.env.DATA_STORE = "postgres";
-
 const state = {
   counter: 0,
   notifications: [],
@@ -122,7 +120,6 @@ const {
 const { processOutboxBatch } = await import("../workers/outboxWorker.js");
 
 beforeEach(() => {
-  process.env.DATA_STORE = "postgres";
   resetState();
 });
 

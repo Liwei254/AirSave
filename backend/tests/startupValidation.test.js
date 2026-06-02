@@ -15,22 +15,12 @@ function expectStartupError(env, messagePattern) {
 }
 
 describe("startup environment validation", () => {
-  test("Postgres mode without DATABASE_URL fails fast", () => {
+  test("missing DATABASE_URL fails fast", () => {
     expectStartupError(
       {
-        DATA_STORE: "postgres",
         JWT_SECRET: "dev-secret",
       },
       /DATABASE_URL is required/i
-    );
-  });
-
-  test("Mongo mode without Mongo URI fails fast", () => {
-    expectStartupError(
-      {
-        JWT_SECRET: "dev-secret",
-      },
-      /MONGO_URI or MONGODB_URI is required/i
     );
   });
 
@@ -38,16 +28,15 @@ describe("startup environment validation", () => {
     expectStartupError(
       {
         NODE_ENV: "production",
-        MONGO_URI: "mongodb://localhost:27017/airsave",
+        DATABASE_URL: "postgresql://user:password@localhost:5432/airsave",
       },
       /JWT_SECRET is required/i
     );
   });
 
-  test("valid Postgres env passes validation", () => {
+  test("valid PostgreSQL env passes validation", () => {
     const summary = validateStartupEnvironment({
       NODE_ENV: "production",
-      DATA_STORE: "postgres",
       DATABASE_URL: "postgresql://user:password@localhost:5432/airsave",
       JWT_SECRET: "production-secret",
       ENABLE_OUTBOX_WORKER: "false",
@@ -56,29 +45,11 @@ describe("startup environment validation", () => {
 
     expect(summary).toMatchObject({
       datastore: "postgres",
-      provider: "postgres",
-      postgresMode: true,
+      provider: "prisma",
       databaseUrlConfigured: true,
       jwtSecretConfigured: true,
       outboxWorkerEnabled: false,
       healthEndpoint: "/api/health/postgres",
-    });
-  });
-
-  test("valid Mongo env passes validation", () => {
-    const summary = validateStartupEnvironment({
-      NODE_ENV: "development",
-      MONGODB_URI: "mongodb://localhost:27017/airsave",
-      JWT_SECRET: "dev-secret",
-    });
-
-    expect(summary).toMatchObject({
-      datastore: "mongo",
-      provider: "mongo-default",
-      postgresMode: false,
-      mongoUriConfigured: true,
-      jwtSecretConfigured: true,
-      outboxWorkerEnabled: false,
     });
   });
 });

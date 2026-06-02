@@ -1,6 +1,6 @@
-# PostgreSQL Deployment Hardening
+# PostgreSQL Deployment
 
-This guide covers production deployment for AirSave when PostgreSQL is enabled. MongoDB remains the default datastore unless a Postgres switch is set.
+AirSave now uses PostgreSQL with Prisma as its only datastore. Runtime datastore switches have been removed.
 
 ## Local Setup
 
@@ -12,20 +12,15 @@ cd backend
 npm install
 ```
 
-Set MongoDB for the default runtime:
+Set the backend environment:
 
 ```bash
-MONGO_URI=mongodb://127.0.0.1:27017/airsave
-JWT_SECRET=local-development-secret
-```
-
-Set PostgreSQL for opt-in runtime:
-
-```bash
-DATA_STORE=postgres
+NODE_ENV=development
+PORT=5000
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE?schema=public
 JWT_SECRET=local-development-secret
 ENABLE_OUTBOX_WORKER=false
+REDIS_URL=
 ```
 
 Generate Prisma client:
@@ -34,24 +29,25 @@ Generate Prisma client:
 npm run db:generate
 ```
 
+Apply migrations:
+
+```bash
+npm run db:migrate:deploy
+```
+
 ## Render Setup
 
-Use the backend service as the web service.
+Use `backend` as the Render web service root directory.
 
-Recommended settings:
+Recommended environment variables:
 
 ```bash
 NODE_ENV=production
-DATA_STORE=postgres
-DATABASE_URL=<Render or external Postgres internal URL>
+PORT=5000
+DATABASE_URL=<Render or external Postgres URL>
 JWT_SECRET=<strong random secret>
 ENABLE_OUTBOX_WORKER=false
-```
-
-Use a separate Render worker service for outbox processing:
-
-```bash
-cd backend && npm run worker:outbox
+REDIS_URL=<optional Redis URL>
 ```
 
 Run migrations during deploy:
@@ -66,19 +62,13 @@ Set variables on the backend service:
 
 ```bash
 NODE_ENV=production
-DATA_STORE=postgres
 DATABASE_URL=${{Postgres.DATABASE_URL}}
 JWT_SECRET=<strong random secret>
 ENABLE_OUTBOX_WORKER=false
+REDIS_URL=<optional Redis URL>
 ```
 
-Deploy the outbox worker as a separate Railway service with:
-
-```bash
-cd backend && npm run worker:outbox
-```
-
-If Railway runs commands from the backend folder, use:
+If Railway runs commands from the backend folder:
 
 ```bash
 npm run db:migrate:deploy
@@ -87,53 +77,25 @@ npm run verify:postgres
 
 ## Supabase, Neon, and Managed Postgres URLs
 
-Use the pooled or direct connection string recommended by the provider for server runtimes.
+Use the provider-recommended server runtime connection string for `DATABASE_URL`.
 
 Prisma migrations generally work best with a direct database URL. If your provider gives separate pooled and direct URLs, use the direct URL for migration jobs and the pooled URL for web runtime only if the provider recommends it.
 
-Never log `DATABASE_URL`. The startup checklist only reports whether it is configured.
+Never log `DATABASE_URL`. Startup logs only report whether it is configured.
 
-## Migration Commands
-
-Apply Prisma migrations:
-
-```bash
-npm run db:migrate:deploy
-```
-
-Generate Prisma client:
+## Commands
 
 ```bash
 npm run db:generate
-```
-
-Run the Mongo to Postgres migration dry-run:
-
-```bash
-npm run migrate:mongo:dry-run
-```
-
-Execute the Mongo to Postgres migration:
-
-```bash
-npm run migrate:mongo:execute
-```
-
-Verify financial integrity:
-
-```bash
+npm run db:migrate:deploy
 npm run verify:postgres
-```
-
-Post-deploy Postgres check:
-
-```bash
 npm run postdeploy:postgres
+npm run cutover:check
 ```
 
-## Worker Deployment Strategy
+## Outbox Worker
 
-Do not run the outbox worker in every scaled web replica. Prefer one separate worker process:
+Prefer one separate worker process:
 
 ```bash
 cd backend
@@ -146,26 +108,19 @@ Set this in web services:
 ENABLE_OUTBOX_WORKER=false
 ```
 
-Set this only for a single-process deployment or a dedicated worker:
-
-```bash
-ENABLE_OUTBOX_WORKER=true
-```
-
-Startup validation warns when the worker is enabled in production because duplicate web replicas can process the same operational workload.
+Set `ENABLE_OUTBOX_WORKER=true` only for a single-process deployment or a dedicated worker. Startup validation warns when the worker is enabled in production because duplicate web replicas can process the same operational workload.
 
 ## Startup Validation
 
 The API fails fast when:
 
-- Postgres mode is enabled and `DATABASE_URL` is missing.
-- Mongo mode is enabled and neither `MONGO_URI` nor `MONGODB_URI` is set.
+- `DATABASE_URL` is missing.
 - `NODE_ENV=production` and `JWT_SECRET` is missing.
 
 The boot checklist logs:
 
-- selected datastore
-- selected provider
+- selected datastore: `postgres`
+- selected provider: `prisma`
 - outbox worker enabled or disabled
 - mounted health endpoint
 - node environment
@@ -187,14 +142,15 @@ Financial verification:
 npm run verify:postgres
 ```
 
-Run verification after migrations, after Mongo data migration, and before switching production traffic to Postgres.
+Run verification after migrations and before promoting a deployment.
 
 ## Rollback Strategy
 
-1. Remove `DATA_STORE`, `DATABASE_PROVIDER`, and `DB_PROVIDER`, or set them away from `postgres`.
-2. Restart the web service.
-3. Stop the dedicated outbox worker if it is only used for Postgres mode.
-4. Keep PostgreSQL data intact for investigation.
-5. Continue serving from MongoDB while reviewing migration reports and `verify:postgres` output.
+Rollback is now an application/database deployment rollback:
 
-Do not truncate PostgreSQL or delete MongoDB data automatically during rollback.
+1. Restore the previous application release if needed.
+2. Restore PostgreSQL from a known-good backup or snapshot if data integrity is affected.
+3. Stop the outbox worker if the deployment is paused.
+4. Keep failed verification output and logs for investigation.
+
+Do not truncate PostgreSQL tables automatically during rollback.

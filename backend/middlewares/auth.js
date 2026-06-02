@@ -1,7 +1,5 @@
-import { isPostgresDataStoreEnabled } from "../config/dataStore.js";
-import User from "../models/User.js";
 import { isTokenDenied } from "../services/cacheService.js";
-import { getAuthorizedUser } from "../services/postgres/authService.js";
+import { getAuthorizedUser } from "../services/authService.js";
 import { sendError } from "../utils/apiResponse.js";
 import { ACCESS_COOKIE_NAME, getCookie, hashToken } from "../utils/auth.js";
 import { verifyToken } from "../utils/jwt.js";
@@ -11,8 +9,6 @@ function getBearerToken(header = "") {
   if (!header.startsWith("Bearer ")) return "";
   return header.slice(7).trim();
 }
-
-const protectedUserFields = "_id fullName phone email role roundUpRule wallet status";
 
 const protect = async (req, res, next) => {
   try {
@@ -34,9 +30,7 @@ const protect = async (req, res, next) => {
       return sendError(res, { statusCode: 401, message: "Invalid or expired token" });
     }
 
-    const user = isPostgresDataStoreEnabled()
-      ? await getAuthorizedUser(decoded.id)
-      : await User.findById(decoded.id).select(protectedUserFields);
+    const user = await getAuthorizedUser(decoded.id);
 
     if (!user) {
       return sendError(res, { statusCode: 401, message: "Not authorized" });

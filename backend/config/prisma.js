@@ -5,7 +5,7 @@ const globalForPrisma = globalThis;
 
 function createPrismaClient() {
   if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL is required when the PostgreSQL datastore is enabled.");
+    throw new Error("DATABASE_URL is required.");
   }
 
   const adapter = new PrismaPg(process.env.DATABASE_URL, {

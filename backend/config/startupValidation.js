@@ -1,5 +1,3 @@
-const postgresProviders = new Set(["postgres", "postgresql", "prisma"]);
-
 export class StartupValidationError extends Error {
   constructor(errors = []) {
     super(errors.join("; "));
@@ -12,14 +10,6 @@ function normalize(value) {
   return String(value || "").trim();
 }
 
-function normalizeProvider(env = process.env) {
-  return normalize(env.DATA_STORE || env.DATABASE_PROVIDER || env.DB_PROVIDER).toLowerCase();
-}
-
-function isPostgresProvider(provider) {
-  return postgresProviders.has(provider);
-}
-
 function isEnabled(value) {
   return normalize(value).toLowerCase() === "true";
 }
@@ -30,19 +20,13 @@ function hasMultipleReplicaHint(env = process.env) {
 }
 
 export function getStartupEnvironment(env = process.env) {
-  const provider = normalizeProvider(env);
-  const postgresMode = isPostgresProvider(provider);
-  const datastore = postgresMode ? "postgres" : "mongo";
-
   return {
     nodeEnv: normalize(env.NODE_ENV) || "development",
     port: normalize(env.PORT) || "5000",
-    provider: provider || "mongo-default",
-    datastore,
-    postgresMode,
+    provider: "prisma",
+    datastore: "postgres",
     outboxWorkerEnabled: isEnabled(env.ENABLE_OUTBOX_WORKER),
     databaseUrlConfigured: Boolean(normalize(env.DATABASE_URL)),
-    mongoUriConfigured: Boolean(normalize(env.MONGO_URI || env.MONGODB_URI)),
     jwtSecretConfigured: Boolean(normalize(env.JWT_SECRET)),
     healthEndpoint: "/api/health/postgres",
   };
@@ -53,12 +37,8 @@ export function validateStartupEnvironment(env = process.env) {
   const errors = [];
   const warnings = [];
 
-  if (summary.postgresMode && !summary.databaseUrlConfigured) {
-    errors.push("DATABASE_URL is required when PostgreSQL datastore mode is enabled.");
-  }
-
-  if (!summary.postgresMode && !summary.mongoUriConfigured) {
-    errors.push("MONGO_URI or MONGODB_URI is required when MongoDB datastore mode is enabled.");
+  if (!summary.databaseUrlConfigured) {
+    errors.push("DATABASE_URL is required.");
   }
 
   if (summary.nodeEnv === "production" && !summary.jwtSecretConfigured) {

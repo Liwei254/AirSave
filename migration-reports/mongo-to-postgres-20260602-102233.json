@@ -1,0 +1,113 @@
+{
+  "dryRun": true,
+  "scopes": [
+    "users",
+    "goals",
+    "transactions",
+    "notifications"
+  ],
+  "startedAt": "2026-06-02T07:22:28.369Z",
+  "finishedAt": "2026-06-02T07:22:33.232Z",
+  "counts": {
+    "mongo": {
+      "users": 26,
+      "goals": 35,
+      "transactions": 65,
+      "payments": 4,
+      "ledgers": 97,
+      "notifications": 77
+    },
+    "postgres": {
+      "users": 0,
+      "wallets": 0,
+      "goals": 0,
+      "paymentIntents": 0,
+      "ledgerTransactions": 0,
+      "notifications": 0
+    },
+    "migrated": {
+      "users": 26,
+      "wallets": 26,
+      "ledgerAccounts": 130,
+      "goals": 31,
+      "paymentIntents": 69,
+      "providerTransactions": 69,
+      "ledgerTransactions": 97,
+      "notifications": 77
+    },
+    "skipped": {},
+    "failed": {
+      "goals": 4
+    }
+  },
+  "warnings": [
+    {
+      "message": "Closing duplicate active goal during migration",
+      "goalId": "69dc94dde3fbc125a6363fbe",
+      "walletId": "69dc8e4804206c75dd4780f2"
+    },
+    {
+      "message": "Closing duplicate active goal during migration",
+      "goalId": "69dca9a0247ffdc265a05ce2",
+      "walletId": "69dc21fc0b35f4583cceb2f4"
+    },
+    {
+      "message": "Skipping goal without migrated wallet",
+      "goalId": "69e61245dbb865c731a20489",
+      "userId": "69e6121ddbb865c731a2045c"
+    },
+    {
+      "message": "Skipping goal without migrated wallet",
+      "goalId": "69e61948dbb865c731a2055d",
+      "userId": "69e6121ddbb865c731a2045c"
+    },
+    {
+      "message": "Skipping goal without migrated wallet",
+      "goalId": "69e61db01c8768a7b727abde",
+      "userId": "69e6121ddbb865c731a2045c"
+    },
+    {
+      "message": "Closing duplicate active goal during migration",
+      "goalId": "69e61f111c8768a7b727acaa",
+      "walletId": "69e61dea1c8768a7b727abf2"
+    },
+    {
+      "message": "Closing duplicate active goal during migration",
+      "goalId": "69e6344113d1768004f58b95",
+      "walletId": "69e61dea1c8768a7b727abf2"
+    },
+    {
+      "message": "Skipping goal without migrated wallet",
+      "goalId": "69e65efb2af0693eb854f751",
+      "userId": "69e65e9b2af0693eb854f735"
+    },
+    {
+      "message": "Closing duplicate active goal during migration",
+      "goalId": "69eca837214d57281b308b3a",
+      "walletId": "69eca34d214d57281b308aef"
+    },
+    {
+      "message": "Closing duplicate active goal during migration",
+      "goalId": "69edfa3b7c39f315e65bb01d",
+      "walletId": "69dc21fc0b35f4583cceb2f4"
+    },
+    {
+      "message": "Closing duplicate active goal during migration",
+      "goalId": "69f0f86979dbc78d1e8f7d3e",
+      "walletId": "69e7bf013fba2703ecfbba74"
+    },
+    {
+      "message": "Closing duplicate active goal during migration",
+      "goalId": "69f0f95f79dbc78d1e8f7d98",
+      "walletId": "69ef527beae4fcf7f275547d"
+    }
+  ],
+  "errors": [],
+  "verification": {
+    "walletsMissing": [],
+    "accountsMissing": [],
+    "unbalancedLedgerTransactions": [],
+    "negativeWalletBalances": [],
+    "walletBalanceMismatches": []
+  }
+}

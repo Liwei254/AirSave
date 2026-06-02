@@ -12,6 +12,7 @@
     "db:generate": "prisma generate",
     "verify:postgres": "node ../scripts/verifyPostgresLedger.js",
     "postdeploy:postgres": "npm run db:migrate:deploy && npm run verify:postgres",
+    "cutover:check": "node ../scripts/postgresCutoverChecklist.js",
     "build:frontend": "cd ../frontend && npm install && npm run build",
     "render-build": "npm run build:frontend",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand"
@@ -36,14 +37,12 @@
     "helmet": "^7.1.0",
     "ioredis": "^5.10.1",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^8.23.0",
     "morgan": "^1.10.0",
     "pg": "^8.21.0",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
     "jest": "^30.2.0",
-    "mongodb-memory-server": "^10.4.1",
     "nodemon": "^3.1.7",
     "prisma": "^7.8.0",
     "supertest": "^7.1.4"

@@ -10,5 +10,7 @@ services:
         value: production
       - key: JWT_SECRET
         sync: false
-      - key: MONGO_URI
+      - key: DATABASE_URL
         sync: false
+      - key: ENABLE_OUTBOX_WORKER
+        value: "false"

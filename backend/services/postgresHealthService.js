@@ -39,7 +39,7 @@ export async function checkPostgresHealth(client = prisma) {
   const presentTables = new Set(tableRows.map(normalizeTableName).filter(Boolean));
   const missingTables = requiredPostgresTables.filter((tableName) => !presentTables.has(tableName));
 
-  const migrationTableRows = await client.$queryRawUnsafe("SELECT to_regclass('public._prisma_migrations') AS table_name");
+  const migrationTableRows = await client.$queryRawUnsafe("SELECT to_regclass('public._prisma_migrations')::text AS table_name");
   const migrationsTableExists = Boolean(normalizeTableName(migrationTableRows[0]));
   const migrationRows = migrationsTableExists
     ? await client.$queryRawUnsafe(

@@ -1,14 +1,23 @@
-import app from "./app.js";
-import connectDB from "./config/db.js";
+﻿import app from "./app.js";
 import { disconnectPrisma } from "./config/prisma.js";
 import { closeRedis } from "./config/redis.js";
 import { logStartupChecklist, validateStartupEnvironment } from "./config/startupValidation.js";
 import { startOutboxWorker } from "./workers/outboxWorker.js";
 
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({
+  path: path.resolve(__dirname, "../.env"),
+});
+
 const startup = validateStartupEnvironment();
 logStartupChecklist(startup);
 
-await connectDB();
 const outboxWorker = startup.outboxWorkerEnabled ? startOutboxWorker() : null;
 
 const PORT = process.env.PORT || 5000;

@@ -1,4 +1,6 @@
 /Documentation
+!docs/postgres-cutover.md
+!docs/postgres-deployment.md
 
 # Logs
 logs
