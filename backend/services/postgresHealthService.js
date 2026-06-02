@@ -31,11 +31,13 @@ function normalizeMigration(row) {
 
 export async function checkPostgresHealth(client = prisma) {
   const basicQuery = await client.$queryRawUnsafe("SELECT 1 AS ok");
-  const tablePlaceholders = requiredPostgresTables.map((_, index) => `$${index + 1}`).join(", ");
-  const tableRows = await client.$queryRawUnsafe(
-    `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN (${tablePlaceholders})`,
-    ...requiredPostgresTables
-  );
+  
+const tableRows = await client.$queryRaw`
+  SELECT table_name
+  FROM information_schema.tables
+  WHERE table_schema = 'public'
+    AND table_name = ANY(${requiredPostgresTables})
+`;
   const presentTables = new Set(tableRows.map(normalizeTableName).filter(Boolean));
   const missingTables = requiredPostgresTables.filter((tableName) => !presentTables.has(tableName));
 
