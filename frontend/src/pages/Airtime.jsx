@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useActivityQuery, useActiveGoalQuery, useProfileQuery, useWalletQuery } from "../api/hooks";
-import { initiatePayment } from "../services/api";
-import { fetchPaymentStatus } from "../api/paymentsApi";
+import { buyAirtime, fetchPaymentStatus } from "../api/paymentsApi";
 import Layout from "../components/Layout.jsx";
 import { formatCurrency } from "../utils/formatters";
 import { getRoundUp, toAmount } from "../utils/servicePage";
@@ -55,11 +54,9 @@ export default function Airtime() {
     setSubmitting(true);
     try {
       const selectedOperator = operators.find((item) => item.value === operator)?.label || "Mobile";
-      const result = await initiatePayment({
+      const result = await buyAirtime({
         amount: numericAmount,
         phone: phone.trim(),
-        transactionType: "airtime",
-        purchaseType: "airtime",
         operator,
         merchant: `${selectedOperator} Airtime`,
         description: `${selectedOperator} airtime purchase`,
@@ -84,40 +81,36 @@ export default function Airtime() {
     } finally { setSubmitting(false); }
   }
 
-  if (isLoading) {
-    return <Layout><main className="service-page-shell"><section className="service-loading-card"><span className="spinner spinner-dark" aria-hidden="true" /><span>Loading airtime savings flow...</span></section></main></Layout>;
-  }
+  if (isLoading) return <Layout><main className="service-page-shell"><section className="service-loading-card"><span className="spinner spinner-dark" aria-hidden="true" /><span>Loading airtime savings flow...</span></section></main></Layout>;
 
-  return (
-    <Layout>
-      <main className="service-page-shell">
-        <div className="service-breadcrumb">Payments <span>/</span> Airtime</div>
-        {feedback ? <div className={`feedback feedback-${feedback.type}`} role="status">{feedback.message}</div> : null}
-        <form className="service-layout-grid" onSubmit={submit}>
-          <section className="service-form-card">
-            <div className="service-form-heading"><div><span className="service-kicker">AirSave savings</span><h1><span>Buy</span> <span>Airtime</span></h1></div><span className="service-badge">Round-up on</span></div>
-            <p className="service-form-subtitle">Buy airtime as usual. AirSave rounds up the purchase and sends the difference to your active savings goal.</p>
-            <label className="service-field"><span>Network</span><select className="service-dark-input" value={operator} onChange={(event) => setOperator(event.target.value)}>{operators.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-            <label className="service-field"><span>Phone number</span><input className={submitted && !phone.trim() ? "service-dark-input service-input-error" : "service-dark-input"} value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Enter phone number" inputMode="tel" /></label>
-            <label className="service-field"><span>Airtime amount</span><div className={submitted && !numericAmount ? "service-amount-input service-input-error" : "service-amount-input"}><span>KES</span><input value={amount} onChange={(event) => setAmount(event.target.value.replace(/[^\d.]/g, ""))} placeholder="100" inputMode="decimal" /></div></label>
-            <div className="service-readonly-value">Active goal: {goal?.name || "No active goal"}</div>
-          </section>
-          <section className="service-preview-card">
-            <div className="service-preview-heading"><span>Purchase summary</span><strong>{formatCurrency(total || numericAmount)}</strong></div>
-            <dl className="service-preview-rows">
-              <div><dt>Airtime</dt><dd>{formatCurrency(numericAmount)}</dd></div>
-              <div><dt>Round-up rule</dt><dd>Nearest {rule}</dd></div>
-              <div><dt>Auto-saved</dt><dd className="service-success-text">{formatCurrency(roundUp.savings)}</dd></div>
-              <div><dt>Saving to</dt><dd>{goal?.name || "No active goal"}</dd></div>
-              <div><dt>Wallet balance</dt><dd>{formatCurrency(walletBalance)}</dd></div>
-              <div><dt>After purchase</dt><dd>{formatCurrency(Math.max(0, walletBalance - total))}</dd></div>
-            </dl>
-            <button className="service-primary-action" type="submit" disabled={!canSubmit}>{submitting ? "Processing..." : "Buy Airtime & Save"}</button>
-            <button className="service-secondary-action" type="button" onClick={() => navigate("/settings")} disabled={submitting}>Change round-up rule</button>
-          </section>
-        </form>
-        <section className="service-recent-card"><div><span className="service-kicker">Activity</span><h2>Recent airtime purchases</h2></div><p>Confirmed airtime purchases and their round-up savings appear in Activity.</p>{(activityQuery.data || []).filter((item) => String(item.transactionType || item.type || "").toLowerCase() === "airtime").slice(0, 5).map((item) => <div className="service-recent-row" key={item._id || item.reference}><span>{item.merchant || "Airtime"}</span><strong>{formatCurrency(item.amount || 0)}</strong></div>)}</section>
-      </main>
-    </Layout>
-  );
+  return <Layout>
+    <main className="service-page-shell">
+      <div className="service-breadcrumb">Payments <span>/</span> Airtime</div>
+      {feedback ? <div className={`feedback feedback-${feedback.type}`} role="status">{feedback.message}</div> : null}
+      <form className="service-layout-grid" onSubmit={submit}>
+        <section className="service-form-card">
+          <div className="service-form-heading"><div><span className="service-kicker">AirSave savings</span><h1><span>Buy</span> <span>Airtime</span></h1></div><span className="service-badge">Round-up on</span></div>
+          <p className="service-form-subtitle">Buy airtime as usual. AirSave rounds up the purchase and sends the difference to your active savings goal.</p>
+          <label className="service-field"><span>Network</span><select className="service-dark-input" value={operator} onChange={(event) => setOperator(event.target.value)}>{operators.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+          <label className="service-field"><span>Phone number</span><input className={submitted && !phone.trim() ? "service-dark-input service-input-error" : "service-dark-input"} value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Enter phone number" inputMode="tel" /></label>
+          <label className="service-field"><span>Airtime amount</span><div className={submitted && !numericAmount ? "service-amount-input service-input-error" : "service-amount-input"}><span>KES</span><input value={amount} onChange={(event) => setAmount(event.target.value.replace(/[^\d.]/g, ""))} placeholder="100" inputMode="decimal" /></div></label>
+          <div className="service-readonly-value">Active goal: {goal?.name || "No active goal"}</div>
+        </section>
+        <section className="service-preview-card">
+          <div className="service-preview-heading"><span>Purchase summary</span><strong>{formatCurrency(total || numericAmount)}</strong></div>
+          <dl className="service-preview-rows">
+            <div><dt>Airtime</dt><dd>{formatCurrency(numericAmount)}</dd></div>
+            <div><dt>Round-up rule</dt><dd>Nearest {rule}</dd></div>
+            <div><dt>Auto-saved</dt><dd className="service-success-text">{formatCurrency(roundUp.savings)}</dd></div>
+            <div><dt>Saving to</dt><dd>{goal?.name || "No active goal"}</dd></div>
+            <div><dt>Wallet balance</dt><dd>{formatCurrency(walletBalance)}</dd></div>
+            <div><dt>After purchase</dt><dd>{formatCurrency(Math.max(0, walletBalance - total))}</dd></div>
+          </dl>
+          <button className="service-primary-action" type="submit" disabled={!canSubmit}>{submitting ? "Processing..." : "Buy Airtime & Save"}</button>
+          <button className="service-secondary-action" type="button" onClick={() => navigate("/settings")} disabled={submitting}>Change round-up rule</button>
+        </section>
+      </form>
+      <section className="service-recent-card"><div><span className="service-kicker">Activity</span><h2>Recent airtime purchases</h2></div><p>Confirmed airtime purchases and their round-up savings appear in Activity.</p>{(activityQuery.data || []).filter((item) => String(item.transactionType || item.type || "").toLowerCase() === "airtime").slice(0, 5).map((item) => <div className="service-recent-row" key={item._id || item.reference}><span>{item.merchant || "Airtime"}</span><strong>{formatCurrency(item.amount || 0)}</strong></div>)}</section>
+    </main>
+  </Layout>;
 }
