@@ -77,13 +77,6 @@ function MyGoalCard({ goal, onChanged }) {
     finally { setIsSaving(false); }
   }
 
-  async function completeGoal() {
-    setIsSaving(true); setFeedback(null);
-    try { await updateGoalMutation.mutateAsync({ goalId: goal._id, payload: { status: "completed" } }); setFeedback({ type: "success", message: "Goal completed." }); triggerDashboardRefresh(); await onChanged(); }
-    catch (error) { setFeedback({ type: "error", message: error.response?.data?.message || error.message || "We could not complete your goal." }); }
-    finally { setIsSaving(false); }
-  }
-
   async function closeGoal() {
     setIsSaving(true); setFeedback(null);
     try { await closeGoalMutation.mutateAsync(goal._id); setFeedback({ type: "success", message: "Goal closed." }); triggerDashboardRefresh(); await onChanged(); }
@@ -95,7 +88,7 @@ function MyGoalCard({ goal, onChanged }) {
     <section className="my-goal-card" aria-labelledby="myGoalTitle">
       {feedback ? <div className={`my-goal-feedback my-goal-feedback-${feedback.type}`} role="status">{feedback.message}</div> : null}
       <div className="my-goal-top">
-        <div><span className="premium-kicker">My Goal</span><h1 id="myGoalTitle">{goal.name}</h1><p>You already have an active goal. Complete or close it before creating another.</p></div>
+        <div><span className="premium-kicker">My Goal</span><h1 id="myGoalTitle">{goal.name}</h1><p>You already have an active goal. Close it before creating another.</p></div>
         <span className="my-goal-status">Active</span>
       </div>
       <div className="my-goal-progress-panel"><div className="my-goal-progress-head"><span>Current progress</span><strong>{progress}%</strong></div><div className="my-goal-progress-track" aria-label={`${progress}% funded`}><span style={{ width: `${progress}%` }} /></div></div>
@@ -114,7 +107,6 @@ function MyGoalCard({ goal, onChanged }) {
       <div className="my-goal-actions">
         <button type="button" onClick={() => navigate("/save/add")}>Add savings</button>
         <button type="button" onClick={() => setIsEditing((current) => !current)}>Edit goal</button>
-        <button type="button" onClick={completeGoal} disabled={isSaving}>Complete goal</button>
         <button type="button" onClick={closeGoal} disabled={isSaving}>Close goal</button>
       </div>
     </section>
