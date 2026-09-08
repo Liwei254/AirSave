@@ -5,14 +5,12 @@ import {
   getPaymentStatus,
   handlePaymentCallback,
   initiatePayment,
-  purchaseAirtimeController,
   submitWithdrawal,
   simulateTransaction,
 } from "../controllers/transactionController.js";
 import { protect } from "../middlewares/auth.js";
 import { validateRequest } from "../middlewares/validation.js";
 import {
-  airtimeValidator,
   buyGoodsValidator,
   initiatePaymentValidator,
   paybillValidator,
@@ -36,7 +34,6 @@ function setTransactionType(transactionType) {
 router.post("/payments/initiate", protect, initiatePaymentValidator, validateRequest, initiatePayment);
 router.post("/send", protect, setTransactionType("send"), sendValidator, validateRequest, initiatePayment);
 router.post("/buy-goods", protect, setTransactionType("purchase"), buyGoodsValidator, validateRequest, initiatePayment);
-router.post("/airtime", protect, airtimeValidator, validateRequest, purchaseAirtimeController);
 router.post("/paybill", protect, setTransactionType("bill"), paybillValidator, validateRequest, initiatePayment);
 router.post("/save", protect, savingsAllocationValidator, validateRequest, allocateSavings);
 router.post("/payments/callback", handlePaymentCallback);
