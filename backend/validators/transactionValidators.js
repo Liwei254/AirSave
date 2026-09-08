@@ -37,6 +37,33 @@ export const initiatePaymentValidator = checkSchema({
   },
 });
 
+export const savingsAllocationValidator = checkSchema({
+  amount: amountRule,
+  goalId: {
+    in: ["body"],
+    trim: true,
+    notEmpty: { errorMessage: "Goal is required" },
+  },
+  idempotencyKey: {
+    in: ["body"],
+    trim: true,
+    notEmpty: { errorMessage: "Idempotency key is required" },
+    isLength: {
+      options: { max: 255 },
+      errorMessage: "Idempotency key is too long",
+    },
+  },
+  description: {
+    in: ["body"],
+    optional: true,
+    trim: true,
+    isLength: {
+      options: { max: 240 },
+      errorMessage: "Description is too long",
+    },
+  },
+});
+
 export const sendValidator = checkSchema({
   amount: amountRule,
   phone: {
