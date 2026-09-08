@@ -104,7 +104,7 @@ export function AmountInput({ label = "Amount", value, onChange, placeholder = "
   );
 }
 
-export function PhoneInput({ label, value, onChange, placeholder = "712 345 678", readOnly = false, error = false }) {
+export function PhoneInput({ label, value, onChange, placeholder = "Enter phone number", readOnly = false, error = false }) {
   return (
     <label className="service-field">
       <span>{label}</span>
