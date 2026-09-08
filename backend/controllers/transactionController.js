@@ -5,11 +5,31 @@ import {
   processWalletPayment,
   submitWithdrawal as submitWithdrawalService,
 } from "../services/transactionService.js";
+import { allocateSavingsToGoal } from "../services/goalService.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 
 export async function initiatePayment(req, res, next) {
   try {
     const result = await processWalletPayment(req.user._id, { ...(req.body || {}), ...(req.validatedData || {}) });
+
+    return sendSuccess(res, {
+      statusCode: 201,
+      message: result.message,
+      data: result,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function allocateSavings(req, res, next) {
+  try {
+    const payload = { ...(req.body || {}), ...(req.validatedData || {}) };
+    const result = await allocateSavingsToGoal(req.user._id, payload.goalId, payload.amount, {
+      idempotencyKey: payload.idempotencyKey,
+      description: payload.description,
+      type: "save",
+    });
 
     return sendSuccess(res, {
       statusCode: 201,
