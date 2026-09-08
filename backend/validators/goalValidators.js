@@ -1,6 +1,6 @@
 import { checkSchema } from "express-validator";
 
-const validStatuses = ["active", "completed", "closed"];
+const validStatuses = ["active", "closed"];
 const validDurationUnits = ["days", "weeks", "months", ""];
 
 export const createGoalValidator = checkSchema({
