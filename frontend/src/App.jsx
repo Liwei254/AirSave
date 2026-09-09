@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard.jsx";
 import Payments from "./pages/Payments.jsx";
 import Deposit from "./pages/Deposit.jsx";
 import Send from "./pages/Send.jsx";
+import Airtime from "./pages/Airtime.jsx";
 import LipaNaAirSave from "./pages/LipaNaAirSave.jsx";
 import Paybill from "./pages/Paybill.jsx";
 import Goals from "./pages/Goals.jsx";
@@ -42,6 +43,7 @@ function App() {
             <Route path="/save/add" element={<ProtectedRoute><AddSavings /></ProtectedRoute>} />
             <Route path="/save/create-goal" element={<Navigate to="/save/create" replace />} />
             <Route path="/send" element={<ProtectedRoute><Send /></ProtectedRoute>} />
+            <Route path="/airtime" element={<ProtectedRoute><Airtime /></ProtectedRoute>} />
             <Route path="/lipa-na-airsave" element={<ProtectedRoute><LipaNaAirSave /></ProtectedRoute>} />
             <Route path="/payments/buy-goods" element={<Navigate to="/lipa-na-airsave" replace />} />
             <Route path="/payments/paybill" element={<ProtectedRoute><Paybill /></ProtectedRoute>} />

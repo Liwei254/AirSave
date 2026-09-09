@@ -3,7 +3,7 @@ import { hasStoredToken } from "../services/api";
 import { fetchActivity, fetchTransactions } from "./activityApi";
 import { fetchDashboardSummary } from "./dashboardApi";
 import { closeGoal, createGoal, fetchActiveGoal, fetchGoals, updateGoal } from "./goalsApi";
-import { buyGoods, paybill, sendMoney, withdraw } from "./paymentsApi";
+import { buyAirtime, buyGoods, paybill, sendMoney, withdraw } from "./paymentsApi";
 import { fetchProfile, logoutProfile, updatePassword, updateProfile } from "./profileApi";
 import { fetchSettings, updateSettings } from "./settingsApi";
 import { allocateSavings, deposit, fetchWallet } from "./walletApi";
@@ -44,6 +44,7 @@ export function useAllocateSavingsMutation(options = {}) { return financialMutat
 export function useSendMoneyMutation(options = {}) { return financialMutation(sendMoney, options); }
 export function useBuyGoodsMutation(options = {}) { return financialMutation(buyGoods, options); }
 export function usePaybillMutation(options = {}) { return financialMutation(paybill, options); }
+export function useBuyAirtimeMutation(options = {}) { return financialMutation(buyAirtime, options); }
 export function useWithdrawMutation(options = {}) { return financialMutation(withdraw, options); }
 export function useCreateGoalMutation(options = {}) { return financialMutation(createGoal, options); }
 export function useUpdateGoalMutation(options = {}) { return financialMutation(updateGoal, options); }

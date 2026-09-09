@@ -25,6 +25,10 @@ export function paybill(payload) {
   });
 }
 
+export function buyAirtime(payload) {
+  return initiatePayment({ ...payload, transactionType: "airtime" });
+}
+
 export function withdraw(payload) {
   return submitWithdrawal(payload);
 }

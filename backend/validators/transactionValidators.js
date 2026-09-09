@@ -31,7 +31,7 @@ export const initiatePaymentValidator = checkSchema({
     in: ["body"],
     optional: true,
     isIn: {
-      options: [["purchase", "bill", "send", "save"]],
+      options: [["purchase", "bill", "airtime", "send", "save"]],
       errorMessage: "Invalid transaction type",
     },
   },

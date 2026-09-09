@@ -24,7 +24,7 @@ import {
 import { getAccountByType, getWalletOrCreate } from "../../repositories/postgres/walletRepository.js";
 import AppError from "../../utils/AppError.js";
 import { normalizePhone } from "../../utils/auth.js";
-import { roundAmount } from "../../utils/rounding.js";
+import { calculateRoundUp, ROUND_UP_RULES } from "../roundUpService.js";
 import {
   centsToMoney,
   getWalletBalance,
@@ -45,7 +45,7 @@ function normalizeDigits(value) {
 function normalizeTransactionType(value) {
   const transactionType = String(value || "purchase").toLowerCase();
 
-  if (["purchase", "bill", "send", "save", "withdraw", "deposit"].includes(transactionType)) {
+  if (["purchase", "bill", "airtime", "send", "save", "withdraw", "deposit"].includes(transactionType)) {
     return transactionType;
   }
 
@@ -53,12 +53,13 @@ function normalizeTransactionType(value) {
 }
 
 function shouldAutoSave(transactionType) {
-  return ["purchase", "bill", "save"].includes(String(transactionType || "").toLowerCase());
+  return ["purchase", "bill", "airtime", "save"].includes(String(transactionType || "").toLowerCase());
 }
 
 function toActivityType(type) {
   if (type === "purchase") return "buy-goods";
   if (type === "bill") return "paybill";
+  if (type === "airtime") return "airtime";
   return type || "deposit";
 }
 
@@ -152,6 +153,12 @@ function validateFlowPayload(transactionType, payload = {}, user = {}) {
     return { phone };
   }
 
+  if (transactionType === "airtime") {
+    const phone = normalizePhone(payload.phone || payload.phoneNumber || user.phone);
+    if (!phone) throw new AppError("A valid Kenyan phone number is required.", 400);
+    return { phone };
+  }
+
   const phone = normalizePhone(payload.phone || payload.phoneNumber || user.phone);
   return { phone };
 }
@@ -180,6 +187,10 @@ function buildLabels(transactionType, validation = {}, payload = {}) {
       merchant: String(payload.merchant || `Send to ${validation.phone}`).trim().slice(0, 140),
       description: String(payload.description || `Send to ${validation.phone}`).trim().slice(0, 240),
     };
+  }
+
+  if (transactionType === "airtime") {
+    return { merchant: "Airtime", description: String(payload.description || `Airtime for ${validation.phone}`).trim().slice(0, 240) };
   }
 
   if (transactionType === "withdraw") {
@@ -224,10 +235,12 @@ function serializePaymentIntent(paymentIntent, options = {}) {
   const reference = paymentIntent.idempotencyKey || paymentIntent.id;
   const ledgerEntries = flattenLedgerEntries(paymentIntent);
   const goal = paymentIntent.goal
-    ? {
+      ? {
         id: paymentIntent.goal.id,
         _id: paymentIntent.goal.id,
         name: paymentIntent.goal.name,
+        targetAmount: Number(paymentIntent.goal.targetAmount || 0),
+        savedAmount: Number(paymentIntent.goal.savedAmount || 0),
       }
     : null;
 
@@ -382,11 +395,11 @@ export async function processWalletPayment(userId, payload = {}) {
     const preferences = normalizePreferencePayload({}, user.preferences || {});
     const rule = Number(user.roundUpRule || 50);
 
-    if (![10, 50, 100].includes(rule)) {
+    if (!ROUND_UP_RULES.includes(rule)) {
       throw new AppError("Invalid saved round-up rule", 400);
     }
 
-    if (transactionType !== "send" && payload.phone && transactionPhone !== normalizePhone(user.phone)) {
+    if (!['send', 'airtime'].includes(transactionType) && payload.phone && transactionPhone !== normalizePhone(user.phone)) {
       throw new AppError("Payments must use the account phone number.", 400);
     }
 
@@ -395,10 +408,10 @@ export async function processWalletPayment(userId, payload = {}) {
     }
 
     const rounding = shouldAutoSave(transactionType)
-      ? roundAmount(Number(amount), rule)
-      : { original: Number(amount), rounded: Number(amount), savings: 0 };
-    const roundedAmount = normalizeMoney(rounding.rounded);
-    const savingsAmount = normalizeMoney(rounding.savings || "0.00", "Enter a valid savings amount.", {
+      ? calculateRoundUp({ originalAmount: amount, roundUpRule: rule })
+      : { originalAmount: Number(amount), roundedAmount: Number(amount), roundUpAmount: 0 };
+    const roundedAmount = normalizeMoney(rounding.roundedAmount);
+    const savingsAmount = normalizeMoney(rounding.roundUpAmount || "0.00", "Enter a valid savings amount.", {
       allowZero: true,
     });
     const availableBalance = await getWalletBalance(wallet.id, tx);
@@ -414,6 +427,9 @@ export async function processWalletPayment(userId, payload = {}) {
     const activeGoal = shouldAutoSave(transactionType)
       ? await resolveGoalForSavings(userId, payload.goalId || null, tx)
       : null;
+    if (transactionType === "airtime" && Number(savingsAmount) > 0 && !activeGoal) {
+      throw new AppError("Create an active savings goal before using automatic airtime round-ups.", 409);
+    }
     const callbackReference = String(payload.callbackReference || buildReference("CALLBACK"));
 
     const paymentIntent = await createPaymentIntent(
@@ -567,6 +583,8 @@ export async function processWalletPayment(userId, payload = {}) {
             paymentIntentId: confirmedIntent.id,
             amount: savingsAmount,
             idempotencyKey,
+            type: transactionType === "airtime" ? "round_up_saving" : "saving",
+            goalName: activeGoal?.name || null,
           },
         },
       });

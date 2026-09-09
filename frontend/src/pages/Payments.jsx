@@ -29,6 +29,13 @@ const serviceGroups = [
     ],
   },
   {
+    title: "Airtime",
+    description: "Buy airtime and save the difference automatically.",
+    services: [
+      { title: "Buy Airtime", description: "Top up a phone number and send the round-up to your active goal.", cta: "Buy airtime", to: "/airtime", tone: "blue" },
+    ],
+  },
+  {
     title: "Lipa na M-Pesa",
     description: "Pay merchants and save round-ups automatically.",
     services: [

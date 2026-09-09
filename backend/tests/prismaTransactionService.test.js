@@ -500,6 +500,55 @@ describe("Prisma transaction/payment service", () => {
     expect(totals).toEqual({ debits: 250, credits: 250 });
   });
 
+  test("airtime keeps the service amount separate from the automatic goal saving", async () => {
+    await ensureWallet();
+    state.goals.push(
+      withTimestamps({
+        id: "goal-airtime",
+        walletId: state.wallets[0].id,
+        name: "Emergency Fund",
+        targetAmount: 10000,
+        savedAmount: 0,
+        status: "ACTIVE",
+      })
+    );
+
+    const first = await processWalletPayment("user-1", {
+      amount: 87,
+      phone: "+254711000003",
+      transactionType: "airtime",
+      idempotencyKey: "airtime-87",
+    });
+    const entryCount = entriesForIntent("airtime-87").length;
+    const second = await processWalletPayment("user-1", {
+      amount: 87,
+      phone: "+254711000003",
+      transactionType: "airtime",
+      idempotencyKey: "airtime-87",
+    });
+
+    expect(first).toMatchObject({ amount: 87, chargedAmount: 100, savingsAmount: 13, goal: { name: "Emergency Fund" } });
+    expect(second.paymentReference).toBe(first.paymentReference);
+    expect(entriesForIntent("airtime-87")).toHaveLength(entryCount);
+    expect(debitCreditTotals(entriesForIntent("airtime-87"))).toEqual({ debits: 100, credits: 100 });
+    expect(state.goals.find((goal) => goal.id === "goal-airtime").savedAmount).toBe("13.00");
+  });
+
+  test("airtime with a nonzero round-up requires an active goal", async () => {
+    await ensureWallet();
+
+    await expect(
+      processWalletPayment("user-1", {
+        amount: 87,
+        phone: "+254711000004",
+        transactionType: "airtime",
+        idempotencyKey: "airtime-no-goal",
+      })
+    ).rejects.toMatchObject({ statusCode: 409 });
+
+    expect(state.paymentIntents).toHaveLength(1);
+  });
+
   test("webhook replay is idempotent and does not duplicate webhook events", async () => {
     await ensureWallet();
     await processWalletPayment("user-1", {

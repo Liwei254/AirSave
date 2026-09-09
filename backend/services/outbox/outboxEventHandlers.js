@@ -63,7 +63,9 @@ async function handleSavingsAllocated(event, tx) {
   const payload = getPayload(event);
   return notify(event, {
     type: "saving",
-    message: `${money(payload.amount)} KES allocated to savings.`,
+    message: payload.type === "round_up_saving"
+      ? `Your ${money(payload.amount)} KES round-up was added${payload.goalName ? ` to ${payload.goalName}` : " to savings"}.`
+      : `${money(payload.amount)} KES allocated to savings.`,
   }, tx);
 }
 

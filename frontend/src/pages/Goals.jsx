@@ -36,9 +36,12 @@ function RoundUpRulePanel({ user }) {
       <div>
         <span className="premium-kicker">Round-up rule</span>
         <h2 id="saveRoundupTitle">Nearest {roundUpRule}</h2>
-        <p>Auto-save is {autoSaveEnabled ? "on" : "off"}. Eligible payment round-ups are sent to your active goal first.</p>
+        <p>Auto-save is {autoSaveEnabled ? "on" : "off"}. Everyday purchases can add spare change to your active goal.</p>
       </div>
-      <button type="button" onClick={() => navigate("/settings")}>Edit rule</button>
+      <div>
+        <button type="button" onClick={() => navigate("/settings")}>Edit rule</button>
+        <button type="button" onClick={() => navigate("/airtime")}>Buy airtime</button>
+      </div>
     </section>
   );
 }
