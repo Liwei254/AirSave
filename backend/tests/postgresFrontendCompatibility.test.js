@@ -564,13 +564,17 @@ describe("Postgres frontend/API compatibility", () => {
     expect(dashboardData).toEqual(
       expect.objectContaining({
         walletBalance: 450,
-        totalSaved: expect.any(Number),
-        weeklySavings: expect.any(Number),
+        savedThisMonth: expect.any(Number),
+        savingsStreak: expect.any(Number),
         activeGoal: expect.any(Object),
         recentTransactions: expect.any(Array),
         unreadNotifications: expect.any(Number),
       })
     );
+    expect(dashboardData.savedThisMonth).toBe(50);
+    expect(dashboardData.savingsStreak).toBe(1);
+    expect(dashboardData).not.toHaveProperty("totalSaved");
+    expect(dashboardData).not.toHaveProperty("weeklySavings");
     expectGoalShape(expect, dashboardData.activeGoal);
 
     const notification = seedNotification(loginData.user._id);
