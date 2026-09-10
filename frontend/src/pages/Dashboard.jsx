@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDashboardSummaryQuery } from "../api/hooks";
+import { getGoalProgress } from "../utils/formatters";
 import {
   getActivityDate,
   isConfirmedSavingsStatus,
@@ -371,7 +372,7 @@ export default function Dashboard() {
     return buildSmoothSparklinePath(buildSparklinePoints(chartValues));
   }, [weeklyTrend]);
   const primaryGoal = activeGoal?.status === "active" ? activeGoal : null;
-  const goalProgress = primaryGoal ? Number(summary?.goalProgress ?? primaryGoal.progressPercent ?? 0) : 0;
+  const goalProgress = primaryGoal ? getGoalProgress(primaryGoal) : 0;
   const savedThisMonth = Number(summary?.savedThisMonth ?? 0);
   const savingsStreak = Number(summary?.savingsStreak ?? 0);
   const balance = getWalletBalance(wallet);
@@ -386,3 +387,32 @@ export default function Dashboard() {
             <button type="button" onClick={() => refetch()}>Retry</button>
           </div>
         ) : null}
+
+        <BalanceHero
+          balance={balance}
+          balanceVisible={balanceVisible}
+          onToggleBalance={() => setBalanceVisible((current) => !current)}
+          savedThisMonth={savedThisMonth}
+          currentGoal={primaryGoal}
+          goalProgress={goalProgress}
+          savingsStreak={savingsStreak}
+          trendPath={trendPath}
+        />
+
+        <section className="premium-actions-grid" aria-label="Quick actions">
+          {QUICK_ACTIONS.map((action) => (
+            <QuickActionCard key={action.to} action={action} />
+          ))}
+        </section>
+
+        <section className="premium-dashboard-lower-grid">
+          <GoalCard
+            goal={primaryGoal}
+            progress={goalProgress}
+          />
+          <ActivityList items={activity.slice(0, 5)} isLoading={isLoading} />
+        </section>
+      </div>
+    </main>
+  );
+}
