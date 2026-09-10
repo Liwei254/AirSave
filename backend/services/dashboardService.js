@@ -3,10 +3,6 @@ import { countUnreadNotifications } from "./notificationService.js";
 import { getSavingsActivity } from "./transactionService.js";
 import { getWallet } from "./walletService.js";
 import { getDashboardSavingsMetrics } from "../repositories/postgres/prismaTransactionRepository.js";
-import {
-  getCachedDashboardSummary,
-  setCachedDashboardSummary,
-} from "./cacheService.js";
 
 const DASHBOARD_TIME_ZONE = process.env.APP_TIMEZONE || "Africa/Nairobi";
 
@@ -42,7 +38,6 @@ function getSavingsStreakFromDays(savingDays, timeZone = DASHBOARD_TIME_ZONE) {
   const today = getTodayInTimeZone(timeZone);
   const diffFromToday = Math.round((today - uniqueDays[0]) / 86400000);
 
-  // Preserve a streak when the user's latest qualifying savings day was yesterday.
   if (diffFromToday > 1) return 0;
 
   let streak = 1;
@@ -56,9 +51,9 @@ function getSavingsStreakFromDays(savingDays, timeZone = DASHBOARD_TIME_ZONE) {
 }
 
 export async function getDashboardSummary(userId) {
-  const cachedSummary = await getCachedDashboardSummary(userId);
-  if (cachedSummary) return cachedSummary;
-
+  // Dashboard headline metrics must reflect the current ledger state. Do not
+  // serve a cached summary here because a newly confirmed savings movement
+  // must be visible immediately on the next dashboard request.
   const [wallet, activeGoal, activity, dashboardSavings, unreadNotifications] = await Promise.all([
     getWallet(userId),
     getActiveGoal(userId),
@@ -71,16 +66,13 @@ export async function getDashboardSummary(userId) {
     ? Math.min(100, Math.max(0, Number(activeGoal.progressPercent ?? 0)))
     : 0;
 
-  const summary = {
+  return {
     walletBalance: Number(wallet.balance || 0),
     savedThisMonth: dashboardSavings.savedThisMonth,
     goalProgress,
     activeGoal,
-    savingsStreak: getSavingsStreakFromDays(dashboardSavings.savingDays),
+    savingsStreak: getSavingsStreakFromDays(dashboardSavings.savingDays, DASHBOARD_TIME_ZONE),
     recentTransactions: activity.slice(0, 5),
     unreadNotifications,
   };
-
-  await setCachedDashboardSummary(userId, summary);
-  return summary;
 }
