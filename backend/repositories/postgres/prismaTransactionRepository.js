@@ -37,8 +37,9 @@ export async function listWalletTransactions(userId, filters = {}, tx = prisma) 
 
 /**
  * Aggregate dashboard savings directly in PostgreSQL.
- * Savings are sourced from the authoritative ledger so the metric cannot be
- * inflated by deposits or by non-posted/reversed transactions.
+ * The ledger entry's postedAt is the effective savings timestamp. This is
+ * important because a payment intent can be created before it is actually
+ * posted to the savings account.
  */
 export async function getDashboardSavingsMetrics(userId, timeZone = "Africa/Nairobi", tx = prisma) {
   const safeTimeZone = String(timeZone || "Africa/Nairobi").trim() || "Africa/Nairobi";
@@ -58,15 +59,15 @@ export async function getDashboardSavingsMetrics(userId, timeZone = "Africa/Nair
       INNER JOIN "ledger_accounts" la ON la.id = le."ledgerAccountId"
       WHERE p."userId" = ${String(userId)}
         AND p."status" = 'CONFIRMED'
-        AND p."createdAt" >= (date_trunc('month', CURRENT_DATE AT TIME ZONE ${safeTimeZone}) AT TIME ZONE ${safeTimeZone})
-        AND p."createdAt" < ((date_trunc('month', CURRENT_DATE AT TIME ZONE ${safeTimeZone}) + INTERVAL '1 month') AT TIME ZONE ${safeTimeZone})
+        AND COALESCE(le."postedAt", le."createdAt") >= (date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE ${safeTimeZone}) AT TIME ZONE ${safeTimeZone})
+        AND COALESCE(le."postedAt", le."createdAt") < ((date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE ${safeTimeZone}) + INTERVAL '1 month') AT TIME ZONE ${safeTimeZone})
         AND le."status" = 'POSTED'
         AND le."side" = 'CREDIT'
         AND la."accountType" = 'savings'
         AND p."type" IN ('save', 'purchase', 'bill', 'airtime')
     `,
     tx.$queryRaw`
-      SELECT DISTINCT DATE(p."createdAt" AT TIME ZONE ${safeTimeZone}) AS "savingDay"
+      SELECT DISTINCT DATE(COALESCE(le."postedAt", le."createdAt") AT TIME ZONE ${safeTimeZone}) AS "savingDay"
       FROM "ledger_entries" le
       INNER JOIN "ledger_transactions" lt ON lt.id = le."ledgerTransactionId"
       INNER JOIN "payment_intents" p ON p.id = lt."paymentIntentId"
