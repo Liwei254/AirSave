@@ -8,11 +8,25 @@ import {
   setCachedDashboardSummary,
 } from "./cacheService.js";
 
+const DASHBOARD_TIME_ZONE = process.env.APP_TIMEZONE || "Africa/Nairobi";
+
 function startOfCalendarDayUtc(date) {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
-function getSavingsStreakFromDays(savingDays) {
+function getTodayInTimeZone(timeZone) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day));
+}
+
+function getSavingsStreakFromDays(savingDays, timeZone = DASHBOARD_TIME_ZONE) {
   if (!savingDays.length) return 0;
 
   const uniqueDays = Array.from(
@@ -25,7 +39,7 @@ function getSavingsStreakFromDays(savingDays) {
 
   if (!uniqueDays.length) return 0;
 
-  const today = startOfCalendarDayUtc(new Date());
+  const today = getTodayInTimeZone(timeZone);
   const diffFromToday = Math.round((today - uniqueDays[0]) / 86400000);
 
   // Preserve a streak when the user's latest qualifying savings day was yesterday.
@@ -49,7 +63,7 @@ export async function getDashboardSummary(userId) {
     getWallet(userId),
     getActiveGoal(userId),
     getSavingsActivity(userId),
-    getDashboardSavingsMetrics(userId),
+    getDashboardSavingsMetrics(userId, DASHBOARD_TIME_ZONE),
     countUnreadNotifications(userId),
   ]);
 
