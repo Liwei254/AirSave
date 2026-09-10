@@ -67,9 +67,14 @@ export async function getDashboardSummary(userId) {
     countUnreadNotifications(userId),
   ]);
 
+  const goalProgress = activeGoal
+    ? Math.min(100, Math.max(0, Number(activeGoal.progressPercent ?? 0)))
+    : 0;
+
   const summary = {
     walletBalance: Number(wallet.balance || 0),
     savedThisMonth: dashboardSavings.savedThisMonth,
+    goalProgress,
     activeGoal,
     savingsStreak: getSavingsStreakFromDays(dashboardSavings.savingDays),
     recentTransactions: activity.slice(0, 5),
