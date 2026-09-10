@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDashboardSummaryQuery } from "../api/hooks";
-import { getGoalProgress } from "../utils/formatters";
 import {
   getActivityDate,
   isConfirmedSavingsStatus,
@@ -372,7 +371,9 @@ export default function Dashboard() {
     return buildSmoothSparklinePath(buildSparklinePoints(chartValues));
   }, [weeklyTrend]);
   const primaryGoal = activeGoal?.status === "active" ? activeGoal : null;
-  const goalProgress = primaryGoal ? getGoalProgress(primaryGoal) : 0;
+  const goalProgress = primaryGoal
+    ? Math.min(100, Math.max(0, Number(summary?.goalProgress ?? primaryGoal.progressPercent ?? 0)))
+    : 0;
   const savedThisMonth = Number(summary?.savedThisMonth ?? 0);
   const savingsStreak = Number(summary?.savingsStreak ?? 0);
   const balance = getWalletBalance(wallet);
