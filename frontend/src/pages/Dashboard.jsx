@@ -399,26 +399,18 @@ export default function Dashboard() {
           trendPath={trendPath}
         />
 
-        <section className="premium-dashboard-actions" aria-labelledby="quick-actions-title">
-          <div className="premium-dashboard-section-heading">
-            <div>
-              <p className="premium-dashboard-kicker">Move money</p>
-              <h2 id="quick-actions-title">Quick actions</h2>
-            </div>
-            <button type="button" onClick={() => navigate("/activity")}>
-              View activity <Icon name="chevron" />
-            </button>
-          </div>
-          <div className="premium-action-grid">
-            {QUICK_ACTIONS.map((action) => (
-              <QuickActionCard key={action.label} action={action} />
-            ))}
-          </div>
+        <section className="premium-actions-grid" aria-label="Quick actions">
+          {QUICK_ACTIONS.map((action) => (
+            <QuickActionCard key={action.to} action={action} />
+          ))}
         </section>
 
-        <section className="premium-dashboard-grid">
-          <GoalCard goal={primaryGoal} progress={goalProgress} />
-          <ActivityList items={activity} isLoading={isLoading} />
+        <section className="premium-dashboard-lower-grid">
+          <GoalCard
+            goal={primaryGoal}
+            progress={goalProgress}
+          />
+          <ActivityList items={activity.slice(0, 5)} isLoading={isLoading} />
         </section>
       </div>
     </main>
