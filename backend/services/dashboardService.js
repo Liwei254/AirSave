@@ -7,42 +7,44 @@ import {
   setCachedDashboardSummary,
 } from "./cacheService.js";
 
+const CONFIRMED_STATUSES = new Set(["confirmed", "completed", "success", "successful"]);
+const SAVINGS_TYPES = new Set(["save", "purchase", "bill", "airtime"]);
+
 function isConfirmed(status) {
-  return ["confirmed", "completed", "success", "successful"].includes(String(status || "").toLowerCase());
+  return CONFIRMED_STATUSES.has(String(status || "").toLowerCase());
 }
 
-function getItemAmount(item) {
-  return Number(item?.savings ?? item?.amount ?? 0);
-}
-
-function isSavingsInflow(item) {
+function getSavingsAmount(item) {
   const type = String(item?.type || item?.transactionType || "").toLowerCase();
-  const savingsAmount = Number(item?.savings ?? item?.savingsAmount ?? 0);
-
-  if (type === "save") return savingsAmount > 0 || Number(item?.amount ?? 0) > 0;
-  if (["purchase", "bill", "airtime"].includes(type)) return savingsAmount > 0;
-  return false;
+  if (type === "save") return Math.max(0, Number(item?.savings ?? item?.amount ?? 0));
+  if (["purchase", "bill", "airtime"].includes(type)) {
+    return Math.max(0, Number(item?.savings ?? item?.savingsAmount ?? 0));
+  }
+  return 0;
 }
 
-function startOfMonth(date = new Date()) {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
+function isSavingsActivity(item) {
+  const type = String(item?.type || item?.transactionType || "").toLowerCase();
+  return SAVINGS_TYPES.has(type) && getSavingsAmount(item) > 0;
 }
 
 function getActivityDate(item) {
   return new Date(item?.date || item?.createdAt || 0);
 }
 
+function startOfMonth(date = new Date()) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
 function startOfCalendarDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function getSavingsStreak(confirmedSavings) {
-  if (!confirmedSavings.length) return 0;
-
+function getSavingsStreak(savingsItems) {
   const savingDays = Array.from(
     new Set(
-      confirmedSavings
-        .map((item) => getActivityDate(item))
+      savingsItems
+        .map(getActivityDate)
         .filter((date) => !Number.isNaN(date.getTime()))
         .map((date) => startOfCalendarDay(date).getTime())
     )
@@ -52,17 +54,14 @@ function getSavingsStreak(confirmedSavings) {
 
   const today = startOfCalendarDay(new Date());
   const newestDay = new Date(savingDays[0]);
-  const diffFromToday = Math.round((today - newestDay) / (24 * 60 * 60 * 1000));
+  const diffFromToday = Math.round((today - newestDay) / 86400000);
 
-  // Keep the streak alive through a missed current day when the user saved yesterday.
+  // The streak remains active through today when the latest savings happened today or yesterday.
   if (diffFromToday > 1) return 0;
 
   let streak = 1;
   for (let index = 1; index < savingDays.length; index += 1) {
-    const previous = savingDays[index - 1];
-    const current = savingDays[index];
-    const dayDiff = Math.round((previous - current) / (24 * 60 * 60 * 1000));
-
+    const dayDiff = Math.round((savingDays[index - 1] - savingDays[index]) / 86400000);
     if (dayDiff !== 1) break;
     streak += 1;
   }
@@ -72,9 +71,7 @@ function getSavingsStreak(confirmedSavings) {
 
 export async function getDashboardSummary(userId) {
   const cachedSummary = await getCachedDashboardSummary(userId);
-  if (cachedSummary) {
-    return cachedSummary;
-  }
+  if (cachedSummary) return cachedSummary;
 
   const [wallet, activeGoal, activity, unreadNotifications] = await Promise.all([
     getWallet(userId),
@@ -83,11 +80,13 @@ export async function getDashboardSummary(userId) {
     countUnreadNotifications(userId),
   ]);
 
-  const confirmedSavings = activity.filter((item) => isConfirmed(item.status) && isSavingsInflow(item));
+  const confirmedSavings = activity.filter((item) => isConfirmed(item.status) && isSavingsActivity(item));
   const monthStart = startOfMonth();
+
   const savedThisMonth = confirmedSavings
     .filter((item) => getActivityDate(item) >= monthStart)
-    .reduce((sum, item) => sum + Math.max(0, getItemAmount(item)), 0);
+    .reduce((sum, item) => sum + getSavingsAmount(item), 0);
+
   const savingsStreak = getSavingsStreak(confirmedSavings);
 
   const summary = {
@@ -100,6 +99,5 @@ export async function getDashboardSummary(userId) {
   };
 
   await setCachedDashboardSummary(userId, summary);
-
   return summary;
 }
