@@ -4,7 +4,6 @@ import { useDashboardSummaryQuery } from "../api/hooks";
 import { getGoalProgress } from "../utils/formatters";
 import {
   getActivityDate,
-  getSavingsSummary,
   isConfirmedSavingsStatus,
   sortActivityByNewest,
 } from "../utils/savings";
@@ -159,10 +158,10 @@ function BalanceHero({
   balance,
   balanceVisible,
   onToggleBalance,
-  totalSaved,
-  weeklySavings,
+  savedThisMonth,
   currentGoal,
   goalProgress,
+  savingsStreak,
   trendPath,
 }) {
   return (
@@ -186,16 +185,16 @@ function BalanceHero({
 
         <div className="premium-balance-stats" aria-label="Savings summary">
           <article>
-            <span>Saved total</span>
-            <strong>{formatKsh(totalSaved)}</strong>
-          </article>
-          <article>
-            <span>This week</span>
-            <strong>{formatKsh(weeklySavings)}</strong>
+            <span>Saved this month</span>
+            <strong>{formatKsh(savedThisMonth)}</strong>
           </article>
           <article>
             <span>{currentGoal ? "Goal progress" : "Goal status"}</span>
             <strong>{currentGoal ? `${goalProgress}%` : "None"}</strong>
+          </article>
+          <article>
+            <span>Savings streak</span>
+            <strong>{savingsStreak} {savingsStreak === 1 ? "day" : "days"}</strong>
           </article>
         </div>
       </div>
@@ -364,15 +363,7 @@ export default function Dashboard() {
     ? error?.response?.data?.message || error?.message || "We could not load your dashboard."
     : "";
 
-  const totalSaved = useMemo(
-    () => Number(summary?.totalSaved ?? getSavingsSummary(activity)),
-    [activity, summary?.totalSaved]
-  );
   const weeklyTrend = useMemo(() => buildWeeklyTrend(activity), [activity]);
-  const weeklySavings = useMemo(
-    () => Number(summary?.weeklySavings ?? weeklyTrend.reduce((sum, item) => sum + Number(item.total || 0), 0)),
-    [summary?.weeklySavings, weeklyTrend]
-  );
   const trendPath = useMemo(() => {
     const weeklyValues = weeklyTrend.map((item) => item.total);
     const chartValues = weeklyValues.some((value) => value > 0)
@@ -382,6 +373,8 @@ export default function Dashboard() {
   }, [weeklyTrend]);
   const primaryGoal = activeGoal?.status === "active" ? activeGoal : null;
   const goalProgress = primaryGoal ? getGoalProgress(primaryGoal) : 0;
+  const savedThisMonth = Number(summary?.savedThisMonth ?? 0);
+  const savingsStreak = Number(summary?.savingsStreak ?? 0);
   const balance = getWalletBalance(wallet);
 
   return (
@@ -399,25 +392,33 @@ export default function Dashboard() {
           balance={balance}
           balanceVisible={balanceVisible}
           onToggleBalance={() => setBalanceVisible((current) => !current)}
-          totalSaved={totalSaved}
-          weeklySavings={weeklySavings}
+          savedThisMonth={savedThisMonth}
           currentGoal={primaryGoal}
           goalProgress={goalProgress}
+          savingsStreak={savingsStreak}
           trendPath={trendPath}
         />
 
-        <section className="premium-actions-grid" aria-label="Quick actions">
-          {QUICK_ACTIONS.map((action) => (
-            <QuickActionCard key={action.to} action={action} />
-          ))}
+        <section className="premium-dashboard-actions" aria-labelledby="quick-actions-title">
+          <div className="premium-dashboard-section-heading">
+            <div>
+              <p className="premium-dashboard-kicker">Move money</p>
+              <h2 id="quick-actions-title">Quick actions</h2>
+            </div>
+            <button type="button" onClick={() => navigate("/activity")}>
+              View activity <Icon name="chevron" />
+            </button>
+          </div>
+          <div className="premium-action-grid">
+            {QUICK_ACTIONS.map((action) => (
+              <QuickActionCard key={action.label} action={action} />
+            ))}
+          </div>
         </section>
 
-        <section className="premium-dashboard-lower-grid">
-          <GoalCard
-            goal={primaryGoal}
-            progress={goalProgress}
-          />
-          <ActivityList items={activity.slice(0, 5)} isLoading={isLoading} />
+        <section className="premium-dashboard-grid">
+          <GoalCard goal={primaryGoal} progress={goalProgress} />
+          <ActivityList items={activity} isLoading={isLoading} />
         </section>
       </div>
     </main>
