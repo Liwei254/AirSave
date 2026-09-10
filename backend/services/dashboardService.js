@@ -16,16 +16,58 @@ function getItemAmount(item) {
 }
 
 function isSavingsInflow(item) {
-  return !["withdraw", "send"].includes(String(item?.type || item?.transactionType || "").toLowerCase());
+  const type = String(item?.type || item?.transactionType || "").toLowerCase();
+  const savingsAmount = Number(item?.savings ?? item?.savingsAmount ?? 0);
+
+  if (type === "save") return savingsAmount > 0 || Number(item?.amount ?? 0) > 0;
+  if (["purchase", "bill", "airtime"].includes(type)) return savingsAmount > 0;
+  return false;
 }
 
-function startOfWeek() {
-  const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const day = start.getDay();
-  const offset = day === 0 ? 6 : day - 1;
-  start.setDate(start.getDate() - offset);
-  return start;
+function startOfMonth(date = new Date()) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function getActivityDate(item) {
+  return new Date(item?.date || item?.createdAt || 0);
+}
+
+function startOfCalendarDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function getSavingsStreak(confirmedSavings) {
+  if (!confirmedSavings.length) return 0;
+
+  const savingDays = Array.from(
+    new Set(
+      confirmedSavings
+        .map((item) => getActivityDate(item))
+        .filter((date) => !Number.isNaN(date.getTime()))
+        .map((date) => startOfCalendarDay(date).getTime())
+    )
+  ).sort((left, right) => right - left);
+
+  if (!savingDays.length) return 0;
+
+  const today = startOfCalendarDay(new Date());
+  const newestDay = new Date(savingDays[0]);
+  const diffFromToday = Math.round((today - newestDay) / (24 * 60 * 60 * 1000));
+
+  // Keep the streak alive through a missed current day when the user saved yesterday.
+  if (diffFromToday > 1) return 0;
+
+  let streak = 1;
+  for (let index = 1; index < savingDays.length; index += 1) {
+    const previous = savingDays[index - 1];
+    const current = savingDays[index];
+    const dayDiff = Math.round((previous - current) / (24 * 60 * 60 * 1000));
+
+    if (dayDiff !== 1) break;
+    streak += 1;
+  }
+
+  return streak;
 }
 
 export async function getDashboardSummary(userId) {
@@ -40,18 +82,19 @@ export async function getDashboardSummary(userId) {
     getSavingsActivity(userId),
     countUnreadNotifications(userId),
   ]);
-  const weekStart = startOfWeek();
+
   const confirmedSavings = activity.filter((item) => isConfirmed(item.status) && isSavingsInflow(item));
-  const totalSaved = confirmedSavings.reduce((sum, item) => sum + Math.max(0, getItemAmount(item)), 0);
-  const weeklySavings = confirmedSavings
-    .filter((item) => new Date(item.date || item.createdAt || 0) >= weekStart)
+  const monthStart = startOfMonth();
+  const savedThisMonth = confirmedSavings
+    .filter((item) => getActivityDate(item) >= monthStart)
     .reduce((sum, item) => sum + Math.max(0, getItemAmount(item)), 0);
+  const savingsStreak = getSavingsStreak(confirmedSavings);
 
   const summary = {
     walletBalance: Number(wallet.balance || 0),
-    totalSaved,
-    weeklySavings,
+    savedThisMonth,
     activeGoal,
+    savingsStreak,
     recentTransactions: activity.slice(0, 5),
     unreadNotifications,
   };
