@@ -37,9 +37,10 @@ export async function listWalletTransactions(userId, filters = {}, tx = prisma) 
 
 /**
  * Aggregate dashboard savings directly in PostgreSQL.
- * The ledger entry's postedAt is the effective savings timestamp. This is
- * important because a payment intent can be created before it is actually
- * posted to the savings account.
+ * The savings ledger is the source of truth: every POSTED CREDIT to the
+ * user's savings account is a savings event, regardless of whether it came
+ * from a manual save, a purchase round-up, an airtime round-up, or another
+ * supported savings flow. Reversed payment intents are excluded.
  */
 export async function getDashboardSavingsMetrics(userId, timeZone = "Africa/Nairobi", tx = prisma) {
   const safeTimeZone = String(timeZone || "Africa/Nairobi").trim() || "Africa/Nairobi";
@@ -64,7 +65,6 @@ export async function getDashboardSavingsMetrics(userId, timeZone = "Africa/Nair
         AND le."status" = 'POSTED'
         AND le."side" = 'CREDIT'
         AND la."accountType" = 'savings'
-        AND p."type" IN ('save', 'purchase', 'bill', 'airtime')
     `,
     tx.$queryRaw`
       SELECT DISTINCT DATE(COALESCE(le."postedAt", le."createdAt") AT TIME ZONE ${safeTimeZone}) AS "savingDay"
@@ -78,7 +78,6 @@ export async function getDashboardSavingsMetrics(userId, timeZone = "Africa/Nair
         AND le."side" = 'CREDIT'
         AND la."accountType" = 'savings'
         AND le.amount > 0
-        AND p."type" IN ('save', 'purchase', 'bill', 'airtime')
       ORDER BY "savingDay" DESC
     `,
   ]);
