@@ -27,14 +27,6 @@ function getActivityDate(item) {
   return new Date(item?.date || item?.createdAt || 0);
 }
 
-function isSameCalendarDay(left, right) {
-  return (
-    left.getFullYear() === right.getFullYear() &&
-    left.getMonth() === right.getMonth() &&
-    left.getDate() === right.getDate()
-  );
-}
-
 function startOfCalendarDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
@@ -57,7 +49,7 @@ function getSavingsStreak(confirmedSavings) {
   const newestDay = new Date(savingDays[0]);
   const diffFromToday = Math.round((today - newestDay) / (24 * 60 * 60 * 1000));
 
-  // A current streak can remain alive when the user's most recent savings was yesterday.
+  // Keep the streak alive through a missed current day when the user saved yesterday.
   if (diffFromToday > 1) return 0;
 
   let streak = 1;
