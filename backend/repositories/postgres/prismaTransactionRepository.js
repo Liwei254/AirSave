@@ -43,9 +43,8 @@ export async function listWalletTransactions(userId, filters = {}, tx = prisma) 
 }
 
 /**
- * Returns only confirmed savings activity for dashboard metrics.
- * The aggregation is performed in PostgreSQL so the dashboard does not
- * need to load an arbitrary number of historical transactions into memory.
+ * Aggregate confirmed savings for dashboard metrics in PostgreSQL rather than
+ * loading the user's entire transaction history into the application.
  */
 export async function getDashboardSavingsMetrics(userId, timeZone = "Africa/Nairobi", tx = prisma) {
   const safeTimeZone = String(timeZone || "Africa/Nairobi").trim() || "Africa/Nairobi";
@@ -73,7 +72,10 @@ export async function getDashboardSavingsMetrics(userId, timeZone = "Africa/Nair
         ),
         0
       ) AS "savedThisMonth",
-      ARRAY_AGG(DISTINCT local_created_at::date ORDER BY local_created_at::date DESC) AS "savingDays"
+      ARRAY_AGG(
+        DISTINCT TO_CHAR(local_created_at::date, 'YYYY-MM-DD')
+        ORDER BY TO_CHAR(local_created_at::date, 'YYYY-MM-DD') DESC
+      ) AS "savingDays"
     FROM savings_activity
   `;
 
@@ -81,7 +83,7 @@ export async function getDashboardSavingsMetrics(userId, timeZone = "Africa/Nair
   return {
     savedThisMonth: Number(row.savedThisMonth || 0),
     savingDays: Array.isArray(row.savingDays)
-      ? row.savingDays.map((day) => new Date(day))
+      ? row.savingDays.map((day) => new Date(`${day}T00:00:00.000Z`))
       : [],
   };
 }
