@@ -2,67 +2,52 @@ import { getActiveGoal } from "./goalService.js";
 import { countUnreadNotifications } from "./notificationService.js";
 import { getSavingsActivity } from "./transactionService.js";
 import { getWallet } from "./walletService.js";
+import { getDashboardSavingsMetrics } from "../repositories/postgres/prismaTransactionRepository.js";
 import {
   getCachedDashboardSummary,
   setCachedDashboardSummary,
 } from "./cacheService.js";
 
-function isConfirmed(status) {
-  return ["confirmed", "completed", "success", "successful"].includes(String(status || "").toLowerCase());
+const DASHBOARD_TIME_ZONE = process.env.APP_TIMEZONE || "Africa/Nairobi";
+
+function startOfCalendarDayUtc(date) {
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
-function getItemAmount(item) {
-  return Number(item?.savings ?? item?.amount ?? 0);
+function getTodayInTimeZone(timeZone) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day));
 }
 
-function isSavingsInflow(item) {
-  const type = String(item?.type || item?.transactionType || "").toLowerCase();
-  const savingsAmount = Number(item?.savings ?? item?.savingsAmount ?? 0);
+function getSavingsStreakFromDays(savingDays, timeZone = DASHBOARD_TIME_ZONE) {
+  if (!savingDays.length) return 0;
 
-  if (type === "save") return savingsAmount > 0 || Number(item?.amount ?? 0) > 0;
-  if (["purchase", "bill", "airtime"].includes(type)) return savingsAmount > 0;
-  return false;
-}
-
-function startOfMonth(date = new Date()) {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function getActivityDate(item) {
-  return new Date(item?.date || item?.createdAt || 0);
-}
-
-function startOfCalendarDay(date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function getSavingsStreak(confirmedSavings) {
-  if (!confirmedSavings.length) return 0;
-
-  const savingDays = Array.from(
+  const uniqueDays = Array.from(
     new Set(
-      confirmedSavings
-        .map((item) => getActivityDate(item))
-        .filter((date) => !Number.isNaN(date.getTime()))
-        .map((date) => startOfCalendarDay(date).getTime())
+      savingDays
+        .filter((date) => date instanceof Date && !Number.isNaN(date.getTime()))
+        .map(startOfCalendarDayUtc)
     )
   ).sort((left, right) => right - left);
 
-  if (!savingDays.length) return 0;
+  if (!uniqueDays.length) return 0;
 
-  const today = startOfCalendarDay(new Date());
-  const newestDay = new Date(savingDays[0]);
-  const diffFromToday = Math.round((today - newestDay) / (24 * 60 * 60 * 1000));
+  const today = getTodayInTimeZone(timeZone);
+  const diffFromToday = Math.round((today - uniqueDays[0]) / 86400000);
 
-  // Keep the streak alive through a missed current day when the user saved yesterday.
+  // Preserve a streak when the user's latest qualifying savings day was yesterday.
   if (diffFromToday > 1) return 0;
 
   let streak = 1;
-  for (let index = 1; index < savingDays.length; index += 1) {
-    const previous = savingDays[index - 1];
-    const current = savingDays[index];
-    const dayDiff = Math.round((previous - current) / (24 * 60 * 60 * 1000));
-
+  for (let index = 1; index < uniqueDays.length; index += 1) {
+    const dayDiff = Math.round((uniqueDays[index - 1] - uniqueDays[index]) / 86400000);
     if (dayDiff !== 1) break;
     streak += 1;
   }
@@ -72,34 +57,30 @@ function getSavingsStreak(confirmedSavings) {
 
 export async function getDashboardSummary(userId) {
   const cachedSummary = await getCachedDashboardSummary(userId);
-  if (cachedSummary) {
-    return cachedSummary;
-  }
+  if (cachedSummary) return cachedSummary;
 
-  const [wallet, activeGoal, activity, unreadNotifications] = await Promise.all([
+  const [wallet, activeGoal, activity, dashboardSavings, unreadNotifications] = await Promise.all([
     getWallet(userId),
     getActiveGoal(userId),
     getSavingsActivity(userId),
+    getDashboardSavingsMetrics(userId, DASHBOARD_TIME_ZONE),
     countUnreadNotifications(userId),
   ]);
 
-  const confirmedSavings = activity.filter((item) => isConfirmed(item.status) && isSavingsInflow(item));
-  const monthStart = startOfMonth();
-  const savedThisMonth = confirmedSavings
-    .filter((item) => getActivityDate(item) >= monthStart)
-    .reduce((sum, item) => sum + Math.max(0, getItemAmount(item)), 0);
-  const savingsStreak = getSavingsStreak(confirmedSavings);
+  const goalProgress = activeGoal
+    ? Math.min(100, Math.max(0, Number(activeGoal.progressPercent ?? 0)))
+    : 0;
 
   const summary = {
     walletBalance: Number(wallet.balance || 0),
-    savedThisMonth,
+    savedThisMonth: dashboardSavings.savedThisMonth,
+    goalProgress,
     activeGoal,
-    savingsStreak,
+    savingsStreak: getSavingsStreakFromDays(dashboardSavings.savingDays),
     recentTransactions: activity.slice(0, 5),
     unreadNotifications,
   };
 
   await setCachedDashboardSummary(userId, summary);
-
   return summary;
 }
