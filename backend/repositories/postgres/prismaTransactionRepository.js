@@ -72,9 +72,13 @@ export async function getDashboardSavingsMetrics(userId, timeZone = "Africa/Nair
         ),
         0
       ) AS "savedThisMonth",
-      ARRAY_AGG(
-        DISTINCT TO_CHAR(local_created_at::date, 'YYYY-MM-DD')
-        ORDER BY TO_CHAR(local_created_at::date, 'YYYY-MM-DD') DESC
+      ARRAY(
+        SELECT TO_CHAR(day_value, 'YYYY-MM-DD')
+        FROM (
+          SELECT DISTINCT local_created_at::date AS day_value
+          FROM savings_activity
+        ) days
+        ORDER BY day_value DESC
       ) AS "savingDays"
     FROM savings_activity
   `;
