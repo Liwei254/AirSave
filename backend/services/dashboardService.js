@@ -16,7 +16,12 @@ function getItemAmount(item) {
 }
 
 function isSavingsInflow(item) {
-  return !["withdraw", "send"].includes(String(item?.type || item?.transactionType || "").toLowerCase());
+  const type = String(item?.type || item?.transactionType || "").toLowerCase();
+  const savingsAmount = Number(item?.savings ?? item?.savingsAmount ?? 0);
+
+  if (type === "save") return savingsAmount > 0 || Number(item?.amount ?? 0) > 0;
+  if (["purchase", "bill", "airtime"].includes(type)) return savingsAmount > 0;
+  return false;
 }
 
 function startOfMonth(date = new Date()) {
